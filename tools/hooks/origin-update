@@ -1,0 +1,11 @@
+#!/bin/sh
+# Installed as hooks/update in the bare origin (~/git/koplik.git).
+# main is operator-only: refuse it unless the operator marks the push.
+# Cooperative guard rail (like rsi's pre-push hook), not a security boundary.
+# Non-fast-forward updates and ref deletion are refused by receive.* config.
+ref="$1"
+if [ "$ref" = "refs/heads/main" ] && [ "$KOPLIK_PROMOTE_MAIN" != "1" ]; then
+    echo "origin: refs/heads/main is operator-only (promote the QA-green SHA with KOPLIK_PROMOTE_MAIN=1)" >&2
+    exit 1
+fi
+exit 0

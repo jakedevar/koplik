@@ -1,0 +1,7 @@
+[toolchain]
+# Same pinned toolchain as rsi (1.94.1); wasm32 for the in-browser engine.
+# Bump only via deliberate review.
+channel = "1.94.1"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"

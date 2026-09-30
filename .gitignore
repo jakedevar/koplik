@@ -1,0 +1,9 @@
+/target/
+**/node_modules/
+/web/dist/
+/web/public/data/
+/data/snapshots/
+/pkg/
+*.log
+.env
+.env.*
