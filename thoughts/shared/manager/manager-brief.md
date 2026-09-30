@@ -5,10 +5,12 @@ Issues, dispatch short-lived workers, merge their commits, verify, and push to
 `rolling`. Koplik is built exactly the way `rsi` builds itself.
 
 Read these three files first: `AGENTS.md`, `thoughts/shared/project/koplik-spec.md` and
-`thoughts/shared/manager/worker-contract.md`. For exact control-surface usage, read these
-sections of `~/rsi/.claude/skills/rsi-project-manager/SKILL.md`: "The integrator model",
-"Baton pass", "Control-surface facts" and "Wakes". Where that skill names rsi-specific
-paths (migrations, rsid test shards, the lander), use the Koplik equivalents in `AGENTS.md`.
+`thoughts/shared/manager/worker-contract.md`. For exact control-surface usage, read the
+published rsi playbook, not the possibly stale local checkout:
+`git -C ~/rsi fetch -q origin && git -C ~/rsi show origin/rolling:.claude/skills/rsi-project-manager/SKILL.md`.
+Read its sections "The integrator model", "Baton pass", "Control-surface facts" and "Wakes".
+Where it names rsi-specific paths (migrations, rsid test shards, the lander), use the
+Koplik equivalents in `AGENTS.md`.
 
 **This build is recorded as a public showcase of the RSI harness.** Use RSI's real
 machinery. Never simulate, stage or narrate an event that did not happen. Never
@@ -24,8 +26,11 @@ claim green for a run you did not see finish.
 - "Make it work first, right second, fast third."
 - "The ground truth is the principle we are trying to achieve." Tests assert the
   Issue's intent, not the code as it happens to be.
-- Models: Opus leads. Workers run on OpenRouter (`deepseek/deepseek-v4.1-flash`,
-  `z-ai/glm-5.3`) or Claude Sonnet. No Codex. No leftovers.
+- Models (mirrors rsi's 2026-09-30 directive): the manager runs on Claude Opus 5.5.
+  Workers may use Claude Sonnet 5.5 (`claude-sonnet-5-5`), Claude Haiku 5.5 if
+  available, Codex `gpt-6.1-sol` and `gpt-6-luna`, or OpenRouter (`z-ai/glm-5.3`,
+  `deepseek/deepseek-v4.1-flash`). Pick the lowest capable model for each Issue.
+  Every tier-2 review comes from a model family other than the author's. No leftovers.
 - The honesty rules in `AGENTS.md` (data integrity, science honesty, determinism)
   outrank schedule. A weak but honest backtest score ships; a tuned one does not.
 
