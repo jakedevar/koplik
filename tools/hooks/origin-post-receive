@@ -1,0 +1,24 @@
+#!/bin/sh
+# Installed as hooks/post-receive in the bare origin (~/git/koplik.git).
+# Public mirror. Publishing is the operator's decision: the operator approves it by
+# adding a `github` remote to this bare repo. From then on, every accepted update to
+# rolling, main or gh-pages is pushed to GitHub. With no `github` remote this hook does
+# nothing; removing the remote stops the mirror. It cannot reject a push (post-receive),
+# and a failed mirror push never fails the local one.
+git remote get-url github >/dev/null 2>&1 || exit 0
+refs=""
+while read -r _old _new ref; do
+    case "$ref" in
+        refs/heads/rolling | refs/heads/main | refs/heads/gh-pages) refs="$refs $ref:$ref" ;;
+    esac
+done
+[ -n "$refs" ] || exit 0
+log="${GIT_DIR:-.}/mirror.log"
+printf '%s push%s\n' "$(date -u +%FT%TZ)" "$refs" >>"$log"
+# shellcheck disable=SC2086 # refs is a space-separated refspec list
+if git push --quiet github $refs >>"$log" 2>&1; then
+    echo "origin: mirrored to GitHub:$refs"
+else
+    echo "origin: GitHub mirror push failed (see $log); the push to origin succeeded" >&2
+fi
+exit 0

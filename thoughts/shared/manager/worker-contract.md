@@ -25,6 +25,9 @@ end. The manager merges, tests and pushes to `rolling`.
 - Contract changes: add a new contract version in `koplik-contracts` and
   regenerate the JSON Schema. Released versions are immutable. Say so in your RESULT lines.
 - Science changes: cite every parameter's source in a code comment. Keep seeds explicit.
+- Engine changes (`koplik-epi`, `koplik-wasm`) follow the portability rules in the spec's
+  E4: portable seeded RNG, no `usize` in draws, `libm` for every transcendental, ordered
+  maps, no parallel float reductions.
 - Format only the files you changed (see `AGENTS.md` rule 9).
 
 ## 3. Verify
@@ -45,6 +48,11 @@ end. The manager merges, tests and pushes to `rolling`.
   work survives if your session ends early.
 - Commit on your sandbox branch with the repo's message style. Stage explicit
   paths, never `git add -A`.
+- Every commit, including `wip(#<n>)` checkpoints, carries your session id as a trailer:
+  `git commit -m "<subject>" --trailer "Rsi-Session: $RSI_SESSION_ID"`. If that variable
+  is empty, use the id from your sandbox branch name (`rsi/<id>`). This is commit
+  provenance: the public history maps each commit to the session, and so the model, that
+  wrote it.
 - The first line of your final message is:
   `RESULT <full sha> issue=#<n> tests="<exact test command>" status=<green|red: reason|partial: reason>`
   Then at most ten lines: what changed, what the integrator must know (contract

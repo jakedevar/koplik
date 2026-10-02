@@ -48,7 +48,9 @@ stranded on a branch.
    data" rather than an estimate. Every model parameter is configurable and cites
    its source in a code comment.
 6. **Determinism.** All stochastic code takes an explicit seed. The same seed and
-   inputs give identical output on native and `wasm32` builds.
+   inputs give identical output on native and `wasm32` builds. Follow the
+   portability rules in the spec's E4 (portable RNG, no `usize` in draws, `libm`
+   for transcendentals, ordered maps, no parallel float reductions).
 7. **Network.** Only `koplik-ingest` touches the network. Every test runs offline
    against committed fixtures in `data/fixtures/`.
 8. **Secrets.** Never write credentials or `$RSI_SESSION_TOKEN` into files,
@@ -61,6 +63,9 @@ stranded on a branch.
     is absent. Assert the positive end state.
 11. **Commit before you finish.** Uncommitted sandbox work can be reclaimed.
     Commit scoped changes with the repo's message style and no attribution footers.
+    Every commit carries the trailer `Rsi-Session: <your RSI session id>`. It is
+    provenance, not attribution: it maps each commit to the session (and model)
+    that wrote it. See the worker contract.
 12. **No bare `git stash`.** The stash is shared across worktrees.
 13. **Long runs.** Run every cargo command through the machine's resource governor
     (`~/.rsi/bin/cargo-slot cargo ...`). Run it in the foreground and `tee` long
@@ -68,9 +73,9 @@ stranded on a branch.
 
 ## Project map
 
-Koplik is a static web app for measles outbreak intelligence (cases, R_t,
-outbreak-risk forecast, in-browser "what-if" simulation, and provenance on every
-number). Planned layout; the Contracts Issue creates the workspace:
+Koplik is a static web app for measles outbreak intelligence (cases by US state and
+Texas county, R_t, an in-browser "what-if" simulation, an outbreak forecast, and
+provenance on every number). Planned layout; the Contracts Issue creates the workspace:
 
 - `crates/koplik-contracts`: shared types, contract versions, JSON Schema.
 - `crates/koplik-ingest`: source connectors and the content-addressed snapshot store.
@@ -80,6 +85,7 @@ number). Planned layout; the Contracts Issue creates the workspace:
 - `web/`: TypeScript + Vite + MapLibre. It consumes pipeline artifacts and the WASM engine.
 - `data/fixtures/` (committed test inputs); `data/snapshots/` (gitignored raw archive).
 - `SOURCES.md`: every source with its URL, licence or terms, and cadence.
+- `tools/hooks/`: the bare `origin`'s guard and mirror hooks (operator-owned; do not edit).
 
 ## Build and test
 
@@ -94,6 +100,7 @@ make determinism # native vs wasm identical-trajectory test
 make web-test    # web unit + e2e
 make pipeline    # run the pipeline from snapshots to web/public/data
 make serve       # serve the built site locally
+make publish     # build the site for GitHub Pages and push it to origin's gh-pages branch
 ```
 
 ## Landing
@@ -110,8 +117,15 @@ different model family, with the verdict noted in the merge commit. Everything
 else lands first and gets one post-land review.
 
 The QA sweep records each passing `rolling` SHA in `thoughts/shared/qa/qa-green.sha`
-(a file, not a branch). The operator promotes `main` only from that SHA. Workers
-follow `thoughts/shared/manager/worker-contract.md`. The manager follows
+(a file, not a branch). The operator promotes `main` only from that SHA.
+
+Public publishing is the operator's decision. The operator approves it by adding a
+`github` remote to the bare `origin`. From then on, `origin` mirrors every accepted
+update to `rolling`, `main` and `gh-pages` to the public GitHub repo (hook
+`tools/hooks/origin-post-receive`), so **a push to `origin` is then a public push**.
+Agents never push to GitHub directly.
+
+Workers follow `thoughts/shared/manager/worker-contract.md`. The manager follows
 `thoughts/shared/manager/manager-brief.md`.
 
 ## Agent control

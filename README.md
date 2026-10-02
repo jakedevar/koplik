@@ -5,11 +5,12 @@
 > Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.
 
 Koplik spots are the earliest visible sign of measles. Koplik answers five questions for any US
-county or country:
+state, and for Texas counties in the 2025 West Texas outbreak:
 - what is happening;
 - how fast it is spreading (R_t);
-- where it is likely to spread next (a stochastic SEIR forecast);
-- what happens if vaccination coverage changes (an in-browser WebAssembly simulator);
+- what happens if vaccination coverage changes (an in-browser WebAssembly simulator whose
+  trajectories are bit-identical to the native engine for the same seed);
+- where it is likely to spread next (a stochastic SEIR forecast, scored by an honest backtest);
 - why you should trust the answer (a content-addressed provenance trail back to the primary source).
 
 **Status:** pre-alpha. It is being built live by an agent team run by the
