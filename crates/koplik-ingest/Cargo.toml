@@ -24,6 +24,8 @@ sha2.workspace = true
 hex.workspace = true
 # Small blocking HTTP client; TLS via rustls (no OpenSSL, no async runtime).
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+csv = "1"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [dev-dependencies]
 tempfile = "3"
