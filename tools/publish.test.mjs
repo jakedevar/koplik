@@ -211,7 +211,7 @@ process.exit(r.status ?? 1);
     assert.match(forbidden.stderr, /local bare repository/);
     assert.deepEqual(await snapshot(), before);
 
-    // A failed pipeline and a successful command with no manifest both fail before any push.
+    // A failed pipeline build and a successful command with no binary both fail before any push.
     await rm(join(bin, 'git'));
     const pipelineCall = join(scratch, 'pipeline-call.json');
     for (const code of [42, 0]) {
@@ -224,13 +224,11 @@ process.exit(${code});
 `, { mode: 0o755 });
       const failed = publish({ PATH: `${bin}:${process.env.PATH}`, CARGO_TARGET_DIR: 'relative-pipeline-target' });
       assert.notEqual(failed.status, 0);
-      assert.match(failed.stderr, code ? /failed \(42\)/ : /produced no web\/public\/data\/manifest.json/);
+      assert.match(failed.stderr, code ? /failed \(42\)/ : /ENOENT/);
       const call = JSON.parse(await readFile(pipelineCall, 'utf8'));
       assert.equal(call.contact, '');
-      assert.equal(call.target, join(caller, 'relative-pipeline-target'));
-      assert.deepEqual(call.args.slice(0, 9), ['run', '--offline', '--locked', '--release', '-p', 'koplik-pipeline', '--', 'all', '--from-fixtures']);
-      assert.deepEqual(call.args.slice(9), ['--fixtures', join(call.cwd, 'data/fixtures'),
-        '--work', join(call.cwd, '../work'), '--out', join(call.cwd, 'web/public/data')]);
+      assert.equal(call.target, join(call.cwd, 'target'), 'archive owns its compiler artifacts');
+      assert.deepEqual(call.args, ['build', '--offline', '--locked', '--release', '-p', 'koplik-pipeline']);
       assert.ok(call.cwd.startsWith(join(scratch, 'koplik-publish-')));
       assert.equal(refs(), `refs/heads/gh-pages ${final}`);
       assert.deepEqual(await snapshot(), before);
