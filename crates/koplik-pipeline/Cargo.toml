@@ -1,0 +1,29 @@
+[package]
+name = "koplik-pipeline"
+version = "0.1.0"
+description = "Koplik pipeline CLI: ingest -> validate -> infer -> forecast -> build, each stage writing a manifest with the sha256 of its inputs and outputs"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "koplik_pipeline"
+
+[[bin]]
+name = "koplik-pipeline"
+path = "src/main.rs"
+
+[dependencies]
+koplik-contracts = { path = "../koplik-contracts" }
+koplik-ingest = { path = "../koplik-ingest" }
+koplik-epi = { path = "../koplik-epi" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono = { workspace = true, features = ["clock"] }
+sha2.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+tempfile = "3"

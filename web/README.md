@@ -34,8 +34,11 @@ Workers must test against temporary bare repositories, never the real origin.
 
 ## Pipeline artifact layout (contracts v1)
 
-The pipeline writes the following files under `web/public/data/v1/`. Each row
-array contains unwrapped v1 contract objects, not a new shared contract shape:
+`koplik-pipeline build` (`make pipeline`, or `make pipeline-fixtures` offline from the
+committed real-byte fixtures) writes the following files under `web/public/data/v1/`,
+plus `web/public/data/manifest.json`: the build manifest with the sha256 of every input
+and output, each source's snapshot and retrieval, and what is missing or skipped. Each
+row array contains unwrapped contract objects, not a new shared contract shape:
 
 | File | Row schema in `crates/koplik-contracts/schema/v1/` |
 | --- | --- |
@@ -57,6 +60,12 @@ and geography + school year for coverage. Empty arrays mean unavailable data; mi
 contract's explicit `missing` variant. Do not insert zeros for missing weeks.
 All six files are required so a failed or incomplete build fails visibly instead
 of silently rendering stale partial data. Production never falls back to fixtures.
+The boundary files are the Census 2024 cartographic boundaries converted by
+`koplik-ingest` (52 states and 254 Texas counties, `properties.GEOID`, `NAME` and
+provenance on every feature). When a boundary snapshot is absent from the store the
+pipeline writes an explicitly empty FeatureCollection and records it as missing in
+the manifest; the what-if scenario (`data/scenarios/gaines-2025.json`) is absent
+until population and centroids exist (#1352).
 
 At load time Ajv validates rows against the committed v1 schemas and the client
 checks contract cross-field semantics, duplicates and geography references.

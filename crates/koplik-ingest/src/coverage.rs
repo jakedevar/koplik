@@ -263,6 +263,18 @@ pub fn parse_cdc(
 
 /// DSHS's explicit county name/FIPS crosswalk. Never derive FIPS from spreadsheet order.
 pub fn texas_counties(bytes: &[u8], retrieval: &Retrieval) -> Result<BTreeMap<String, CountyFips>> {
+    Ok(texas_county_names(bytes, retrieval)?
+        .into_iter()
+        .map(|(fips, name)| (name.to_ascii_lowercase(), fips))
+        .collect())
+}
+
+/// The DSHS county/FIPS crosswalk as published: every Texas county FIPS with the county name
+/// exactly as DSHS spells it (e.g. `Gaines`), for display. Same checks as [`texas_counties`].
+pub fn texas_county_names(
+    bytes: &[u8],
+    retrieval: &Retrieval,
+) -> Result<BTreeMap<CountyFips, String>> {
     verify(bytes, retrieval, &county_source_spec())?;
     let html =
         std::str::from_utf8(bytes).map_err(|e| parse_error(format!("DSHS county HTML: {e}")))?;
@@ -305,7 +317,7 @@ pub fn texas_counties(bytes: &[u8], retrieval: &Retrieval) -> Result<BTreeMap<St
         ));
     }
     let mut out = BTreeMap::new();
-    let mut codes = BTreeSet::new();
+    let mut names = BTreeSet::new();
     for r in matched[0].select(&body_rows) {
         let r: Vec<_> = r.select(&cells).map(text).collect();
         if r.len() != 5 {
@@ -317,8 +329,8 @@ pub fn texas_counties(bytes: &[u8], retrieval: &Retrieval) -> Result<BTreeMap<St
             .map_err(|e| parse_error(format!("county FIPS: {e}")))?;
         if fips.state().code() != 48
             || name.is_empty()
-            || out.insert(name.to_ascii_lowercase(), fips).is_some()
-            || !codes.insert(fips)
+            || !names.insert(name.to_ascii_lowercase())
+            || out.insert(fips, name.clone()).is_some()
         {
             return Err(parse_error("invalid or duplicate DSHS county identity"));
         }
