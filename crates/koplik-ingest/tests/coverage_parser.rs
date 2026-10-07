@@ -308,6 +308,7 @@ fn offline_cli_writes_v1_rows_and_complete_gaps() {
             .arg(&out)
             .arg("--gaps")
             .arg(&gaps)
+            .env_remove("KOPLIK_CONTACT")
             .output()
             .unwrap();
         assert!(
@@ -328,5 +329,30 @@ fn offline_cli_writes_v1_rows_and_complete_gaps() {
                 .cloned()
                 .collect::<Vec<_>>()
         );
+    }
+}
+
+#[test]
+fn live_coverage_fetch_requires_contact_before_creating_store() {
+    for source in ["cdc-coverage", "texas-coverage"] {
+        for contact in [None, Some(""), Some("   ")] {
+            let dir = tempfile::tempdir().unwrap();
+            let store = dir.path().join("snapshots");
+            let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_koplik-ingest"));
+            cmd.args(["fetch", source, "--store"])
+                .arg(&store)
+                .env_remove("KOPLIK_CONTACT");
+            if let Some(contact) = contact {
+                cmd.env("KOPLIK_CONTACT", contact);
+            }
+            let result = cmd.output().unwrap();
+            assert!(!result.status.success());
+            let error = String::from_utf8_lossy(&result.stderr);
+            assert!(error.contains("KOPLIK_CONTACT"), "{error}");
+            assert!(
+                !store.exists(),
+                "contact refusal must precede store creation"
+            );
+        }
     }
 }

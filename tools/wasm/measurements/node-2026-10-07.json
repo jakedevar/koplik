@@ -1,0 +1,52 @@
+{
+  "measured_at": "2026-10-07T02:36:50.148Z",
+  "runtime": "v26.10.0",
+  "v8": "14.6.202.34-node.34",
+  "platform": "linux 7.2.9-zen1-1-zen x64",
+  "cpu": "AMD Ryzen 9 9950X3D 16-Core Processor",
+  "fixture_sha256": "a8c3e92eebc9a7fa9fff5af3c5603e287be72e1237152a8dcd3f6e36b7f13a21",
+  "wasm_sha256": "e26afc833c84562e9adcf0bbb3c317dd8ef774abe366cd96048123a02bba35f0",
+  "synthetic": true,
+  "fixture": "data/fixtures/seir/synthetic-scenario.json",
+  "runs": 1000,
+  "counties": 7,
+  "horizon_days": 180,
+  "time_step_days": 1,
+  "seed": "1353",
+  "measured_scope": "WASM facade: input JSON parse, engine, summaries, all member hashes, result JSON serialize + JS parse; excludes module load",
+  "cold": {
+    "elapsed_ms": 496.598168,
+    "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+    "output_json_bytes": 1016604
+  },
+  "warm": [
+    {
+      "elapsed_ms": 479.23484199999996,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 477.0117070000001,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 474.4075270000001,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 472.89997100000005,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 473.54757800000016,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    }
+  ],
+  "warm_median_ms": 474.4075270000001,
+  "target_ms": 3000,
+  "warm_median_meets_target": true
+}

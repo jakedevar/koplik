@@ -28,13 +28,13 @@ const rt = all.flatMap((g) => g.rt.map((estimate, i) => ({ geography: g.id, week
 function boundaries(rows) {
   return { type: 'FeatureCollection', features: rows.map((g) => {
     const [west, south, east, north] = g.rectangle;
-    return { type: 'Feature', properties: { GEOID: g.id }, geometry: { type: 'Polygon', coordinates: [
+    return { type: 'Feature', properties: { GEOID: g.id, provenance }, geometry: { type: 'Polygon', coordinates: [
       [[west, south], [east, south], [east, north], [west, north], [west, south]],
     ] } };
   }) };
 }
 const artifacts = { geographies, 'weekly-cases': cases, coverage, rt, 'us-states': boundaries(source.states), 'texas-counties': boundaries(source.counties) };
-for (const root of [new URL('../../data/fixtures/web/synthetic-v1/', import.meta.url), new URL('../public/data/synthetic-v1/', import.meta.url)]) {
+for (const root of [new URL('../../data/fixtures/web/synthetic-v1/', import.meta.url)]) {
   await mkdir(root, { recursive: true });
   for (const [name, value] of Object.entries(artifacts)) await writeFile(new URL(`synthetic-${name}.json`, root), `${JSON.stringify(value, null, 2)}\n`);
 }

@@ -14,20 +14,44 @@ use crate::robots::Robots;
 /// Hard floor for the gap between two requests to one host.
 pub const MIN_HOST_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Project identification sent with every request. `KOPLIK_CONTACT` (a repository URL or
-/// contact address) overrides the default contact part.
-pub const DEFAULT_CONTACT: &str = "https://github.com/koplik/koplik";
+/// Environment variable holding the operator-verified contact (an e-mail address or a
+/// repository URL) that identifies this client to the data hosts.
+pub const CONTACT_ENV: &str = "KOPLIK_CONTACT";
 
-pub fn default_user_agent() -> String {
-    let contact = std::env::var("KOPLIK_CONTACT")
+/// The configured contact, if any (blank counts as none).
+pub fn contact_from_env() -> Option<String> {
+    std::env::var(CONTACT_ENV)
         .ok()
-        .filter(|c| !c.trim().is_empty())
-        .unwrap_or_else(|| DEFAULT_CONTACT.to_owned());
-    format!(
-        "koplik-ingest/{} (measles outbreak research demo; +{})",
-        env!("CARGO_PKG_VERSION"),
-        contact.trim()
-    )
+        .map(|c| c.trim().to_owned())
+        .filter(|c| !c.is_empty())
+}
+
+/// Offline User-Agent: project name and version, plus the contact from `KOPLIK_CONTACT` when
+/// set. Live fetching must not use this: it goes through [`live_user_agent`], which refuses
+/// to run without a contact.
+pub fn default_user_agent() -> String {
+    user_agent_with(contact_from_env().as_deref())
+}
+
+/// `koplik-ingest/<version> (measles data demonstration project[; <contact>])` (a blank
+/// contact counts as none). Nothing is ever invented: with no contact there is none.
+pub fn user_agent_with(contact: Option<&str>) -> String {
+    let base = format!(
+        "koplik-ingest/{} (measles data demonstration project",
+        env!("CARGO_PKG_VERSION")
+    );
+    match contact.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(c) => format!("{base}; {c})"),
+        None => format!("{base})"),
+    }
+}
+
+/// The User-Agent for live requests: requires a non-blank, operator-supplied contact.
+pub fn live_user_agent(contact: Option<&str>) -> Result<String> {
+    match contact.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(c) => Ok(user_agent_with(Some(c))),
+        None => Err(IngestError::ContactRequired),
+    }
 }
 
 /// Time and sleeping, injectable so tests never wait.
@@ -77,6 +101,20 @@ pub struct PoliteConfig {
     pub backoff_base: Duration,
     pub backoff_cap: Duration,
     pub max_redirects: u32,
+    /// Longest robots.txt `Crawl-delay` that is honoured. A larger delay is never shortened:
+    /// the fetch is refused with [`IngestError::CrawlDelayTooLong`] instead.
+    pub max_crawl_delay: Duration,
+}
+
+impl PoliteConfig {
+    /// Configuration for live fetching: identifies the client with `contact` (normally
+    /// [`contact_from_env`]) and refuses, before any request, when there is none.
+    pub fn live(contact: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            user_agent: live_user_agent(contact)?,
+            ..Self::default()
+        })
+    }
 }
 
 impl Default for PoliteConfig {
@@ -88,6 +126,7 @@ impl Default for PoliteConfig {
             backoff_base: Duration::from_secs(2),
             backoff_cap: Duration::from_secs(60),
             max_redirects: 3,
+            max_crawl_delay: Duration::from_secs(120),
         }
     }
 }
@@ -110,15 +149,32 @@ pub struct PoliteFetcher<C: HttpClient, T: Timekeeper> {
     time: T,
     cfg: PoliteConfig,
     last_request: HashMap<String, Duration>,
+    /// robots.txt rules per origin (`scheme://authority`); throttling is per host.
     robots: HashMap<String, Robots>,
 }
 
-/// `(scheme, host, path_and_query)` of an http(s) URL without credentials.
-fn split_url(url: &str) -> Result<(&str, String, String)> {
+/// A parsed http(s) URL without credentials.
+struct Target {
+    scheme: String,
+    /// Lower-cased authority with the scheme's default port removed (`example.org`,
+    /// `example.org:8080`). Throttling is keyed by this, so `http` and `https` share a host.
+    host: String,
+    path: String,
+}
+
+impl Target {
+    /// robots.txt scope: scheme plus normalised authority.
+    fn origin(&self) -> String {
+        format!("{}://{}", self.scheme, self.host)
+    }
+}
+
+fn split_url(url: &str) -> Result<Target> {
     let bad = |m: &str| IngestError::Invalid(format!("{m}: {url}"));
     let (scheme, rest) = url
         .split_once("://")
         .ok_or_else(|| bad("URL has no scheme"))?;
+    let scheme = scheme.to_ascii_lowercase();
     if scheme != "http" && scheme != "https" {
         return Err(bad("only http and https URLs are fetched"));
     }
@@ -128,12 +184,17 @@ fn split_url(url: &str) -> Result<(&str, String, String)> {
     if authority.is_empty() || authority.contains('@') {
         return Err(bad("URL must have a host and no credentials"));
     }
+    let mut host = authority.to_ascii_lowercase();
+    let default_port = if scheme == "https" { ":443" } else { ":80" };
+    if let Some(h) = host.strip_suffix(default_port) {
+        host = h.to_owned();
+    }
     let path = if tail.is_empty() || tail.starts_with('?') {
         format!("/{tail}")
     } else {
         tail.to_owned()
     };
-    Ok((scheme, authority.to_ascii_lowercase(), path))
+    Ok(Target { scheme, host, path })
 }
 
 impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
@@ -166,14 +227,25 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             .insert(host.to_owned(), self.time.monotonic());
     }
 
-    fn host_interval(&self, host: &str) -> Duration {
-        let delay = self
+    /// Gap to keep before the next request to `host`: the configured interval, or the host's
+    /// robots.txt `Crawl-delay` when that is longer. A delay above `max_crawl_delay` is refused,
+    /// never shortened.
+    fn host_interval(&self, host: &str) -> Result<Duration> {
+        let delay_secs = self
             .robots
-            .get(host)
-            .and_then(Robots::crawl_delay_secs)
-            .map(|s| Duration::from_secs_f64(s.min(60.0)))
-            .unwrap_or_default();
-        self.cfg.min_interval.max(delay)
+            .iter()
+            .filter(|(origin, _)| origin_host(origin) == host)
+            .filter_map(|(_, r)| r.crawl_delay_secs())
+            .fold(0.0_f64, f64::max);
+        let delay = Duration::try_from_secs_f64(delay_secs).unwrap_or(Duration::MAX);
+        if delay > self.cfg.max_crawl_delay {
+            return Err(IngestError::CrawlDelayTooLong {
+                host: host.to_owned(),
+                delay_secs,
+                limit_secs: self.cfg.max_crawl_delay.as_secs(),
+            });
+        }
+        Ok(self.cfg.min_interval.max(delay))
     }
 
     fn backoff(&self, attempt: u32, retry_after: Option<u64>) -> Duration {
@@ -192,7 +264,7 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
     fn request(&mut self, host: &str, url: &str) -> Result<HttpResponse> {
         let mut attempt = 1;
         loop {
-            let interval = self.host_interval(host);
+            let interval = self.host_interval(host)?;
             self.throttle(host, interval);
             let outcome = self.client.get(url, &self.cfg.user_agent);
             let (retryable, retry_after) = match &outcome {
@@ -208,12 +280,13 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         }
     }
 
-    fn robots_for(&mut self, scheme: &str, host: &str) -> Result<()> {
-        if self.robots.contains_key(host) {
-            return Ok(());
+    fn robots_for(&mut self, t: &Target) {
+        let origin = t.origin();
+        if self.robots.contains_key(&origin) {
+            return;
         }
-        let url = format!("{scheme}://{host}/robots.txt");
-        let robots = match self.request(host, &url) {
+        let url = format!("{origin}/robots.txt");
+        let robots = match self.request(&t.host, &url) {
             Ok(r) if (200..300).contains(&r.status) => {
                 Robots::parse(&String::from_utf8_lossy(&r.body), &self.cfg.user_agent)
             }
@@ -223,22 +296,23 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             // Server error or unreachable after retries: do not crawl what we cannot vet.
             _ => Robots::disallow_all(),
         };
-        self.robots.insert(host.to_owned(), robots);
-        Ok(())
+        self.robots.insert(origin, robots);
     }
 
-    /// GET `url` politely. Redirects are followed (bounded) and every hop is vetted against
-    /// robots.txt. Anything but a final 2xx is an error.
+    /// GET `url` politely. Redirects are followed (bounded) and every hop is vetted against the
+    /// robots.txt of its own origin. Anything but a final 2xx is an error.
     pub fn fetch(&mut self, url: &str) -> Result<Fetched> {
         let mut current = url.to_owned();
         for _ in 0..=self.cfg.max_redirects {
-            let (scheme, host, path) = split_url(&current)?;
-            let scheme = scheme.to_owned();
-            self.robots_for(&scheme, &host)?;
-            if !self.robots[&host].allowed(&path) {
-                return Err(IngestError::RobotsDisallowed { host, url: current });
+            let t = split_url(&current)?;
+            self.robots_for(&t);
+            if !self.robots[&t.origin()].allowed(&t.path) {
+                return Err(IngestError::RobotsDisallowed {
+                    host: t.host,
+                    url: current,
+                });
             }
-            let resp = self.request(&host, &current)?;
+            let resp = self.request(&t.host, &current)?;
             match resp.status {
                 200..=299 => {
                     return Ok(Fetched {
@@ -257,7 +331,7 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
                     current = if loc.contains("://") {
                         loc
                     } else if loc.starts_with('/') {
-                        format!("{scheme}://{host}{loc}")
+                        format!("{}{loc}", t.origin())
                     } else {
                         return Err(IngestError::Http(format!(
                             "unsupported relative redirect {loc:?} from {current}"
@@ -277,6 +351,11 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             self.cfg.max_redirects
         )))
     }
+}
+
+/// Host part of an origin key (`https://example.org:8080` -> `example.org:8080`).
+fn origin_host(origin: &str) -> &str {
+    origin.split_once("://").map_or(origin, |(_, h)| h)
 }
 
 #[cfg(test)]
@@ -384,7 +463,279 @@ mod tests {
         assert_eq!(got.retrieved_at.to_rfc3339(), "2026-10-06T12:00:00+00:00");
         for (_, ua) in c.calls.borrow().iter() {
             assert!(ua.starts_with("koplik-ingest/"), "{ua}");
-            assert!(ua.contains("https://"), "{ua}");
+        }
+    }
+
+    #[test]
+    fn user_agent_names_project_version_and_contact_and_invents_nothing() {
+        let ua = user_agent_with(None);
+        assert_eq!(
+            ua,
+            format!(
+                "koplik-ingest/{} (measles data demonstration project)",
+                env!("CARGO_PKG_VERSION")
+            )
+        );
+        assert!(!ua.contains("://") && !ua.contains('@'), "{ua}");
+        assert_eq!(user_agent_with(Some("  ")), ua);
+        assert_eq!(
+            user_agent_with(Some(" ops@example.org ")),
+            format!(
+                "koplik-ingest/{} (measles data demonstration project; ops@example.org)",
+                env!("CARGO_PKG_VERSION")
+            )
+        );
+    }
+
+    #[test]
+    fn live_fetching_requires_a_contact_before_any_request() {
+        for missing in [None, Some(""), Some("   \t")] {
+            assert!(
+                matches!(
+                    PoliteConfig::live(missing),
+                    Err(IngestError::ContactRequired)
+                ),
+                "{missing:?}"
+            );
+            assert!(matches!(
+                live_user_agent(missing),
+                Err(IngestError::ContactRequired)
+            ));
+        }
+        // A configured contact reaches the wire in the User-Agent of every request.
+        let cfg = PoliteConfig::live(Some(" https://example.org/koplik ")).unwrap();
+        let c = FakeClient::default();
+        c.on(ROBOTS, FakeClient::status(404, b""));
+        c.on(URL, FakeClient::ok(b"[]"));
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        f.fetch(URL).unwrap();
+        let want = format!(
+            "koplik-ingest/{} (measles data demonstration project; https://example.org/koplik)",
+            env!("CARGO_PKG_VERSION")
+        );
+        assert!(!c.calls.borrow().is_empty());
+        assert!(c.calls.borrow().iter().all(|(_, ua)| *ua == want));
+    }
+
+    #[test]
+    fn crawl_delay_above_a_minute_is_honoured_in_full() {
+        let c = FakeClient::default();
+        c.on(ROBOTS, FakeClient::ok(b"User-agent: *\nCrawl-delay: 90\n"));
+        c.on(URL, FakeClient::ok(b"[]"));
+        let t = FakeTime::default();
+        let mut f = fetcher(&c, &t);
+        f.fetch(URL).unwrap();
+        // The data request waits the whole 90 s after robots.txt, not a capped 60 s.
+        assert!(
+            t.sleeps.borrow().contains(&Duration::from_secs(90)),
+            "{:?}",
+            t.sleeps
+        );
+        f.fetch(URL).unwrap();
+        assert_eq!(
+            t.sleeps
+                .borrow()
+                .iter()
+                .filter(|d| **d == Duration::from_secs(90))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn crawl_delay_above_the_limit_refuses_instead_of_fetching_sooner() {
+        let c = FakeClient::default();
+        c.on(
+            ROBOTS,
+            FakeClient::ok(b"User-agent: *\nCrawl-delay: 3600\n"),
+        );
+        c.on(URL, FakeClient::ok(b"[]"));
+        let t = FakeTime::default();
+        let mut f = fetcher(&c, &t);
+        assert!(matches!(
+            f.fetch(URL),
+            Err(IngestError::CrawlDelayTooLong {
+                limit_secs: 120,
+                ..
+            })
+        ));
+        assert!(c.calls.borrow().iter().all(|(u, _)| u != URL));
+        assert!(
+            t.sleeps
+                .borrow()
+                .iter()
+                .all(|d| *d < Duration::from_secs(3600))
+        );
+        // Raising the limit makes the same delay acceptable.
+        let cfg = PoliteConfig {
+            max_crawl_delay: Duration::from_secs(7200),
+            ..PoliteConfig::default()
+        };
+        let t = FakeTime::default();
+        let mut f = PoliteFetcher::new(c.clone(), t.clone(), cfg);
+        f.fetch(URL).unwrap();
+        assert!(t.sleeps.borrow().contains(&Duration::from_secs(3600)));
+    }
+
+    #[test]
+    fn robots_are_per_origin_and_a_cross_scheme_redirect_is_revetted() {
+        const HTTP_ROBOTS: &str = "http://data.example.gov/robots.txt";
+        const START: &str = "http://data.example.gov/start";
+        let c = FakeClient::default();
+        // http origin allows everything; the https origin of the SAME host forbids /secret.
+        c.on(HTTP_ROBOTS, FakeClient::status(404, b""));
+        c.on(
+            ROBOTS,
+            FakeClient::ok(b"User-agent: *\nDisallow: /secret\n"),
+        );
+        let mut redirect = FakeClient::status(301, b"").unwrap();
+        redirect.location = Some("https://data.example.gov/secret/data".into());
+        c.on(START, Ok(redirect));
+        c.on("https://data.example.gov/secret/data", FakeClient::ok(b"x"));
+        let t = FakeTime::default();
+        let mut f = fetcher(&c, &t);
+        assert!(matches!(
+            f.fetch(START),
+            Err(IngestError::RobotsDisallowed { .. })
+        ));
+        let calls: Vec<String> = c.calls.borrow().iter().map(|(u, _)| u.clone()).collect();
+        assert!(calls.contains(&HTTP_ROBOTS.to_owned()));
+        assert!(
+            calls.contains(&ROBOTS.to_owned()),
+            "https robots fetched for its own origin"
+        );
+        assert!(!calls.contains(&"https://data.example.gov/secret/data".to_owned()));
+        // Throttling stays per host: the https robots request waited behind the http requests.
+        assert!(t.sleeps.borrow().len() >= 2);
+        assert!(
+            t.sleeps
+                .borrow()
+                .iter()
+                .all(|d| *d >= Duration::from_secs(1))
+        );
+    }
+
+    #[test]
+    fn encoded_special_character_rules_block_the_literal_urls_without_a_request() {
+        // RFC 9309 section 2.2.3, Figure 6: `%2A` and `%24` in a rule match a literal `*`
+        // and `$` in the requested URI.
+        let c = FakeClient::default();
+        c.on(
+            ROBOTS,
+            FakeClient::ok(
+                b"User-agent: *\nDisallow: /path/file-with-a-%2A.html\nDisallow: /path/foo-%24\n",
+            ),
+        );
+        let literal = [
+            "https://data.example.gov/path/file-with-a-*.html",
+            "https://data.example.gov/path/foo-$",
+        ];
+        for url in literal {
+            c.on(url, FakeClient::ok(b"x"));
+        }
+        let mut f = fetcher(&c, &FakeTime::default());
+        for url in literal {
+            assert!(
+                matches!(f.fetch(url), Err(IngestError::RobotsDisallowed { .. })),
+                "{url}"
+            );
+        }
+        assert!(
+            c.calls
+                .borrow()
+                .iter()
+                .all(|(u, _)| !literal.contains(&u.as_str())),
+            "no request may be sent for a forbidden URL"
+        );
+        // A different path on the same host is still fetched.
+        c.on("https://data.example.gov/path/other", FakeClient::ok(b"ok"));
+        assert_eq!(
+            f.fetch("https://data.example.gov/path/other").unwrap().body,
+            b"ok"
+        );
+    }
+
+    #[test]
+    fn normalisation_cannot_newly_allow_a_url_the_legacy_matcher_refused() {
+        // (robots.txt, forbidden URL path): both were refused before the Figure 6 fix.
+        let cases: [(&[u8], &str); 2] = [
+            (b"User-agent: *\nDisallow: /a*bcd\nAllow: /a$b\n", "/a$bcd"),
+            (
+                b"User-agent: *\nDisallow: /private\nAllow: /private/%24\n",
+                "/private/$",
+            ),
+        ];
+        for (robots_txt, path) in cases {
+            let c = FakeClient::default();
+            c.on(ROBOTS, FakeClient::ok(robots_txt));
+            let url = format!("https://data.example.gov{path}");
+            c.on(&url, FakeClient::ok(b"x"));
+            let mut f = fetcher(&c, &FakeTime::default());
+            assert!(
+                matches!(f.fetch(&url), Err(IngestError::RobotsDisallowed { .. })),
+                "{url}"
+            );
+            assert!(
+                c.calls.borrow().iter().all(|(u, _)| *u != url),
+                "zero data requests for {url}"
+            );
+        }
+    }
+
+    #[test]
+    fn default_ports_normalise_into_one_origin() {
+        let a = split_url("HTTPS://Data.Example.Gov:443/x").unwrap();
+        let b = split_url("https://data.example.gov/y").unwrap();
+        assert_eq!(a.origin(), b.origin());
+        assert_ne!(
+            split_url("http://data.example.gov/").unwrap().origin(),
+            b.origin()
+        );
+        assert_eq!(split_url("http://data.example.gov/").unwrap().host, b.host);
+        assert_ne!(
+            split_url("https://data.example.gov:8443/").unwrap().host,
+            b.host
+        );
+    }
+
+    #[test]
+    fn percent_encoded_paths_are_vetted_including_on_redirect_hops() {
+        let c = FakeClient::default();
+        c.on(
+            ROBOTS,
+            FakeClient::ok(b"User-agent: *\nDisallow: /private\nDisallow: /a%2fb\n"),
+        );
+        // The start URL is allowed; it redirects to an encoded spelling of a forbidden path.
+        let mut r1 = FakeClient::status(302, b"").unwrap();
+        r1.location = Some("/%70rivate/data".into());
+        c.on(URL, Ok(r1));
+        c.on(
+            "https://data.example.gov/%70rivate/data",
+            FakeClient::ok(b"x"),
+        );
+        let mut f = fetcher(&c, &FakeTime::default());
+        assert!(matches!(
+            f.fetch(URL),
+            Err(IngestError::RobotsDisallowed { .. })
+        ));
+        assert!(
+            c.calls
+                .borrow()
+                .iter()
+                .all(|(u, _)| !u.contains("%70rivate"))
+        );
+        // Encoded reserved character matches its rule; the unencoded separator does not.
+        for (url, blocked) in [
+            ("https://data.example.gov/a%2Fb", true),
+            ("https://data.example.gov/a/b", false),
+        ] {
+            c.on(url, FakeClient::ok(b"x"));
+            let mut f = fetcher(&c, &FakeTime::default());
+            assert_eq!(
+                matches!(f.fetch(url), Err(IngestError::RobotsDisallowed { .. })),
+                blocked,
+                "{url}"
+            );
         }
     }
 

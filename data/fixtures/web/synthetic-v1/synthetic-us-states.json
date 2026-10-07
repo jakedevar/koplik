@@ -4,7 +4,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "48"
+        "GEOID": "48",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -37,7 +46,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "40"
+        "GEOID": "40",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -70,7 +88,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "35"
+        "GEOID": "35",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -103,7 +130,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "20"
+        "GEOID": "20",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",

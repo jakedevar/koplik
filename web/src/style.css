@@ -37,6 +37,8 @@ select:disabled { cursor: default; opacity: 0.7; }
 .axis-label { font: 11px system-ui; fill: #557069; }
 .gridline { stroke: #dce5df; stroke-width: 1; }
 .case-bar { fill: #327868; }
+.case-zero { stroke: #327868; stroke-width: 3; }
+.rt-provisional-band { fill: none; stroke: #a36e14; stroke-width: 1.5; stroke-dasharray: 3 2; }
 .rt-ribbon { fill: #b6d9d0; fill-opacity: 0.65; }
 .rt-mean { fill: none; stroke: #196555; stroke-width: 2; }
 .rt-interval { stroke: #80b8a9; stroke-width: 1; }
@@ -54,5 +56,18 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .provisional { background: #fff4db; color: #78500f; }
 .insufficient { background: #eff1f0; color: #5c655f; }
 .disclaimer { margin: auto; max-width: 1320px; padding: 12px 24px 28px; color: #536b60; font-size: 12px; line-height: 1.6; }
+.what-if { margin-top: 24px; padding: 22px; }
+.what-if-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.what-if-controls label { width: 100%; }
+.what-if-controls input { flex: 1; min-width: 180px; min-height: 44px; accent-color: #196555; }
+.what-if-controls output { min-width: 150px; font-size: 14px; }
+.what-if details { margin: 16px 0; }
+.what-if summary { min-height: 32px; padding: 4px 0; }
+.what-if pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; max-height: 360px; overflow-y: auto; }
+.what-if code, .what-if a { overflow-wrap: anywhere; }
+.what-if-result svg { display: block; width: 100%; max-width: 900px; }
+.ensemble-band-90 { fill: #d6e8e2; }
+.ensemble-band-50 { fill: #91c2b3; }
+.ensemble-median { fill: none; stroke: #196555; stroke-width: 2.5; }
 @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } .map { height: 360px; } .tagline { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

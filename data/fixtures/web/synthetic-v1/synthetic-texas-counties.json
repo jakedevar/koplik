@@ -4,7 +4,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "48165"
+        "GEOID": "48165",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",
@@ -37,7 +46,16 @@
     {
       "type": "Feature",
       "properties": {
-        "GEOID": "48115"
+        "GEOID": "48115",
+        "provenance": [
+          {
+            "source_id": "synthetic-web-test",
+            "url": "https://example.invalid/synthetic-web-test",
+            "retrieved_at": "2026-10-07T00:00:00Z",
+            "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+            "licence_id": "synthetic-test-only"
+          }
+        ]
       },
       "geometry": {
         "type": "Polygon",

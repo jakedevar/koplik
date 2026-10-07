@@ -1,0 +1,31 @@
+{
+  "description": "EpiEstim's published worked example: daily incidence of acute respiratory illness in a Pennsylvania school during the 2009 H1N1 pandemic (Flu2009$incidence, 32 days from 2009-04-27), estimated with method = 'parametric_si', mean_si = 2.6, std_si = 1.5, default prior (mean 5, SD 5) and default 7-day sliding windows. 'expected' is the first six rows of res_parametric_si$R exactly as printed in the vignette (Mean(R) to 6 decimals, Std(R) to 4, quantiles to 7 significant digits).",
+  "sources": {
+    "incidence": {
+      "url": "https://github.com/mrc-ide/EpiEstim/blob/master/data/Flu2009.rda",
+      "package_version": "EpiEstim 3.0.0 (DESCRIPTION on master, read 2026-10-06)",
+      "citation": "Cauchemez S. et al. (2011) Role of social networks in shaping disease transmission during a community outbreak of 2009 H1N1 pandemic influenza. Proc Natl Acad Sci U S A 108(7), 2825-2830.",
+      "note": "Decoded offline from the .rda with the Python 'rdata' package; dates are 2009-04-27 .. 2009-05-28."
+    },
+    "expected": {
+      "url": "https://cran.r-project.org/web/packages/EpiEstim/vignettes/demo.html",
+      "section": "res_parametric_si <- estimate_R(Flu2009$incidence, method = \"parametric_si\", config = make_config(list(mean_si = 2.6, std_si = 1.5))); head(res_parametric_si$R)",
+      "read": "2026-10-06"
+    },
+    "method": "Cori A, Ferguson NM, Fraser C, Cauchemez S. Am J Epidemiol 2013;178(9):1505-1512. doi:10.1093/aje/kwt133"
+  },
+  "incidence": [1, 1, 0, 2, 5, 3, 3, 3, 6, 2, 5, 9, 13, 12, 13, 11, 12, 6, 6, 6, 3, 1, 0, 2, 0, 0, 0, 0, 2, 0, 2, 0],
+  "mean_si": 2.6,
+  "std_si": 1.5,
+  "window_days": 7,
+  "mean_prior": 5,
+  "std_prior": 5,
+  "expected": [
+    { "t_start": 2, "t_end": 8,  "mean": 1.735798, "std": 0.4091, "q025": 1.0287437, "q975": 2.624781 },
+    { "t_start": 3, "t_end": 9,  "mean": 1.749168, "std": 0.3647, "q025": 1.1088223, "q975": 2.533119 },
+    { "t_start": 4, "t_end": 10, "mean": 1.537058, "std": 0.3074, "q025": 0.9947030, "q975": 2.195540 },
+    { "t_start": 5, "t_end": 11, "mean": 1.431839, "std": 0.2706, "q025": 0.9514466, "q975": 2.008849 },
+    { "t_start": 6, "t_end": 12, "mean": 1.422725, "std": 0.2515, "q025": 0.9731426, "q975": 1.956336 },
+    { "t_start": 7, "t_end": 13, "mean": 1.635373, "std": 0.2523, "q025": 1.1786332, "q975": 2.165745 }
+  ]
+}
