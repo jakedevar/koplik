@@ -105,7 +105,7 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(evaluation.locator('h3').first()).toContainText('pseudo-real-time (revised counts truncated at each forecast date)');
   await expect(evaluation.locator('.forecast-headline')).toContainText('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4)');
   await expect(evaluation.locator('.forecast-narrow')).toContainText('In this backtest the intervals were too narrow');
-  await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText('does not measure how the forecasts above will do');
+  await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText("does not measure how any other series' forecast will do");
   await forecast.getByText('Exact forecast values', { exact: true }).click();
   const forecastMedian = forecast.locator('.forecast-result tbody tr').first().getByRole('button').first();
   await forecastMedian.click(); await expect(drawer).toBeVisible();
