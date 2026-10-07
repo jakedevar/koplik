@@ -43,6 +43,20 @@ describe('dashboard', () => {
     expect(root.querySelector('tr[data-week="2025-2"]')?.textContent).toContain('Mean 1.2; 90% interval 0.7–1.8');
     expect(root.querySelector('label[for="geography"]')?.textContent).toContain('keyboard accessible');
   });
+  it('names the case definition in the measure, legend, chart heading, table header and number labels', () => {
+    const { root } = mount();
+    const words = 'confirmed or unknown-status cases';
+    expect([...root.querySelectorAll('.eyebrow')].map((n) => n.textContent).join('|')).toContain(`Cases · 2025 · ${words}`);
+    expect(root.querySelector('.value-detail')?.textContent).toContain(words);
+    expect(root.querySelector('.legend-scale')?.textContent).toContain(`Reported ${words}`);
+    expect(root.querySelector('.charts h3')?.textContent).toBe(`Weekly ${words}`);
+    expect(root.querySelector('thead')?.textContent).toContain(`New ${words}`);
+    expect(root.querySelector('tr[data-week="2025-2"] td [data-provenance]')?.getAttribute('aria-label')).toContain(words);
+    root.querySelector<HTMLButtonElement>('.drill-button')!.click();
+    expect(root.querySelector('.legend-scale')?.textContent).toContain('Reported confirmed cases');
+    expect(root.querySelector('.charts h3')?.textContent).toBe('Weekly confirmed cases');
+    expect(root.querySelector('thead')?.textContent).toContain('New confirmed cases');
+  });
   it('switches all map metrics and selections using native accessible controls', () => {
     const { root, map } = mount();
     select('metric', 'cases-2026');

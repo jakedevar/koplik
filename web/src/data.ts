@@ -1,13 +1,15 @@
 import Ajv from 'ajv/dist/2020';
 import addFormats from 'ajv-formats';
 import geographySchema from '../../crates/koplik-contracts/schema/v1/Geography.schema.json';
-import casesSchema from '../../crates/koplik-contracts/schema/v1/WeeklyCaseCount.schema.json';
+import casesV1Schema from '../../crates/koplik-contracts/schema/v1/WeeklyCaseCount.schema.json';
+import casesSchema from '../../crates/koplik-contracts/schema/v3/WeeklyCaseCount.schema.json';
 import coverageSchema from '../../crates/koplik-contracts/schema/v1/KindergartenMmrCoverage.schema.json';
 import rtSchema from '../../crates/koplik-contracts/schema/v1/RtEstimate.schema.json';
 import provenanceSchema from '../../crates/koplik-contracts/schema/v1/Provenance.schema.json';
 import type { Provenance } from './generated/Provenance';
 import type { Geography } from './generated/Geography';
-import type { WeeklyCaseCount } from './generated/WeeklyCaseCount';
+import type { WeeklyCaseCount as WeeklyCaseCountV1 } from './generated/WeeklyCaseCount';
+import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { KindergartenMmrCoverage } from './generated/KindergartenMmrCoverage';
 import type { RtEstimate } from './generated/RtEstimate';
 import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
@@ -35,6 +37,7 @@ for (const [format, maximum] of [['uint8', 255], ['uint16', 65535], ['uint32', 4
   ajv.addFormat(format, { type: 'number', validate: (value: number) => Number.isInteger(value) && value >= 0 && value <= maximum });
 }
 ajv.addFormat('double', { type: 'number', validate: Number.isFinite });
+const validateCasesV1 = ajv.compile(casesV1Schema);
 const validators = {
   geographies: ajv.compile(geographySchema),
   cases: ajv.compile(casesSchema),
@@ -43,12 +46,44 @@ const validators = {
 };
 const validateProvenance = ajv.compile(provenanceSchema);
 
+export type CaseDefinition = WeeklyCaseCount['case_definition'];
+/** What each definition counts, in words. NNDSS publishes confirmed and unknown-status cases together. */
+export const caseDefinitionLabels: Record<CaseDefinition, string> = {
+  confirmed: 'confirmed cases',
+  confirmed_or_unknown_status: 'confirmed or unknown-status cases',
+};
+
+/** Lossless upgrade, mirroring koplik-contracts `From<v1::WeeklyCaseCount>`: a v1 row counted confirmed cases. */
+export function upgradeV1Case(row: WeeklyCaseCountV1): WeeklyCaseCount {
+  return { geography: row.geography, week: row.week, cases: row.confirmed, case_definition: 'confirmed', provenance: row.provenance };
+}
+
+/** The case definition shared by every row, or null when the rows mix definitions (or there are none). */
+export function commonCaseDefinition(rows: WeeklyCaseCount[]): CaseDefinition | null {
+  const definitions = new Set(rows.map((r) => r.case_definition));
+  return definitions.size === 1 ? [...definitions][0] : null;
+}
+
+/** The case definition in words for these rows; never "confirmed" unless every row says confirmed. */
+export function caseDefinitionWords(rows: WeeklyCaseCount[]): string {
+  const definition = commonCaseDefinition(rows);
+  if (definition) return caseDefinitionLabels[definition];
+  return rows.length ? 'cases (case definitions differ)' : 'cases';
+}
+
 export function parseRows<T extends keyof typeof validators>(kind: T, input: unknown): Dataset[T] {
-  if (!Array.isArray(input)) throw new Error(`${kind}: expected an array of v1 rows`);
+  if (!Array.isArray(input)) throw new Error(`${kind}: expected an array of rows`);
   const validate = validators[kind];
   const keys = new Set<string>();
-  for (const inputRow of input) {
-    if (!validate(inputRow)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validate.errors)}`);
+  const rows: unknown[] = [];
+  for (let inputRow of input) {
+    if (kind === 'cases' && inputRow && typeof inputRow === 'object' && !('case_definition' in inputRow) && 'confirmed' in inputRow) {
+      // A v1 case row is accepted only through the documented lossless conversion.
+      if (!validateCasesV1(inputRow)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validateCasesV1.errors)}`);
+      inputRow = upgradeV1Case(inputRow as unknown as WeeklyCaseCountV1);
+    }
+    if (!validate(inputRow)) throw new Error(`${kind}: invalid ${kind === 'cases' ? 'v3' : 'v1'} row: ${ajv.errorsText(validate.errors)}`);
+    rows.push(inputRow);
     if (kind === 'geographies') {
       const row = inputRow as unknown as Geography;
       if (row.level !== (row.id.length === 2 ? 'state' : 'county') || !row.name.trim()) throw new Error('geographies: invalid level or empty name');
@@ -77,7 +112,7 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
     if (keys.has(key)) throw new Error(`${kind}: duplicate row ${key}`);
     keys.add(key);
   }
-  return input as Dataset[T];
+  return rows as Dataset[T];
 }
 
 export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boundaries {
@@ -150,10 +185,12 @@ export function metricValue(data: Dataset, id: string, metric: Metric): Value {
   const year = metric === 'cases-2025' ? 2025 : 2026;
   const rows = data.cases.filter((r) => r.geography === id && r.week.year === year).sort(compareWeeks);
   // An incomplete series is never silently converted into an annual total.
-  if (!rows.length || rows.some((r) => r.confirmed.status === 'missing') || rows.at(-1)!.week.week - rows[0].week.week + 1 !== rows.length) return { value: null, label: 'No data', detail: 'Missing or incomplete weekly reports' };
-  const total = rows.reduce((sum, r) => sum + (r.confirmed.status === 'reported' ? r.confirmed.count : 0), 0);
+  const definition = commonCaseDefinition(rows);
+  if (rows.length && !definition) return { value: null, label: 'No data', detail: 'Weekly reports use different case definitions; not summed' };
+  if (!rows.length || rows.some((r) => r.cases.status === 'missing') || rows.at(-1)!.week.week - rows[0].week.week + 1 !== rows.length) return { value: null, label: 'No data', detail: 'Missing or incomplete weekly reports' };
+  const total = rows.reduce((sum, r) => sum + (r.cases.status === 'reported' ? r.cases.count : 0), 0);
   return { value: total, label: total.toLocaleString('en-US'),
-    detail: `Reported weeks ${rows[0].week.week}–${rows.at(-1)!.week.week}, MMWR ${year} (${rows.length} weeks); not a full-year total` };
+    detail: `${caseDefinitionLabels[definition!]} · Reported weeks ${rows[0].week.week}–${rows.at(-1)!.week.week}, MMWR ${year} (${rows.length} weeks); not a full-year total` };
 }
 
 export function compareWeeks(a: { week: { year: number; week: number } }, b: { week: { year: number; week: number } }): number {

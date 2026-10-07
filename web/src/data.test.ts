@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { loadDataset, metricValue, parseBoundaries, parseRows } from './data';
+import { loadDataset, metricValue, parseBoundaries, parseRows, upgradeV1Case } from './data';
 import { fixtureDataset, fixtureJson, fixtureRoot, pairedRtRows } from './fixtures.test-utils';
 
 describe('contracts and artifact loading', () => {
-  it('validates all committed synthetic v1 fixtures and traces rows to their source bytes', () => {
+  it('validates all committed synthetic fixtures and traces rows to their source bytes', () => {
     const data = fixtureDataset();
     const bytes = readFileSync(resolve(fixtureRoot, 'synthetic-source.json'));
     const hash = createHash('sha256').update(bytes).digest('hex');
@@ -48,7 +48,7 @@ describe('contracts and artifact loading', () => {
   });
   it('rejects invalid schema rows, duplicate keys and inconsistent R_t status/bounds', () => {
     const data = fixtureDataset();
-    expect(() => parseRows('cases', [{ ...data.cases[0], confirmed: { status: 'reported', count: -1 } }])).toThrow('invalid v1');
+    expect(() => parseRows('cases', [{ ...data.cases[0], cases: { status: 'reported', count: -1 } }])).toThrow('invalid v3');
     expect(() => parseRows('cases', [data.cases[0], data.cases[0]])).toThrow('duplicate');
     expect(() => parseRows('rt', [{ ...data.rt[0], mean: 1 }])).toThrow('status and bounds');
     expect(() => parseRows('rt', [{ ...data.rt[1], lower: 2, upper: 1 }])).toThrow('status and bounds');
@@ -58,6 +58,40 @@ describe('contracts and artifact loading', () => {
     const broken = structuredClone(data.states);
     broken.features[0].geometry.coordinates = [];
     expect(() => parseBoundaries(broken, 'state')).toThrow('polygon coordinates');
+  });
+});
+
+describe('case definitions (contracts v3)', () => {
+  const provenance = [{ source_id: 'synthetic-web-test', url: 'https://example.invalid/x', retrieved_at: '2026-10-07T00:00:00Z',
+    sha256: 'ab'.repeat(32), licence_id: 'synthetic-test-only' }];
+  const v1Row = { geography: '48', week: { year: 2025, week: 5 }, confirmed: { status: 'reported', count: 7 }, provenance };
+  it('reads v3 rows and keeps NNDSS state rows distinct from confirmed county rows', () => {
+    const data = fixtureDataset();
+    expect(data.cases.find((r) => r.geography === '48')?.case_definition).toBe('confirmed_or_unknown_status');
+    expect(data.cases.find((r) => r.geography === '48165')?.case_definition).toBe('confirmed');
+    expect(metricValue(data, '48', 'cases-2026').detail).toContain('confirmed or unknown-status cases');
+    expect(metricValue(data, '48165', 'cases-2025').detail).toContain('confirmed cases');
+  });
+  it('accepts a v1 case row only through the lossless conversion (v1 counted confirmed cases)', () => {
+    const [row] = parseRows('cases', [v1Row]);
+    expect(row).toEqual({ geography: '48', week: { year: 2025, week: 5 }, cases: { status: 'reported', count: 7 },
+      case_definition: 'confirmed', provenance });
+    expect(upgradeV1Case(v1Row as never)).toEqual(row);
+    expect(() => parseRows('cases', [{ ...v1Row, confirmed: { status: 'reported', count: -1 } }])).toThrow('invalid v1 row');
+  });
+  it('rejects rows that mix the v1 and v3 shapes, lack a definition or carry an unknown one', () => {
+    const v3 = parseRows('cases', [v1Row])[0];
+    expect(() => parseRows('cases', [{ ...v3, confirmed: v1Row.confirmed }])).toThrow('invalid v3 row');
+    const { case_definition: _omitted, ...without } = v3;
+    expect(() => parseRows('cases', [without])).toThrow('invalid v3 row');
+    expect(() => parseRows('cases', [{ ...v3, case_definition: 'suspected' }])).toThrow('invalid v3 row');
+  });
+  it('does not sum weekly reports that use different case definitions', () => {
+    const data = fixtureDataset();
+    data.cases.find((r) => r.geography === '48' && r.week.year === 2026 && r.week.week === 1)!.case_definition = 'confirmed';
+    const mixed = metricValue(data, '48', 'cases-2026');
+    expect(mixed.value).toBeNull();
+    expect(mixed.detail).toContain('different case definitions');
   });
 });
 

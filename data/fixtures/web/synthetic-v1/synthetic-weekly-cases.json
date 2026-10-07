@@ -5,10 +5,11 @@
       "year": 2025,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -25,10 +26,11 @@
       "year": 2025,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 2
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -45,10 +47,11 @@
       "year": 2025,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 8
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -65,10 +68,11 @@
       "year": 2025,
       "week": 4
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 12
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -85,10 +89,11 @@
       "year": 2025,
       "week": 5
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 7
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -105,10 +110,11 @@
       "year": 2025,
       "week": 6
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 3
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -125,10 +131,11 @@
       "year": 2026,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -145,10 +152,11 @@
       "year": 2026,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 1
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -165,10 +173,11 @@
       "year": 2026,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 2
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -185,10 +194,11 @@
       "year": 2025,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -205,10 +215,11 @@
       "year": 2025,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -225,10 +236,11 @@
       "year": 2025,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -245,10 +257,11 @@
       "year": 2025,
       "week": 4
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -265,10 +278,11 @@
       "year": 2025,
       "week": 5
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -285,10 +299,11 @@
       "year": 2025,
       "week": 6
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -305,10 +320,11 @@
       "year": 2026,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -325,10 +341,11 @@
       "year": 2026,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -345,10 +362,11 @@
       "year": 2026,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -365,10 +383,11 @@
       "year": 2025,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 1
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -385,10 +404,11 @@
       "year": 2025,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "missing",
       "reason": "not_reported"
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -405,10 +425,11 @@
       "year": 2025,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 3
     },
+    "case_definition": "confirmed_or_unknown_status",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -425,10 +446,11 @@
       "year": 2025,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -445,10 +467,11 @@
       "year": 2025,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 1
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -465,10 +488,11 @@
       "year": 2025,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 5
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -485,10 +509,11 @@
       "year": 2025,
       "week": 4
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 8
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -505,10 +530,11 @@
       "year": 2025,
       "week": 5
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 4
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -525,10 +551,11 @@
       "year": 2025,
       "week": 6
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 2
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -545,10 +572,11 @@
       "year": 2025,
       "week": 1
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 0
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -565,10 +593,11 @@
       "year": 2025,
       "week": 2
     },
-    "confirmed": {
+    "cases": {
       "status": "missing",
       "reason": "not_reported"
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",
@@ -585,10 +614,11 @@
       "year": 2025,
       "week": 3
     },
-    "confirmed": {
+    "cases": {
       "status": "reported",
       "count": 2
     },
+    "case_definition": "confirmed",
     "provenance": [
       {
         "source_id": "synthetic-web-test",

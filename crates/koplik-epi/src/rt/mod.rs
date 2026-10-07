@@ -20,9 +20,11 @@
 //!   ([`BeforeSeries::Unknown`]); assuming them zero is an explicit, documented choice.
 //!
 //! Weekly data: [`SerialInterval::discretize_weekly`] maps the continuous serial interval to
-//! the MMWR-week grid (method documented there), and [`estimate_weekly`] turns v1
-//! `WeeklyCaseCount` rows into v1 `RtEstimate` rows with the most recent weeks flagged
-//! provisional. Nothing here is stochastic: the same inputs give bit-identical output.
+//! the MMWR-week grid (method documented there), and [`estimate_weekly`] turns `WeeklyCaseCount`
+//! rows (contracts v3, or v1) into v1 `RtEstimate` rows with the most recent weeks flagged
+//! provisional. **The estimate inherits the input's case definition** (see `weekly`): an R_t from
+//! `confirmed_or_unknown_status` rows is not an R_t of confirmed cases. Nothing here is
+//! stochastic: the same inputs give bit-identical output.
 
 mod estimate;
 mod gamma;
@@ -37,7 +39,7 @@ pub use estimate::{
 };
 pub use gamma::{GammaDist, regularized_lower_gamma};
 pub use serial_interval::{DiscreteSerialInterval, SerialInterval};
-pub use weekly::{RtConfig, estimate_weekly};
+pub use weekly::{RtConfig, WeeklyCaseRow, case_definitions, estimate_weekly};
 
 /// Errors from the R_t module. Data problems are reported, never silently repaired.
 #[derive(Debug, thiserror::Error)]
@@ -46,6 +48,8 @@ pub enum RtError {
     Config(String),
     #[error("two weekly counts for {geography} in {week}")]
     DuplicateWeek { geography: GeoId, week: MmwrWeek },
+    #[error("weekly counts for {geography} use more than one case definition")]
+    MixedCaseDefinition { geography: GeoId },
     #[error("series too long: {0} steps")]
     SeriesTooLong(u64),
     #[error(transparent)]
