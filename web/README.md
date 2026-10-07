@@ -14,14 +14,20 @@ and previews the production site on localhost.
 `make serve` always uses `/`. `KOPLIK_BASE_PATH=/koplik/` applies to direct
 `npm run build` and `npm run dev` commands. Serve `dist/` with any static host.
 
-`make publish` copies current sources and existing `web/public/data` to a temporary
-workspace, builds with `/koplik/`, and adds `.nojekyll`. Existing WASM bindings and
-installed dependencies are copied; missing bindings/dependencies are built/installed
-in that workspace. It creates a commit in an isolated Git repository whose parent
+`make publish` archives the exact source commit at HEAD into a temporary workspace,
+builds with `/koplik/`, and adds `.nojekyll`. Dirty edits and untracked/ignored files
+(including caller `pkg/web`, `node_modules` and `web/public/data`) are ignored.
+WASM is compiled inside that workspace with its own Cargo target directory;
+only an existing version-matched binding tool may be reused. Web dependencies are
+installed from the archived lockfile. Generated pipeline artifacts must be rebuilt
+at that source commit before real-data publishing; publishing never invents data.
+It creates a commit recording that exact source SHA in an isolated Git repository whose parent
 is the fetched `gh-pages` tip (or a root commit on first publication), then pushes
 only `HEAD:refs/heads/gh-pages`. A rejected push refetches and retries up to three
 times. The caller's files, index, refs and branch are preserved, including dirty edits.
 No pipeline data is generated or filled in by publishing.
+The temporary workspace is removed after success, failure, SIGINT or SIGTERM;
+on interruption, active build commands and their descendants are terminated first.
 
 `PUBLISH_DRY_RUN=1 make publish` builds and prints the proposed commit, parent and
 destination without pushing. `PUBLISH_REMOTE=/absolute/path/to/test.git` overrides
