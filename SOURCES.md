@@ -9,6 +9,11 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | source_id | Source | Exact URL (as recorded in provenance) | Licence id | Cadence | Last verified |
 | --- | --- | --- | --- | --- | --- |
 | `cdc-nndss-weekly-measles` | CDC NNDSS Weekly Data, measles rows (data.cdc.gov dataset `x9gk-5huc`) | see "CDC NNDSS query" below | `cdc-open-data-terms-unconfirmed` | Weekly (CDC republishes the weekly tables; dataset last updated 2026-09-30) | 2026-10-07 |
+| `dshs-measles-outbreak-page` | Texas DSHS "Measles Outbreak" page (live fetch) | `https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025` | `dshs-copyright-noncommercial-no-alteration` | Twice weekly (Tue, Fri) March to early June 2025, then Tuesdays; last update 2025-08-12, outbreak declared over 2025-08-18 | 2026-10-07 |
+| `dshs-measles-outbreak-page-wayback` | The same page, one Internet Archive capture per day, 2025-03-05 to 2025-09-02 (each its own snapshot) | `https://web.archive.org/web/<capture time>id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025` | `internet-archive-terms-of-use` (content is DSHS's: also `dshs-copyright-noncommercial-no-alteration`) | One capture per day from the CDX index | 2026-10-07 |
+| `dshs-measles-data-report` / `dshs-measles-data-report-wayback` | DSHS "2025 Measles Data Report" PDFs: 2025-11-24, 2025-12-23, 2026-01-12 (live final report and Archive captures) | `https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-011226.pdf` and the Archive captures of `...2025-measles-data-report-nov-2025.pdf`, `...2025-measles-outbreak-data-report-12-23-25.pdf` | `dshs-copyright-noncommercial-no-alteration` | Three reports (about monthly), then the outbreak ended | 2026-10-07 |
+| `wayback-cdx-listing` | Internet Archive CDX index answers listing captures (stored so "which captures existed" stays on record) | `https://web.archive.org/cdx/search/cdx?url=...&output=json&fl=timestamp,original,statuscode,digest&filter=statuscode:200&from=...&to=...` | `internet-archive-terms-of-use` | On demand | 2026-10-07 |
+| `census-county-codes-2020-wayback` | Census national county reference file `national_county2020.txt` (county name to FIPS) from the Internet Archive capture of 2025-02-06 | `https://web.archive.org/web/20250206022004id_/https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt` | `census-open-data-terms-unconfirmed` | Rarely (2020 vintage codes) | 2026-10-07 |
 | `cdc-schoolvaxview-kindergarten` | CDC SchoolVaxView, kindergarten MMR and any exemptions (Socrata `ijqb-a7ye`) | Query below; exact URL in retrieval metadata | `cdc-schoolvaxview-terms-unconfirmed` | Annual school year | 2026-10-07 |
 | `texas-dshs-kindergarten-2023` | Texas DSHS 2023–24 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2023-2024_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
 | `texas-dshs-kindergarten-2024` | Texas DSHS 2024–25 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2024-2025_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
@@ -19,6 +24,9 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | licence_id | Terms | Status |
 | --- | --- | --- |
 | `cdc-open-data-terms-unconfirmed` | The dataset page and its metadata name no licence (`license: null`); the publisher is CDC's Office of Public Health Data, Surveillance, and Technology (contact `NNDSSWeb@cdc.gov`). CDC data is a US federal agency product, but nobody has confirmed the reuse terms for this dataset. The dataset's own notes say counts are provisional, subject to ongoing revision, and "presented as published each week". | **Operator decision required before publishing.** Koplik shows the figures only with their provenance and the demonstration disclaimer; confirm the terms (or ask CDC) before the site goes public. |
+| `dshs-copyright-noncommercial-no-alteration` | DSHS "Copyright and Disclaimer" (`https://www.dshs.texas.gov/site-policies/copyright-disclaimer`, read 2026-10-07): "Unless otherwise noted on an individual document, file, home page, or the like, DSHS grants permission to copy and distribute files, documents and information provided for non-commercial use, so long as the information is copied and distributed without alteration." The outbreak page and PDFs carry no other notice. | **Operator decision required before publishing.** Whether tables and maps derived from the counts (differenced, re-keyed by FIPS, charted) count as "without alteration", and whether the demonstration is "non-commercial", is the operator's call; until then show DSHS figures only with provenance and a pointer to DSHS's own pages, or ask DSHS. |
+| `internet-archive-terms-of-use` | The Internet Archive's terms of use (`https://archive.org/about/terms.php`) cover use of its service; the archived bytes remain the original publisher's content under the original publisher's terms. | Archive captures are used as evidence of what DSHS published and when; nothing is republished from the Archive. Same operator decision as the DSHS row for the content itself. |
+| `census-open-data-terms-unconfirmed` | US Census Bureau reference files are a federal agency product published for download; the file carries no licence statement and nobody has confirmed its reuse terms. | **Operator decision required before publishing** (low risk: facts, not creative content; county names and FIPS codes). |
 
 ## CDC NNDSS weekly measles cases by state (`cdc-nndss-weekly-measles`)
 
@@ -90,6 +98,88 @@ number). `m1` ("current week") is not used.
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
 (see `data/fixtures/cdc/README.md`).
 
+## Texas DSHS 2025 West Texas outbreak, cases by county over time (`dshs-*`)
+
+Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` needs `KOPLIK_CONTACT` (a contact address or repository URL; it refuses without one). Commands:
+`koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
+`koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), unmapped names,
+parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
+
+**Three formats, found by reading the archived pages** (the manifest `data/dshs/vintage-manifest.json` lists every
+version held):
+
+1. *HTML county table*, 2025-03-04 to 2025-03-25 (seven versions, Tuesdays and Fridays): the outbreak page's
+   "Texas Case Count by County" table (later captioned "Texas Outbreak Case Count by County"), County | Cases,
+   cumulative, with a Total row, plus "2025 Texas Measles Cases Not Associated with the Outbreak in West Texas".
+   Earlier versions (late January to March 3) are not on this page in the Archive; they exist only as DSHS news
+   releases and health alerts, which are not parsed.
+2. *Tableau dashboard*, 2025-03-28 to 2025-08-12 (30 versions): the table is replaced by an embedded dashboard
+   at `tabexternal.dshs.texas.gov`. That host answers every automated request with HTTP 403 (its `robots.txt` too, which
+   the polite fetcher reads as "no crawling"), and it is not archived, so **county counts for these 30 weeks cannot be
+   fetched**. The page text still gives the cumulative outbreak total ("At this time, N cases have been confirmed since
+   late January"; 400 on 03-28 up to 762 from 07-15) and the "not associated" table; both are parsed, the counties
+   stay missing.
+3. *PDF data reports*, 2025-11-24, 2025-12-23, 2026-01-12: "Table 1: Confirmed Cases in Texas Residents" by home
+   county (outbreak, international travel, other Texas cases). Columns are told apart by the right edge of each
+   cell's text against the header row (`pdf-extract` character positions). The report footnote says 182 further
+   potential cases from March 2025 in Gaines County children could not be classified as confirmed and are not in the
+   counts; that footnote is carried as a parser issue on every PDF vintage. **The three PDFs' outbreak rows add to 763
+   against a printed Grand Total of 762** (their percentages use 803 = 762 + 16 + 25 as denominator); reported as
+   published and flagged, never reconciled.
+
+**Past versions.** Internet Archive captures through the polite fetcher: the CDX index lists the first capture of each
+day (`collapse=timestamp:8`); each capture is fetched with the `id_` URL form (unmodified archived bytes, which the
+Archive may replay gzip-encoded: the snapshot keeps the exact bytes and the parser un-gzips) and stored as its own
+snapshot whose provenance `url` is the capture URL (capture time and original URL are read back from it). The
+Archive rate-limits well below one request a second (HTTP 429), so the fetch runs at one request per 8 seconds.
+128 of 129 listed captures are held; the one capture that failed (HTTP 500 on repeated tries) is listed in the manifest as
+`unretrieved_captures`. One capture per day can miss a version published and replaced within a day.
+
+**Vintage manifest** (`data/dshs/vintage-manifest.json`, `manifest_version` 1; ingest-local, not a contracts type):
+one entry per distinct report version (same date and content), with `report_date` (the date DSHS prints: the page's
+"News Updates" date, the PDF title date), `first_seen_at` (earliest capture time, or retrieval time for a live fetch;
+an upper bound on when it was public), the first snapshot's provenance (capture URL, original URL, capture time,
+retrieval time, sha256, licence), how many snapshots show it, parser issues, and whether it has county detail. 40
+versions: 7 with a county table, 30 dashboard-only, 3 PDFs. A backtest that needs "what could be known at date D" must
+use versions with `first_seen_at` <= D (the 2025-11-24 report first appears in the Archive on 2025-12-17).
+
+**County keys.** Names map to 5-digit FIPS only through the Census `national_county2020.txt` snapshot
+(`CountyLookup`); matching folds case, a trailing "County" and whitespace, nothing fuzzier. A name that matches no
+county or several is returned in `unmapped` and its cases are left out; every county name in an outbreak county table (the 7 HTML and 3 PDF versions) maps (254 Texas
+counties in the file; the "not associated" tables' names also map in the fixtures). `www2.census.gov/robots.txt` has `User-agent: *` and `User-agent: RavenCrawler` in one group
+(blank line between) ahead of `Disallow: /`, which RFC 9309 reads as disallowing every crawler, so the polite fetcher
+refuses the live host; the Archive's capture of the same file (2025-02-06) is used instead, with the capture URL in
+provenance. The live host is not worked around. (`koplik-ingest fetch census-counties --direct 1` tries it.)
+
+**Derivation** (`dshs_series.rs`, module docs have the full rules; tested in `tests/dshs_parser.rs` and the unit
+tests there). DSHS publishes cumulative cases per county per report date; only versions with a readable county table
+take part.
+
+1. *Cumulative*: the printed row. A county absent from a table is `reported 0` only if that table's rows are all
+   readable and add up to its printed Total; otherwise `missing: ambiguous`. Counties never listed anywhere get no rows.
+2. *Per report interval*: cumulative minus the previous county-detail report's, exact however far apart the reports
+   are (03-25 to 11-24 is one interval). A fall, or an unreadable cell: `missing: ambiguous`.
+3. *Per MMWR week* (the week containing the report date; this is when DSHS published, not rash onset, and it lags
+   onset): the difference between the last report in week W and the last report in week W-1, only when both are the
+   last report of any kind in their weeks, so a week whose last report is dashboard-only gets no partial count.
+   Otherwise `missing: ambiguous` when the week has a county report that cannot be completed or split (the first
+   county report after a gap, or the week of a dashboard-only last report), `missing: not_reported` for a week with no
+   county report and for the first report's week (its cumulative includes all earlier cases). With the real data
+   only 2025 weeks 11 and 12 have reported weekly counts per county; the rest are missing by construction.
+4. *Case definition.* Weekly rows are contracts **v3** `WeeklyCaseCount` with `case_definition: confirmed`, and a
+   version enters them only if its own labelling establishes confirmed cases (`confirmed_basis` in the manifest): the
+   PDF's table title "Table 1: Confirmed Cases in Texas Residents", or, for the HTML pages, a "... Confirmed Cases ..."
+   (vaccination status) table whose cells add up to the outbreak total. All 10 county-detail versions pass. The early
+   pages' prose says "cases have been identified" rather than "confirmed"; the matching total in the confirmed table is
+   the only evidence that the counted population is confirmed cases, so re-check with DSHS before the UI says so
+   for March. The PDF footnote's 182 unclassifiable Gaines County reports are not in any count.
+5. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
+   Texas's cases, so it lives in the manifest (`outbreak_total` per version) for the backtest.
+
+**Caveats not resolved here.** DSHS's classification ("confirmed") and revisions: counts were revised (a Lubbock vaccine
+reaction was removed in March; cases reclassified into and out of the outbreak). Report dates are Tuesday/Friday
+publication dates, not data-as-of times, except the PDFs, which print "Preliminary Data as of". The final outbreak
+count by county is the PDF's; between 2025-03-25 and 2025-11-24 only state-level outbreak totals exist.
 
 ## Kindergarten MMR coverage (#1351)
 

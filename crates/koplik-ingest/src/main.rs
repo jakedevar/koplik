@@ -18,16 +18,24 @@ use std::time::Duration;
 
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
+use koplik_ingest::census_counties;
 use koplik_ingest::coverage;
+use koplik_ingest::dshs_series;
+use koplik_ingest::dshs_sources::{self, FetchOutcome};
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
 use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
-use koplik_ingest::source::fetch_to_store;
+use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+  koplik-ingest fetch census-counties [--store DIR] [--direct 1]
+  koplik-ingest fetch dshs-live [--store DIR]
+  koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD] [--interval-secs N]
+  koplik-ingest fetch dshs-reports [--store DIR] [--interval-secs N]
+  koplik-ingest parse dshs-cases [--store DIR] [--out DIR]
   koplik-ingest fetch cdc-coverage [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-coverage [--store DIR] [--first-year Y] [--last-year Y] [--out FILE] [--gaps FILE]
   koplik-ingest fetch texas-coverage [--store DIR] [--year Y]
@@ -70,16 +78,59 @@ fn year(flag: Option<String>, default: u16) -> Result<u16> {
     }
 }
 
+/// A live fetcher: refuses without a verified contact (before any request), then paces
+/// requests to one host at `interval_secs` (the Internet Archive rate-limits hard).
+fn live_fetcher(interval_secs: u64) -> Result<PoliteFetcher<UreqClient, SystemTimekeeper>> {
+    let cfg = PoliteConfig {
+        min_interval: Duration::from_secs(interval_secs.max(1)),
+        max_attempts: 5,
+        ..PoliteConfig::live(contact_from_env().as_deref())?
+    };
+    let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+    Ok(PoliteFetcher::new(client, SystemTimekeeper::new(), cfg))
+}
+
+/// One line per URL; a non-zero exit when any fetch failed (failures are never dropped).
+fn report_outcomes(results: &[(SourceSpec, FetchOutcome)]) -> Result<()> {
+    let mut failed = 0;
+    for (spec, outcome) in results {
+        match outcome {
+            FetchOutcome::Skipped(r) => eprintln!("have    {} {}", r.sha256, spec.url),
+            FetchOutcome::Fetched(r, _) => {
+                eprintln!("fetched {} {}", r.sha256, spec.url);
+                println!(
+                    "{}",
+                    serde_json::to_string(r).expect("Retrieval serialises")
+                );
+            }
+            FetchOutcome::Failed(e) => {
+                failed += 1;
+                eprintln!("FAILED  {} {e}", spec.url);
+            }
+        }
+    }
+    if failed > 0 {
+        return Err(IngestError::Http(format!(
+            "{failed} of {} fetches failed",
+            results.len()
+        )));
+    }
+    Ok(())
+}
+
+fn to_pretty<T: serde::Serialize>(v: &T) -> String {
+    serde_json::to_string_pretty(v).expect("serialises")
+}
+
 fn run(args: Vec<String>) -> Result<()> {
     let mut args = args.into_iter();
     let cmd = args
         .next()
         .ok_or_else(|| IngestError::Invalid("missing command".into()))?;
     let source = match cmd.as_str() {
-        "fetch" | "parse" => Some(
-            args.next()
-                .ok_or_else(|| IngestError::Invalid("missing source (cdc-cases)".into()))?,
-        ),
+        "fetch" | "parse" => Some(args.next().ok_or_else(|| {
+            IngestError::Invalid("missing source (cdc-cases, dshs-cases, ...)".into())
+        })?),
         _ => None,
     };
     let mut flags = Flags(args.collect());
@@ -215,6 +266,106 @@ fn run(args: Vec<String>) -> Result<()> {
                     Ok(())
                 }
             }
+        }
+        ("fetch", Some("census-counties")) => {
+            let direct = flags.take("--direct")?;
+            flags.done()?;
+            let (spec, secs) = match direct {
+                Some(_) => (census_counties::source_spec(), 1),
+                None => (census_counties::wayback_spec(), 8),
+            };
+            let mut fetcher = live_fetcher(secs)?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let (r, _) = fetch_to_store(&mut fetcher, &store, &spec)?;
+            println!(
+                "{}",
+                serde_json::to_string(&r).expect("Retrieval serialises")
+            );
+            Ok(())
+        }
+        ("fetch", Some("dshs-live")) => {
+            flags.done()?;
+            let mut fetcher = live_fetcher(1)?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let specs = [
+                dshs_sources::live_spec(
+                    dshs_sources::SOURCE_PAGE_LIVE,
+                    dshs_sources::OUTBREAK_PAGE_URL,
+                ),
+                dshs_sources::live_spec(
+                    dshs_sources::SOURCE_REPORT_LIVE,
+                    dshs_sources::FINAL_REPORT_URL,
+                ),
+            ];
+            let results = specs
+                .iter()
+                .map(|s| {
+                    let r = fetch_to_store(&mut fetcher, &store, s);
+                    (s.clone(), r)
+                })
+                .collect::<Vec<_>>();
+            for (spec, r) in results {
+                let (r, _) = r?;
+                eprintln!("{} sha256 {}", spec.url, r.sha256);
+                println!(
+                    "{}",
+                    serde_json::to_string(&r).expect("Retrieval serialises")
+                );
+            }
+            Ok(())
+        }
+        ("fetch", Some("dshs-wayback")) => {
+            let from = flags.take("--from")?.unwrap_or_else(|| "20250301".into());
+            let to = flags.take("--to")?.unwrap_or_else(|| "20250910".into());
+            // Archive.org rate-limits well below one request a second (HTTP 429), so pace it.
+            let secs = year(flags.take("--interval-secs")?, 8)?;
+            flags.done()?;
+            let mut fetcher = live_fetcher(u64::from(secs))?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let results = dshs_sources::fetch_outbreak_captures(&mut fetcher, &store, &from, &to)?;
+            report_outcomes(&results)
+        }
+        ("fetch", Some("dshs-reports")) => {
+            let secs = year(flags.take("--interval-secs")?, 8)?;
+            flags.done()?;
+            let mut fetcher = live_fetcher(u64::from(secs))?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let results = dshs_sources::fetch_report_documents(&mut fetcher, &store)?;
+            report_outcomes(&results)
+        }
+        ("parse", Some("dshs-cases")) => {
+            let out = flags.take("--out")?.unwrap_or_else(|| "data/dshs".into());
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let lookup = census_counties::CountyLookup::from_store(
+                &store,
+                koplik_contracts::v1::StateFips::new(48).expect("48 is Texas"),
+            )?;
+            let built = dshs_series::build_from_store(&store, &lookup)?;
+            std::fs::create_dir_all(&out).map_err(|e| IngestError::io(&out, e))?;
+            let write = |name: &str, json: String| -> Result<()> {
+                let path = std::path::Path::new(&out).join(name);
+                std::fs::write(&path, json + "\n").map_err(|e| IngestError::io(path, e))
+            };
+            write("vintage-manifest.json", to_pretty(&built.manifest))?;
+            write("cumulative.json", to_pretty(&built.series.cumulative))?;
+            write("intervals.json", to_pretty(&built.series.intervals))?;
+            write("weekly.json", to_pretty(&built.series.weekly))?;
+            write("unmapped.json", to_pretty(&built.series.unmapped))?;
+            write("parse-failures.json", to_pretty(&built.failures))?;
+            eprintln!(
+                "{} vintages ({} with county detail), {} weekly rows, {} unmapped names, {} snapshots failed to parse; written to {out}",
+                built.vintages.len(),
+                built
+                    .vintages
+                    .iter()
+                    .filter(|v| v.has_county_detail())
+                    .count(),
+                built.series.weekly.len(),
+                built.series.unmapped.len(),
+                built.failures.len()
+            );
+            Ok(())
         }
         ("list", None) => {
             let src = flags.take("--source")?;
