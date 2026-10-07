@@ -12,7 +12,7 @@
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
 //! forecast  <work>/validate/weekly-cases.json                  -> <work>/forecast/forecast{,.provenance}.json
 //!           + the committed backtest report in <reports>          <work>/forecast/backtest-west-texas-2025.json
-//! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v1/*.json, <out>/scenarios/*.json,
+//! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v6/*.json, <out>/scenarios/*.json,
 //!                                                                 <out>/forecasts/*.json, <out>/manifest.json
 //! ```
 //!
@@ -46,7 +46,7 @@ use koplik_contracts::v1::{
     GeoId, Geography, KindergartenMmrCoverage, Provenances, RtEstimate, Sha256Hex, StateFips,
 };
 use koplik_contracts::v3::WeeklyCaseCount;
-use koplik_contracts::{v1, v3, v5};
+use koplik_contracts::{v1, v3, v5, v6};
 use koplik_epi::rt::{RtConfig, RtError, case_definitions, estimate_weekly};
 use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
@@ -88,7 +88,7 @@ const DSHS_REPORT_SOURCES: [&str; 4] = [
     dshs_sources::SOURCE_REPORT_WAYBACK,
 ];
 
-/// Names of the artifacts the web app loads from `<out>/v1/` (see `web/README.md`).
+/// Names of the artifacts the web app loads from `<out>/v6/` (see `web/README.md`).
 pub const WEB_ROW_ARTIFACTS: [&str; 4] = ["geographies", "weekly-cases", "coverage", "rt"];
 pub const WEB_BOUNDARY_ARTIFACTS: [&str; 2] = ["us-states", "texas-counties"];
 /// The what-if scenario the web app loads from `<out>/scenarios/` (see `web/src/scenario.ts`).
@@ -1479,7 +1479,7 @@ fn build(config: &Config) -> Result<Manifest> {
         }
     }
     // The output tree is a function of the inputs: clear what a previous build wrote.
-    for rel in ["v1", "scenarios", "forecasts", "manifest.json"] {
+    for rel in ["v1", "v6", "scenarios", "forecasts", "manifest.json"] {
         let path = config.out.join(rel);
         let removed = if path.is_dir() {
             fs::remove_dir_all(&path)
@@ -1498,29 +1498,27 @@ fn build(config: &Config) -> Result<Manifest> {
         let (rel, rows) = match name {
             "rt" => (
                 "infer/rt.json".to_owned(),
-                count_rows::<RtEstimate>(config, "infer/rt.json")?,
+                row_artifact::<RtEstimate>(config, "infer/rt.json")?,
             ),
             "weekly-cases" => (
                 "validate/weekly-cases.json".to_owned(),
-                count_rows::<WeeklyCaseCount>(config, "validate/weekly-cases.json")?,
+                row_artifact::<WeeklyCaseCount>(config, "validate/weekly-cases.json")?,
             ),
             "coverage" => (
                 "validate/coverage.json".to_owned(),
-                count_rows::<KindergartenMmrCoverage>(config, "validate/coverage.json")?,
+                row_artifact::<KindergartenMmrCoverage>(config, "validate/coverage.json")?,
             ),
             _ => (
                 "validate/geographies.json".to_owned(),
-                count_rows::<Geography>(config, "validate/geographies.json")?,
+                row_artifact::<Geography>(config, "validate/geographies.json")?,
             ),
         };
         match rows {
-            Some(rows) => {
+            Some((rows, bytes)) => {
                 let input = hash_file(&config.work, &rel)?;
-                let bytes = fs::read(config.work.join(&rel))
-                    .map_err(|e| PipelineError::io(config.work.join(&rel), e))?;
                 m.inputs.push(input);
                 m.outputs
-                    .push(write_file(&config.out, &format!("v1/{name}.json"), &bytes)?);
+                    .push(write_file(&config.out, &format!("v6/{name}.json"), &bytes)?);
                 m.items.insert(
                     name.to_owned(),
                     ItemStatus::Present {
@@ -1555,7 +1553,7 @@ fn build(config: &Config) -> Result<Manifest> {
             m.inputs.push(hash_file(&config.work, &rel)?);
             let bytes = fs::read(&path).map_err(|e| PipelineError::io(&path, e))?;
             m.outputs
-                .push(write_file(&config.out, &format!("v1/{name}.json"), &bytes)?);
+                .push(write_file(&config.out, &format!("v6/{name}.json"), &bytes)?);
             m.items.insert(
                 name.to_owned(),
                 ItemStatus::Present {
@@ -1570,7 +1568,7 @@ fn build(config: &Config) -> Result<Manifest> {
         } else {
             m.outputs.push(write_file(
                 &config.out,
-                &format!("v1/{name}.json"),
+                &format!("v6/{name}.json"),
                 &json_bytes(&empty_feature_collection()),
             )?);
             m.items.insert(
@@ -1666,7 +1664,11 @@ fn build(config: &Config) -> Result<Manifest> {
         for (from, to) in files {
             m.inputs.push(hash_file(&config.work, from)?);
             let path = config.work.join(from);
-            let bytes = fs::read(&path).map_err(|e| PipelineError::io(&path, e))?;
+            let bytes = if from == FORECAST_ROWS_REL {
+                json_bytes(&v6::RowArtifact { rows: rows.clone() })
+            } else {
+                fs::read(&path).map_err(|e| PipelineError::io(&path, e))?
+            };
             m.outputs.push(write_file(&config.out, &to, &bytes)?);
         }
         m.items.insert(
@@ -1698,13 +1700,16 @@ fn build(config: &Config) -> Result<Manifest> {
     Ok(m)
 }
 
-/// Row count of a stage output, or `None` when the file does not exist. Rows are re-parsed as
+/// Pack a stage output into a v6 artifact, or `None` when it does not exist. Rows are re-parsed as
 /// their contract type so every published row is a valid, provenance-carrying contract row.
-fn count_rows<T: for<'de> Deserialize<'de>>(config: &Config, rel: &str) -> Result<Option<u64>> {
+fn row_artifact<T: v6::PublicationRow>(config: &Config, rel: &str) -> Result<Option<(u64, Vec<u8>)>> {
     let path = config.work.join(rel);
     if !path.is_file() {
         return Ok(None);
     }
     let rows: Vec<T> = read_json(&path)?;
-    Ok(Some(rows.len() as u64))
+    Ok(Some((
+        rows.len() as u64,
+        json_bytes(&v6::RowArtifact { rows }),
+    )))
 }
