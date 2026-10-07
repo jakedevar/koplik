@@ -115,8 +115,7 @@ describe('plain words', () => {
   it('states the measured coverage with one precision and counts, the scores, and that the backtest intervals were too narrow', () => {
     const words = skillWords(skill);
     expect(words.headline).toBe('In a backtest on the 2025 West Texas outbreak, 90% intervals contained the true count 62.5% of the time (30 of 48); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 47.9% of the time (23 of 48); about 50% would be expected.');
-    expect(words.scores).toContain('Mean CRPS 3.66 cases');
-    expect(words.scores).toContain('scored 5.79');
+    expect(words.scores).toContain('Mean CRPS 3.66 cases (lower is better); persistence mean absolute error 5.79 cases');
     expect(words.scores).toContain('48 forecasts');
     expect(words.narrow).toBe('In this backtest the intervals were too narrow: the true count fell outside them more often than their labels say.');
     expect(skillWords({ ...skill, coverage_50: 0.5, coverage_90: 0.9 }).narrow).toBe('');
@@ -149,8 +148,7 @@ describe('plain words', () => {
     const measured = { ...texas.measured!, targets: real.pooled.n, mean_crps: real.pooled.mean_crps, coverage_50: real.pooled.coverage_50, coverage_90: real.pooled.coverage_90, mean_persistence_abs_error: real.pooled.mean_persistence_abs_error };
     const words = seriesSkillWords(backtest, { ...texas, targets: real.pooled.n, origin_weeks: real.origin_weeks_scored, measured });
     expect(words.headline).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 35.1% of the time (101 of 288); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 19.4% of the time (56 of 288); about 50% would be expected.');
-    expect(words.detail).toContain('Mean CRPS 3374.24 cases');
-    expect(words.detail).toContain('scored 14.35');
+    expect(words.detail).toContain('Mean CRPS 3374.24 cases (lower is better); persistence mean absolute error 14.35 cases');
     expect(words.detail).toContain('288 forecasts of later weeks for this series, made from 36 distinct origin weeks');
     expect(words.detail).toContain('Basis: pseudo-real-time (revised counts truncated at each forecast date), not real-time.');
     expect(words.narrow).toContain('too narrow');
@@ -173,8 +171,7 @@ describe('plain words', () => {
     const pooled = { ...backtest.pooled!, series: 22, forecasts: 239, scores: { ...backtest.pooled!.scores, targets: cdc.pooled.n, mean_crps: cdc.pooled.mean_crps, coverage_50: cdc.pooled.coverage_50, coverage_90: cdc.pooled.coverage_90, mean_persistence_abs_error: cdc.pooled.mean_persistence_abs_error } };
     const words = pooledWords({ ...backtest, pooled })!;
     expect(words.headline).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on the synthetic fixture state series, pooled over 22 series and 239 forecasts, 90% intervals contained the true count 39.0% of the time (682 of 1748); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 20.9% of the time (365 of 1748); about 50% would be expected.');
-    expect(words.scores).toContain('Mean CRPS 23049631.33 cases');
-    expect(words.scores).toContain('scored 15.42');
+    expect(words.scores).toContain('Mean CRPS 23049631.33 cases (lower is better); persistence mean absolute error 15.42 cases');
     expect(words.scores).toContain('not the skill of any one series');
     expect(pooledWords({ ...backtest, pooled: null })).toBeNull();
     expect(basisLabel('real-time by report vintage')).toBe('real-time by report vintage');
@@ -188,22 +185,62 @@ describe('plain words', () => {
     c.series.forEach((s) => { s.status = 'insufficient_data'; s.reason = 'below_threshold'; s.withheld = null; });
     expect(seriesEvaluationScope(c)).toBe('The method forecast no series, so there is nothing for this test to speak to.');
   });
-  it('re-applies the publication policy exactly as the contract does', () => {
-    const policy = { rule: 'a rule', minimum_coverage_90: 0.75, maximum_crps_over_persistence: 1 };
-    const scores = (coverage_90: number, mean_crps: number, mean_persistence_abs_error: number) => ({ coverage_90, mean_crps, mean_persistence_abs_error });
-    expect(admits(policy, scores(0.75, 4, 4))).toBe(true);
-    expect(admits(policy, scores(0.7499, 4, 4))).toBe(false);
-    expect(admits(policy, scores(0.9, 4.0001, 4))).toBe(false);
-    expect(admits(policy, scores(1, 0, 0))).toBe(true);
-    expect(admits(policy, scores(0.9, 1, 0))).toBe(false);
+  it('re-applies the publication policy exactly as the contract does, evidence floor included', () => {
+    const policy = { rule: 'a rule', minimum_targets: 40, minimum_origin_weeks: 10, minimum_coverage_90: 0.75, maximum_crps_over_persistence: 1 };
+    const e = (coverage_90: number, mean_crps: number, mean_persistence_abs_error: number, targets = 40, origin_weeks = 10) => ({ targets, origin_weeks, coverage_90, mean_crps, mean_persistence_abs_error });
+    expect(admits(policy, e(0.75, 4, 4))).toBe(true);
+    expect(admits(policy, e(0.7499, 4, 4))).toBe(false);
+    expect(admits(policy, e(0.9, 4.0001, 4))).toBe(false);
+    expect(admits(policy, e(1, 0, 0))).toBe(true);
+    expect(admits(policy, e(0.9, 1, 0))).toBe(false);
     expect(admits(policy, null)).toBe(false);
-    expect(admits({ ...policy, maximum_crps_over_persistence: 2 }, scores(0.8, 8, 4))).toBe(true);
+    expect(admits({ ...policy, maximum_crps_over_persistence: 2 }, e(0.8, 8, 4))).toBe(true);
+    // The evidence floor at its boundaries: one target or one origin week short is refused, however good the scores.
+    expect(admits(policy, e(1, 0, 4, 39, 10))).toBe(false);
+    expect(admits(policy, e(1, 0, 4, 40, 9))).toBe(false);
+    expect(admits(policy, e(1, 0, 4, 1, 1))).toBe(false);
+    expect(admits(policy, e(1, 0, 4, 40, 10))).toBe(true);
     const c = companion();
     expect(admits(c.publication_policy, measuredScoresOf(c, c.series.find((s) => s.geography === '48')!))).toBe(true);
     expect(admits(c.publication_policy, measuredScoresOf(c, c.series.find((s) => s.geography === '20')!))).toBe(false);
     expect(measuredScoresOf(c, c.series.find((s) => s.geography === '40')!)).toBeNull();
-    expect(policyWords(c.publication_policy)).toBe("Our publication rule: a forecast is shown only if, in our test on that very series, its 90% intervals contained the true count at least 75.0% of the time and its mean error was no worse than simply repeating the latest complete week's count.");
+    expect(policyWords(c.publication_policy)).toBe("Our publication rule: a forecast is shown only if our test on that very series scored at least 4 of its forecasts from at least 2 origin weeks, its 90% intervals contained the true count at least 75.0% of the time, and its mean error was no worse than simply repeating the latest complete week's count.");
     expect(policyWords({ ...c.publication_policy, maximum_crps_over_persistence: 2 })).toContain('no more than 2 times the error of simply repeating');
+  });
+  it('holds the report-vintage backtest to the evidence floor too: a series published on 1 target from 1 origin week is refused', () => {
+    // The series the report-vintage backtest scored, published, with scores that meet the rest of the policy.
+    const legacy = (targets: number, origin_weeks: number, floor: [number, number] = [40, 10]) => {
+      const c = companion();
+      c.series = c.series.filter((s) => s.geography === '48');
+      c.series[0].case_definition = 'confirmed';
+      c.series[0].skill = 'backtested';
+      c.series_backtest = null;
+      c.publication_policy.minimum_targets = floor[0];
+      c.publication_policy.minimum_origin_weeks = floor[1];
+      Object.assign(c.backtest!, { geography: '48', case_definition: 'confirmed', targets, origin_weeks, forecast_dates: origin_weeks, coverage_90: 0.9, coverage_50: 0.5, mean_crps: 1, mean_persistence_abs_error: 5, by_horizon: [{ horizon: 1, n: targets, mean_crps: 1, coverage_50: 0.5, coverage_90: 0.9 }] });
+      return c;
+    };
+    expect(parseForecast(rows(), legacy(40, 10), true).rows).toHaveLength(8);
+    for (const [targets, origin_weeks] of [[39, 10], [40, 9], [39, 9], [1, 1]]) {
+      expect(() => parseForecast(rows(), legacy(targets, origin_weeks), true), `${targets}/${origin_weeks}`).toThrow('is published but its measured skill does not meet the publication policy');
+      // Withheld, for being below the policy, it is accepted and publishes nothing.
+      const withheld = legacy(targets, origin_weeks);
+      withheld.series[0].status = 'withheld'; withheld.series[0].withheld = 'skill_below_policy';
+      expect(parseForecast([], withheld, true).rows).toHaveLength(0);
+    }
+    const atFloor = legacy(40, 10);
+    atFloor.series[0].status = 'withheld'; atFloor.series[0].withheld = 'skill_below_policy';
+    expect(() => parseForecast([], atFloor, true)).toThrow('meets the publication policy but is withheld');
+    // The series backtest's evidence, against a policy asking for one more target or origin week.
+    const c = companion();
+    c.publication_policy.minimum_targets = 7;
+    expect(() => parseForecast(rows(), c, true)).toThrow('is published but its measured skill does not meet the publication policy');
+    const d = companion();
+    d.publication_policy.minimum_origin_weeks = 4;
+    expect(() => parseForecast(rows(), d, true)).toThrow('is published but its measured skill does not meet the publication policy');
+    const bad = companion();
+    bad.publication_policy.minimum_targets = 0;
+    expect(() => parseForecast(rows(), bad, true)).toThrow('minimum_targets must be >= 1');
   });
   // Every series withheld, with the pooled numbers of the committed NNDSS report exactly as measured.
   const allWithheld = () => {
@@ -217,7 +254,9 @@ describe('plain words', () => {
     return c;
   };
   it('says at the top, in plain words with the measured numbers, that forecasts are not published and why', () => {
-    expect(withheldNotice(allWithheld())).toBe("We do not publish forecasts for these series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748) and it did worse than simply repeating the latest complete week's count (mean error 23049631.33 cases against 15.42). See \"How we evaluate forecasts\" below.");
+    expect(withheldNotice(allWithheld())).toBe("We do not publish forecasts for these series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748), and it performed far worse than simply repeating the latest complete week's count. See \"How we evaluate forecasts\" below.");
+    // Plain words only: the exact scores are in the evaluation block, not here.
+    expect(withheldNotice(allWithheld())).not.toMatch(/23049631|15\.42|mean error|CRPS/);
     // When some series do meet the rule, it says which are published and that the rest are not.
     expect(withheldNotice(companion())).toContain('We publish forecasts only for the 1 series whose own test result meets our rule, and we do not publish forecasts for the other 1.');
     // Nothing withheld: no notice. No pooled result or no test: it says so instead of a number.
@@ -230,7 +269,16 @@ describe('plain words', () => {
     // It never claims the method did worse than persistence, or poorly calibrated, when the numbers say otherwise.
     const good = allWithheld(); Object.assign(good.series_backtest!.pooled!.scores, { coverage_90: 0.92, mean_crps: 3, mean_persistence_abs_error: 5 });
     expect(withheldNotice(good)).toContain('contained the true count 92.0% of the time');
-    expect(withheldNotice(good)).toContain('it did better than simply repeating');
+    expect(withheldNotice(good)).toContain('it performed better than simply repeating');
+    // "Far worse" means more than double the persistence error; "worse" is less than that.
+    const mild = allWithheld(); Object.assign(mild.series_backtest!.pooled!.scores, { mean_crps: 9, mean_persistence_abs_error: 5 });
+    expect(withheldNotice(mild)).toContain(', and it performed worse than simply repeating');
+    const double = allWithheld(); Object.assign(double.series_backtest!.pooled!.scores, { mean_crps: 10.01, mean_persistence_abs_error: 5 });
+    expect(withheldNotice(double)).toContain(', and it performed far worse than simply repeating');
+    const same = allWithheld(); Object.assign(same.series_backtest!.pooled!.scores, { mean_crps: 5, mean_persistence_abs_error: 5 });
+    expect(withheldNotice(same)).toContain('it performed no better than simply repeating');
+    const nothing = allWithheld(); Object.assign(nothing.series_backtest!.pooled!.scores, { mean_crps: 3, mean_persistence_abs_error: 0 });
+    expect(withheldNotice(nothing)).toContain('it performed far worse than');
     expect(withheldNotice(good)).not.toContain('only 92.0%');
   });
   it('says why one series is withheld, with its own measured numbers when it has them', () => {
@@ -238,7 +286,7 @@ describe('plain words', () => {
     const kansas = c.series.find((s) => s.geography === '20')!;
     const words = withheldSeriesWords(c, kansas, 'Kansas');
     expect(words.headline).toBe('We do not publish a forecast for Kansas.');
-    expect(words.reason).toBe("Its measured skill does not meet our rule: its 90% intervals contained the true count 50.0% of the time, below the 75.0% our rule asks for, and its mean error (9.00 cases) was larger than that of simply repeating the latest complete week's count (5.00).");
+    expect(words.reason).toBe("Its measured skill does not meet our rule: its 90% intervals contained the true count 50.0% of the time, below the 75.0% our rule asks for, and its mean CRPS (9.00 cases) was larger than the persistence mean absolute error (5.00 cases) of simply repeating the latest complete week's count.");
     expect(words.measured).toContain('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 50.0% of the time (2 of 4)');
     expect(words.rule).toBe(policyWords(c.publication_policy));
     // Insufficient data for a skill, or never tested, say that instead and show no numbers.
@@ -249,6 +297,14 @@ describe('plain words', () => {
     expect(w2.reason).toContain('too little to state a skill');
     const w3 = withheldSeriesWords(c, { ...kansas, skill: 'not backtested; no measured skill', withheld: 'not_backtested' }, 'Kansas');
     expect(w3).toMatchObject({ measured: '', reason: 'No test has measured this method on this series, so there is no measured skill to meet our rule.' });
+  });
+  it('says when a measured series is withheld for resting on less evidence than the rule asks for', () => {
+    const c = allWithheld();
+    c.publication_policy.minimum_targets = 5;
+    const kansas = c.series.find((s) => s.geography === '20')!;
+    // Kansas: 4 targets from 2 origin weeks, scores that would otherwise meet the rule.
+    Object.assign(c.series_backtest!.by_series.find((e) => e.geography === '20')!.measured!, { coverage_90: 0.9, mean_crps: 1 });
+    expect(withheldSeriesWords(c, kansas, 'Kansas').reason).toBe('Its measured skill does not meet our rule: its evidence is 4 scored forecasts from 2 origin weeks, below the 5 from 2 our rule asks for.');
   });
   it('says what a refused projection is', () => {
     const c = companion();

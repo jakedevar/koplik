@@ -68,15 +68,25 @@ export function mismatch(rows: Forecast[], provenance: ForecastProvenance): stri
   return null;
 }
 
-/** The measured scores a series' skill rests on: the series backtest's entry for a measured series, the report-vintage backtest for the series it scored; none otherwise. */
-export function measuredScoresOf(provenance: ForecastProvenance, series: ForecastSeries): { coverage_90: number; mean_crps: number; mean_persistence_abs_error: number } | null {
-  if (series.skill === 'backtested') return provenance.backtest ?? null;
-  if (series.skill === 'measured') return provenance.series_backtest?.by_series.find((e) => e.geography === series.geography)?.measured ?? null;
+/** The measured evidence a series' skill rests on: scored targets, distinct origin weeks, and the scores. */
+export interface Evidence { targets: number; origin_weeks: number; coverage_90: number; mean_crps: number; mean_persistence_abs_error: number }
+/** The evidence a series' skill rests on: the series backtest's entry for a measured series, the report-vintage backtest for the series it scored; none otherwise. */
+export function measuredScoresOf(provenance: ForecastProvenance, series: ForecastSeries): Evidence | null {
+  if (series.skill === 'backtested') {
+    const b = provenance.backtest;
+    return b ? { targets: b.targets, origin_weeks: b.origin_weeks, coverage_90: b.coverage_90, mean_crps: b.mean_crps, mean_persistence_abs_error: b.mean_persistence_abs_error } : null;
+  }
+  if (series.skill === 'measured') {
+    const entry = provenance.series_backtest?.by_series.find((e) => e.geography === series.geography);
+    const m = entry?.measured;
+    return entry && m ? { targets: entry.targets, origin_weeks: entry.origin_weeks, coverage_90: m.coverage_90, mean_crps: m.mean_crps, mean_persistence_abs_error: m.mean_persistence_abs_error } : null;
+  }
   return null;
 }
-/** Whether measured scores meet the publication policy: the same rule as `PublicationPolicy::admits` in koplik-contracts. */
-export function admits(policy: PublicationPolicy, scores: { coverage_90: number; mean_crps: number; mean_persistence_abs_error: number } | null): boolean {
-  return scores != null && scores.coverage_90 >= policy.minimum_coverage_90 && scores.mean_crps <= policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error;
+/** Whether measured evidence meets the publication policy, evidence floor included, for either kind of evaluation: the same rule as `PublicationPolicy::admits` in koplik-contracts. */
+export function admits(policy: PublicationPolicy, evidence: Evidence | null): boolean {
+  return evidence != null && evidence.targets >= policy.minimum_targets && evidence.origin_weeks >= policy.minimum_origin_weeks
+    && evidence.coverage_90 >= policy.minimum_coverage_90 && evidence.mean_crps <= policy.maximum_crps_over_persistence * evidence.mean_persistence_abs_error;
 }
 
 export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, synthetic = false): PublishedForecast {
@@ -112,7 +122,7 @@ export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, syntheti
     }
   }
   const policy = provenance.publication_policy;
-  if (blank(policy.rule) || !(policy.minimum_coverage_90 >= 0 && policy.minimum_coverage_90 <= 1) || !(policy.maximum_crps_over_persistence >= 0)) fail('the publication policy is malformed');
+  if (blank(policy.rule) || !(policy.minimum_targets >= 1) || !(policy.minimum_origin_weeks >= 1) || !(policy.minimum_coverage_90 >= 0 && policy.minimum_coverage_90 <= 1) || !(policy.maximum_crps_over_persistence >= 0)) fail('the publication policy is malformed');
   for (const s of provenance.series) {
     if ((s.status === 'insufficient_data') !== (s.reason != null)) fail(`series ${s.geography}: status and reason disagree`);
     if ((s.status === 'withheld') !== (s.withheld != null)) fail(`series ${s.geography}: status and the reason it is withheld disagree`);
@@ -191,6 +201,8 @@ export const percent = (share: number) => `${(Math.round(share * 1000) / 10).toF
 /** " (30 of 48)" when the share is a whole number of the scored targets, as a measured coverage is. */
 const outOf = (share: number, targets: number) => (Math.abs(share * targets - Math.round(share * targets)) < 1e-6 ? ` (${Math.round(share * targets)} of ${targets})` : '');
 const twoDecimals = (value: number) => value.toFixed(2);
+/** The two scores, each labelled precisely: the persistence baseline's mean absolute error is the CRPS of carrying the origin week's count forward. */
+const scoreLine = (meanCrps: number, persistence: number) => `Mean CRPS ${twoDecimals(meanCrps)} cases (lower is better); persistence mean absolute error ${twoDecimals(persistence)} cases (the error of simply repeating the origin week's count, which is its CRPS).`;
 
 /**
  * The backtest's measured skill in plain words, exactly as measured: percentages to one decimal with counts,
@@ -199,7 +211,7 @@ const twoDecimals = (value: number) => value.toFixed(2);
  */
 export function skillWords(skill: BacktestSkill) {
   const headline = `In a backtest on ${skill.name}, 90% intervals contained the true count ${percent(skill.coverage_90)} of the time${outOf(skill.coverage_90, skill.targets)}; a well-calibrated 90% interval would, about 90%. 50% intervals contained it ${percent(skill.coverage_50)} of the time${outOf(skill.coverage_50, skill.targets)}; about 50% would be expected.`;
-  const scores = `Mean CRPS ${twoDecimals(skill.mean_crps)} cases (lower is better); carrying the latest count forward instead scored ${twoDecimals(skill.mean_persistence_abs_error)}. The test scored ${skill.targets} forecasts of later weeks, made on ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), on ${skill.series}.`;
+  const scores = `${scoreLine(skill.mean_crps, skill.mean_persistence_abs_error)} The test scored ${skill.targets} forecasts of later weeks, made on ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), on ${skill.series}.`;
   const narrow = skill.coverage_90 < 0.9 || skill.coverage_50 < 0.5
     ? 'In this backtest the intervals were too narrow: the true count fell outside them more often than their labels say.' : '';
   return { headline, scores, narrow };
@@ -245,7 +257,7 @@ export function seriesSkillWords(backtest: SeriesBacktest, entry: SeriesBacktest
   const scores = entry.measured;
   if (!scores) throw new Error(`series ${entry.geography} has no measured skill`);
   const words = scoreSentences(scores, leadOf(backtest, 'this series'));
-  const detail = `Mean CRPS ${twoDecimals(scores.mean_crps)} cases (lower is better); carrying the latest count forward instead scored ${twoDecimals(scores.mean_persistence_abs_error)}. The test scored ${plural(scores.targets, 'forecast', 'forecasts')} of later weeks for this series, made from ${plural(entry.origin_weeks, 'origin week', 'distinct origin weeks')}. Basis: ${basisLabel(backtest.basis)}${backtest.basis === pseudoRealTime ? ', not real-time' : ''}.`;
+  const detail = `${scoreLine(scores.mean_crps, scores.mean_persistence_abs_error)} The test scored ${plural(scores.targets, 'forecast', 'forecasts')} of later weeks for this series, made from ${plural(entry.origin_weeks, 'origin week', 'distinct origin weeks')}. Basis: ${basisLabel(backtest.basis)}${backtest.basis === pseudoRealTime ? ', not real-time' : ''}.`;
   return { ...words, detail };
 }
 
@@ -265,7 +277,7 @@ export function pooledWords(backtest: SeriesBacktest) {
   const pooled = backtest.pooled;
   if (!pooled) return null;
   const words = scoreSentences(pooled.scores, `${leadOf(backtest, backtest.name)} pooled over ${plural(pooled.series, 'series', 'series')} and ${plural(pooled.forecasts, 'forecast', 'forecasts')},`);
-  const scores = `Mean CRPS ${twoDecimals(pooled.scores.mean_crps)} cases (lower is better); carrying the latest count forward instead scored ${twoDecimals(pooled.scores.mean_persistence_abs_error)}. The test scored ${plural(pooled.scores.targets, 'forecast', 'forecasts')} of later weeks. These means are in cases, so the series and forecasts with the largest counts and projections dominate them: they are not the skill of any one series.`;
+  const scores = `${scoreLine(pooled.scores.mean_crps, pooled.scores.mean_persistence_abs_error)} The test scored ${plural(pooled.scores.targets, 'forecast', 'forecasts')} of later weeks. These means are in cases, so the series and forecasts with the largest counts and projections dominate them: they are not the skill of any one series.`;
   return { ...words, scores };
 }
 
@@ -288,7 +300,7 @@ export const backtestReportPath = 'data/forecasts/backtest-west-texas-2025.json'
 /** The publication rule in plain words, with its thresholds. */
 export function policyWords(policy: PublicationPolicy): string {
   const crps = policy.maximum_crps_over_persistence === 1 ? 'no worse than' : `no more than ${policy.maximum_crps_over_persistence} times the error of`;
-  return `Our publication rule: a forecast is shown only if, in our test on that very series, its 90% intervals contained the true count at least ${percent(policy.minimum_coverage_90)} of the time and its mean error was ${crps} simply repeating the latest complete week's count.`;
+  return `Our publication rule: a forecast is shown only if our test on that very series scored at least ${policy.minimum_targets} of its forecasts from at least ${policy.minimum_origin_weeks} origin weeks, its 90% intervals contained the true count at least ${percent(policy.minimum_coverage_90)} of the time, and its mean error was ${crps} simply repeating the latest complete week's count.`;
 }
 
 /**
@@ -306,10 +318,11 @@ export function withheldNotice(provenance: ForecastProvenance): string | null {
   const pooled = backtest?.pooled?.scores;
   let second: string;
   if (backtest && pooled) {
-    const against = pooled.mean_crps > pooled.mean_persistence_abs_error ? 'it did worse than'
-      : pooled.mean_crps < pooled.mean_persistence_abs_error ? 'it did better than' : 'it did no better than';
+    // Plain words only: the exact scores are in the evaluation block below. "Far worse" is more than double the persistence error.
+    const ratio = pooled.mean_persistence_abs_error > 0 ? pooled.mean_crps / pooled.mean_persistence_abs_error : (pooled.mean_crps > 0 ? Infinity : 1);
+    const against = ratio > 2 ? 'it performed far worse than' : ratio > 1 ? 'it performed worse than' : ratio === 1 ? 'it performed no better than' : 'it performed better than';
     const calibrated = pooled.coverage_90 < 0.9 ? 'only ' : '';
-    second = `In our ${basisLabel(backtest.basis)} test on CDC state data, the method's 90% intervals contained the true count ${calibrated}${percent(pooled.coverage_90)} of the time${outOf(pooled.coverage_90, pooled.targets)} and ${against} simply repeating the latest complete week's count (mean error ${twoDecimals(pooled.mean_crps)} cases against ${twoDecimals(pooled.mean_persistence_abs_error)}).`;
+    second = `In our ${basisLabel(backtest.basis)} test on CDC state data, the method's 90% intervals contained the true count ${calibrated}${percent(pooled.coverage_90)} of the time${outOf(pooled.coverage_90, pooled.targets)}, and ${against} simply repeating the latest complete week's count.`;
   } else if (backtest) {
     second = `Our ${basisLabel(backtest.basis)} test on CDC state data scored too few forecasts to state a pooled result.`;
   } else {
@@ -336,9 +349,11 @@ export function withheldSeriesWords(provenance: ForecastProvenance, series: Fore
       if (scores && backtest && entry?.measured) {
         const words = seriesSkillWords(backtest, entry);
         measured = `${words.headline} ${words.detail}`;
+        const policy = provenance.publication_policy;
         const failures = [
+          scores.targets < policy.minimum_targets || scores.origin_weeks < policy.minimum_origin_weeks ? `its evidence is ${plural(scores.targets, 'scored forecast', 'scored forecasts')} from ${plural(scores.origin_weeks, 'origin week', 'origin weeks')}, below the ${policy.minimum_targets} from ${policy.minimum_origin_weeks} our rule asks for` : '',
           scores.coverage_90 < provenance.publication_policy.minimum_coverage_90 ? `its 90% intervals contained the true count ${percent(scores.coverage_90)} of the time, below the ${percent(provenance.publication_policy.minimum_coverage_90)} our rule asks for` : '',
-          scores.mean_crps > provenance.publication_policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error ? `its mean error (${twoDecimals(scores.mean_crps)} cases) was larger than that of simply repeating the latest complete week's count (${twoDecimals(scores.mean_persistence_abs_error)})` : '',
+          scores.mean_crps > provenance.publication_policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error ? `its mean CRPS (${twoDecimals(scores.mean_crps)} cases) was larger than the persistence mean absolute error (${twoDecimals(scores.mean_persistence_abs_error)} cases) of simply repeating the latest complete week's count` : '',
         ].filter(Boolean);
         reason = `Its measured skill does not meet our rule: ${failures.join(', and ')}.`;
       } else if (scores && provenance.backtest) {

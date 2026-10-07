@@ -320,9 +320,9 @@ empty and the page publishes no forecast.
 
 **Status of this section, stated honestly.** The measured result above came first, and it is the
 reason for this policy: the pre-registered forecaster failed its own test on the published series. So
-the policy is *not* pre-registered with respect to that result; it is a rule written from first
-principles, with thresholds fixed below and never tuned, and it is pre-registered with respect to
-every later result (a new origin, a new snapshot, a new series, a new method, a new evaluation).
+the policy is *not* pre-registered with respect to that result; it was written after that result
+was known and before the code that applies it, from first principles, with thresholds fixed below
+and never tuned, and it is pre-registered with respect to every later result (a new origin, a new snapshot, a new series, a new method, a new evaluation).
 It is applied mechanically by `koplik_pipeline::forecast_stage` and re-checked by the contract's
 deserializer (`koplik_contracts::v7::PublicationPolicy::admits`) and by the web page; nobody decides
 a series by hand.
@@ -334,8 +334,15 @@ A series meets the criterion exactly when **all** of these hold, on the scores t
 measured for that series (pooled over its scored targets, all horizons):
 
 1. **It has a measured skill**: the evaluation scored at least 40 targets of it from at least 10
-   origin weeks (the floor above, or the report-vintage backtest of that very series). Below the
-   floor the series has insufficient data for a skill and is withheld, whatever its scores.
+   origin weeks (the floor above). **This evidence floor is part of the policy itself and applies to
+   every kind of evaluation alike**, the pseudo-real-time series backtest and the report-vintage
+   backtest of a single series: the policy carries it (`minimum_targets`, `minimum_origin_weeks`)
+   and the pipeline, the contract's deserializer and the page all enforce it, so a series cannot be
+   published on less evidence by being scored by the other kind of test. (A review found that the
+   first implementation applied the floor only through the series backtest and let the legacy
+   `backtested` path through with 1 target from 1 origin week; fixed, with boundary tests at 39/40
+   targets and 9/10 origin weeks on both paths.) Below the floor the series has no measured skill
+   and is withheld, whatever its scores.
 2. **Its 90% intervals are calibrated well enough: `coverage_90 >= 0.75`.** First principles: the
    shown bands are the 50% and 90% bands, so a published band must be about what its label says. 0.75
    is the nominal 0.90 less 0.15, the sampling noise of a coverage estimate resting on about 10
@@ -355,7 +362,8 @@ contract check the same numbers.
 **Mechanical consequences.**
 
 - A forecast series whose skill is `measured` (or `backtested`, for the Texas DSHS outbreak total)
-  and that meets the criterion is `forecast`: its rows are published.
+  and that meets the criterion, evidence floor included, is `forecast`: its rows are published. The
+  Texas DSHS outbreak total (48 targets from 5 origin weeks) would be withheld by the floor alone.
 - Any other series for which the method would have forecast (its minimum-count rule held) is
   `withheld`, with the reason: `not_backtested` (no evaluation scored it), `insufficient_data_for_skill`
   (the evaluation ran on it but below the floor) or `skill_below_policy` (measured, but coverage or
@@ -400,10 +408,12 @@ with a row in the published file is refused.
 **The page.** At the top of the "Where next?" panel, before anything else, it says (with today's
 numbers): "We do not publish forecasts for these series. In our pseudo-real-time (revised counts
 truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the
-true count only 39.0% of the time (682 of 1748) and it did worse than simply repeating the latest
-complete week's count (mean error 23049631.33 cases against 15.42). See "How we evaluate forecasts"
-below." The numbers are read from the companion's pooled result; "only" and "worse than" are chosen
-by comparing them, so a result in the other direction says the other thing. The label
-"pseudo-real-time" stays in the sentence because the numbers come from one. "Latest complete week's
-count" is the persistence baseline exactly (the origin week's count), not "last week's", which would
-be two weeks off the data's latest week.
+true count only 39.0% of the time (682 of 1748), and it performed far worse than simply repeating the
+latest complete week's count. See "How we evaluate forecasts" below." The notice is plain words only:
+the exact scores (mean CRPS 23,049,631.33 cases; persistence mean absolute error 15.42 cases) are in
+the evaluation block below, each labelled precisely. The coverage is read from the companion's pooled
+result; "only" and the comparison words are chosen from the numbers ("far worse" means a mean CRPS
+more than double the persistence error, "worse" more than equal, and so on), so a result in the
+other direction says the other thing. The label "pseudo-real-time" stays in the sentence because the
+numbers come from one. "Latest complete week's count" is the persistence baseline exactly (the
+origin week's count), not "last week's", which would be two weeks off the data's latest week.

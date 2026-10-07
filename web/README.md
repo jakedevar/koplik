@@ -269,7 +269,8 @@ why, in words that name the counts; it never gets a number.
 **Publication policy (#1503).** A series' forecast is shown only if its method has a measured skill
 on that very series that meets a rule fixed in the research note
 (`thoughts/shared/research/backtest-cdc-states.md`) and carried in the companion as
-`publication_policy`: at least 75% of the true counts inside the 90% intervals, and a mean CRPS no
+`publication_policy`: at least 40 scored targets from at least 10 origin weeks (for every kind of
+evaluation alike), at least 75% of the true counts inside the 90% intervals, and a mean CRPS no
 worse than repeating the latest complete week's count. The pipeline applies it mechanically, the
 contract's deserializer re-applies it, and `src/forecast.ts` re-applies it again (`admits`) and
 refuses a companion that publishes a series the rule does not admit, or withholds one it does. The
@@ -279,10 +280,12 @@ are not in the published file) and `insufficient_data` (the method made none; re
 `projection_overflow`). **With today's data no state series qualifies**, so the panel publishes no
 forecast and says, **at the very top, before anything else**: "We do not publish forecasts for these
 series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state
-data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748) and
-it did worse than simply repeating the latest complete week's count (mean error 23049631.33 cases
-against 15.42). See "How we evaluate forecasts" below." The numbers are read from the companion's
-pooled result and the comparison words are chosen from them. A withheld series shows no chart and no
+data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748), and
+it performed far worse than simply repeating the latest complete week's count. See "How we evaluate
+forecasts" below." The numbers are read from the companion's pooled result and the comparison words
+are chosen from them ("far worse" means more than double the persistence error); the exact scores
+(mean CRPS 23049631.33 cases, persistence mean absolute error 15.42 cases) are in the evaluation
+block, labelled. A withheld series shows no chart and no
 values: its reason, its own measured numbers when it has them (the same plain words, each opening a
 provenance drawer), and the rule it did not meet. If some series do qualify, the panel says which
 are published and that the rest are not.

@@ -49,7 +49,7 @@ describe('forecast panel', () => {
     expect(banner.className).toContain('forecast-measured');
     expect(banner.firstElementChild?.textContent).toBe('Measured skill for this series.');
     expect(banner.querySelector('.forecast-series-headline')?.textContent).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 83.3% of the time (5 of 6); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50.0% of the time (3 of 6); about 50% would be expected.');
-    expect(banner.textContent).toContain('Mean CRPS 6.50 cases (lower is better); carrying the latest count forward instead scored 7.00.');
+    expect(banner.textContent).toContain('Mean CRPS 6.50 cases (lower is better); persistence mean absolute error 7.00 cases');
     expect(banner.textContent).toContain('6 forecasts of later weeks for this series, made from 3 distinct origin weeks');
     expect(banner.textContent).toContain('Basis: pseudo-real-time (revised counts truncated at each forecast date), not real-time.');
     expect(banner.textContent).toContain("the method's mean error was smaller than that of carrying the latest count forward");
@@ -70,7 +70,7 @@ describe('forecast panel', () => {
     const banner = result.firstElementChild!;
     expect(banner.className).toContain('forecast-withheld');
     expect(banner.querySelector('.forecast-withheld-headline')?.textContent).toBe('We do not publish a forecast for Kansas.');
-    expect(banner.textContent).toContain("Its measured skill does not meet our rule: its 90% intervals contained the true count 50.0% of the time, below the 75.0% our rule asks for, and its mean error (9.00 cases) was larger than that of simply repeating the latest complete week's count (5.00).");
+    expect(banner.textContent).toContain("Its measured skill does not meet our rule: its 90% intervals contained the true count 50.0% of the time, below the 75.0% our rule asks for, and its mean CRPS (9.00 cases) was larger than the persistence mean absolute error (5.00 cases) of simply repeating the latest complete week's count.");
     expect(banner.querySelector('.forecast-series-headline')?.textContent).toContain('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 50.0% of the time (2 of 4)');
     expect(banner.querySelector('.forecast-policy')?.textContent).toContain('Our publication rule: a forecast is shown only if');
     // No chart, no forecast values: only the method and its parameters.
@@ -132,7 +132,10 @@ describe('forecast panel', () => {
     const all = mount(vi.fn().mockResolvedValue(none), '48');
     await flush();
     const top = all.main.querySelector('.forecast-withheld-top')!;
-    expect(top.textContent).toBe("We do not publish forecasts for these series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748) and it did worse than simply repeating the latest complete week's count (mean error 23049631.33 cases against 15.42). See \"How we evaluate forecasts\" below.");
+    expect(top.textContent).toBe("We do not publish forecasts for these series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748), and it performed far worse than simply repeating the latest complete week's count. See \"How we evaluate forecasts\" below.");
+    // The exact scores are in the evaluation block, labelled precisely, not in the notice.
+    expect(top.textContent).not.toMatch(/23049631|15\.42|CRPS/);
+    expect(all.main.querySelector('.forecast-evaluation')!.textContent).toContain('Mean CRPS 23049631.33 cases (lower is better); persistence mean absolute error 15.42 cases');
     expect(all.main.querySelector('.forecast')!.children[1]).toBe(top.parentElement);
     expect(all.main.querySelector('.forecast-status')?.textContent).toBe('No forecast is published: the method made forecasts for 2 of 4 series and our publication rule withheld every one; the other 2 have insufficient data.');
     expect(all.main.querySelector('svg.forecast-chart')).toBeNull();
@@ -173,7 +176,7 @@ describe('forecast panel', () => {
     expect(evaluation.querySelector('.forecast-series-basis')?.textContent).toContain('pseudo-real-time (revised counts truncated at each forecast date)');
     expect(evaluation.textContent).toContain('at least 4 forecasts of it from at least 2 origin weeks, a floor fixed before any score was computed');
     expect(evaluation.querySelector('.forecast-series-scope')?.textContent).toBe("Of the 2 series the method forecast, 2 have a measured skill from this test, 0 have insufficient data for one and 0 were not part of it; 1 is published. A series' skill is its own: no other series' number is evidence about it.");
-    expect(evaluation.querySelector('.forecast-policy')?.textContent).toContain('Our publication rule: a forecast is shown only if, in our test on that very series');
+    expect(evaluation.querySelector('.forecast-policy')?.textContent).toContain('Our publication rule: a forecast is shown only if our test on that very series scored at least 4 of its forecasts from at least 2 origin weeks');
     expect(evaluation.textContent).toContain('2 of the 4 state series have a measured skill; 0 more had forecasts scored but too few for one; the other 2 never had a forecast in the test');
     const measured = [...evaluation.querySelectorAll('.series-skill tbody tr')];
     expect(measured).toHaveLength(2);
