@@ -1,0 +1,137 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "GEOID": "48"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -106,
+              26
+            ],
+            [
+              -94,
+              26
+            ],
+            [
+              -94,
+              34
+            ],
+            [
+              -106,
+              34
+            ],
+            [
+              -106,
+              26
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "GEOID": "40"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -103,
+              34
+            ],
+            [
+              -94,
+              34
+            ],
+            [
+              -94,
+              37
+            ],
+            [
+              -103,
+              37
+            ],
+            [
+              -103,
+              34
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "GEOID": "35"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -109,
+              31
+            ],
+            [
+              -106,
+              31
+            ],
+            [
+              -106,
+              37
+            ],
+            [
+              -109,
+              37
+            ],
+            [
+              -109,
+              31
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "GEOID": "20"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -102,
+              37
+            ],
+            [
+              -94,
+              37
+            ],
+            [
+              -94,
+              40
+            ],
+            [
+              -102,
+              40
+            ],
+            [
+              -102,
+              37
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
