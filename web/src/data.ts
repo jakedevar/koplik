@@ -4,13 +4,15 @@ import geographySchema from '../../crates/koplik-contracts/schema/v1/Geography.s
 import casesSchema from '../../crates/koplik-contracts/schema/v1/WeeklyCaseCount.schema.json';
 import coverageSchema from '../../crates/koplik-contracts/schema/v1/KindergartenMmrCoverage.schema.json';
 import rtSchema from '../../crates/koplik-contracts/schema/v1/RtEstimate.schema.json';
+import provenanceSchema from '../../crates/koplik-contracts/schema/v1/Provenance.schema.json';
+import type { Provenance } from './generated/Provenance';
 import type { Geography } from './generated/Geography';
 import type { WeeklyCaseCount } from './generated/WeeklyCaseCount';
 import type { KindergartenMmrCoverage } from './generated/KindergartenMmrCoverage';
 import type { RtEstimate } from './generated/RtEstimate';
 import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 
-export type Boundaries = FeatureCollection<Polygon | MultiPolygon, { GEOID: string }>;
+export type Boundaries = FeatureCollection<Polygon | MultiPolygon, { GEOID: string; provenance?: Provenance[] }>;
 export interface Dataset {
   geographies: Geography[];
   cases: WeeklyCaseCount[];
@@ -39,6 +41,7 @@ const validators = {
   coverage: ajv.compile(coverageSchema),
   rt: ajv.compile(rtSchema),
 };
+const validateProvenance = ajv.compile(provenanceSchema);
 
 export function parseRows<T extends keyof typeof validators>(kind: T, input: unknown): Dataset[T] {
   if (!Array.isArray(input)) throw new Error(`${kind}: expected an array of v1 rows`);
@@ -84,6 +87,10 @@ export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boun
   const ids = new Set<string>();
   for (const feature of collection.features) {
     const id = feature.properties?.GEOID;
+    const provenance = feature.properties?.provenance;
+    if (provenance !== undefined && (!Array.isArray(provenance) || !provenance.length || provenance.some((p) => !validateProvenance(p)))) {
+      throw new Error(`${level}: invalid boundary provenance`);
+    }
     if (feature.type !== 'Feature' || !new RegExp(level === 'state' ? '^\\d{2}$' : '^48\\d{3}$').test(id || '') ||
       ids.has(id) || !['Polygon', 'MultiPolygon'].includes(feature.geometry?.type)) {
       throw new Error(`${level}: invalid or duplicate GeoJSON boundary`);
@@ -124,8 +131,9 @@ export async function loadDataset(base: string, synthetic = false, read: typeof 
     if (!ids.has(row.geography)) throw new Error(`Unknown geography ${row.geography}`);
   }
   // A production build cannot accidentally present development fixtures as observations.
-  if (!synthetic && [...result.geographies, ...result.cases, ...result.coverage, ...result.rt]
-    .some((row) => row.provenance.some((p) => p.source_id.startsWith('synthetic')))) {
+  if (!synthetic && ([...result.geographies, ...result.cases, ...result.coverage, ...result.rt]
+    .some((row) => row.provenance.some((p) => p.source_id.startsWith('synthetic'))) ||
+    [...result.states.features, ...result.counties.features].some((feature) => feature.properties.provenance?.some((p) => p.source_id.startsWith('synthetic'))))) {
     throw new Error('Synthetic artifacts require explicit development fixture mode');
   }
   return result;

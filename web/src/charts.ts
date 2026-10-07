@@ -3,6 +3,7 @@ import type { RtEstimate } from './generated/RtEstimate';
 import { compareWeeks } from './data';
 
 const NS = 'http://www.w3.org/2000/svg';
+let chartId = 0;
 function svgElement(tag: string, attributes: Record<string, string | number>) {
   const node = document.createElementNS(NS, tag);
   for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
@@ -35,11 +36,13 @@ const y = (value: number, maximum: number) => 170 - value / maximum * 145;
 export function caseChart(rows: WeeklyCaseCount[], year: number): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
   const max = Math.max(1, ...selected.map((r) => r.confirmed.status === 'reported' ? r.confirmed.count : 0));
-  const svg = chart(`Weekly confirmed cases, MMWR ${year}. Gaps mean no data; exact reports are in the table.`, max, 'Confirmed cases');
+  const svg = chart(`Weekly confirmed cases, MMWR ${year}. Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, 'Confirmed cases');
   for (const row of selected) {
     if (row.confirmed.status !== 'reported') continue;
-    const bar = svgElement('rect', { x: x(row.week.week) - 3, y: y(row.confirmed.count, max), width: 6,
-      height: 170 - y(row.confirmed.count, max), class: 'case-bar', 'data-week': row.week.week });
+    const bar = row.confirmed.count === 0 ?
+      svgElement('line', { x1: x(row.week.week) - 3, x2: x(row.week.week) + 3, y1: 170, y2: 170, class: 'case-zero', 'data-week': row.week.week }) :
+      svgElement('rect', { x: x(row.week.week) - 3, y: y(row.confirmed.count, max), width: 6,
+        height: 170 - y(row.confirmed.count, max), class: 'case-bar', 'data-week': row.week.week });
     const title = svgElement('title', {});
     title.textContent = `Week ${row.week.week}: ${row.confirmed.count} confirmed cases`;
     bar.append(title);
@@ -61,6 +64,46 @@ export function rtChart(rows: RtEstimate[], year: number): SVGSVGElement {
   const drawable = selected.filter((r) => !r.provisional && r.status === 'ok');
   const maximum = Math.max(2, ...drawable.map((r) => Math.max(r.upper!, r.mean!)));
   const svg = chart(`Effective reproduction number, MMWR ${year}. Mean and credible interval; provisional and insufficient data are withheld.`, maximum, 'R_t');
+  svg.setAttribute('viewBox', '0 0 640 240');
+  const hatchId = `rt-insufficient-hatch-${++chartId}`;
+  const withheld = selected.filter((r) => r.provisional || r.status === 'insufficient_data');
+  const description = svgElement('desc', { id: `${hatchId}-description` });
+  description.textContent = `Grey hatch / I: insufficient data. Dashed outline / P: provisional, estimate withheld. IP: both. Blank: no row. Withheld weeks: ${withheld.length ? withheld.map((row) => `Week ${row.week.week}: ${rtLabel(row)}`).join('; ') : 'none'}.`;
+  svg.setAttribute('aria-describedby', `${hatchId}-description`);
+  svg.append(description);
+  const defs = svgElement('defs', {});
+  const hatch = svgElement('pattern', { id: hatchId, width: 4, height: 4, patternUnits: 'userSpaceOnUse' });
+  hatch.append(svgElement('rect', { width: 4, height: 4, fill: '#edf0ee' }),
+    svgElement('path', { d: 'M0 4L4 0', stroke: '#68786f', 'stroke-width': 1 }));
+  defs.append(hatch);
+  svg.append(defs);
+  for (const row of withheld) {
+    const label = `Week ${row.week.week}: ${rtLabel(row)}`;
+    const marker = svgElement('g', { class: 'rt-withheld', 'data-week': row.week.week,
+      'data-status': row.status, 'data-provisional': String(row.provisional), role: 'img', 'aria-label': label });
+    const title = svgElement('title', {});
+    title.textContent = label;
+    marker.append(title);
+    if (row.status === 'insufficient_data') marker.append(svgElement('rect', {
+      x: x(row.week.week) - 4, y: 25, width: 8, height: 145, fill: `url(#${hatchId})`, class: 'rt-insufficient-band',
+    }));
+    if (row.provisional) marker.append(svgElement('rect', {
+      x: x(row.week.week) - 4, y: 25, width: 8, height: 145, class: 'rt-provisional-band',
+    }));
+    const text = svgElement('text', { x: x(row.week.week), y: 182, 'text-anchor': 'middle', class: 'axis-label' });
+    text.textContent = `${row.status === 'insufficient_data' ? 'I' : ''}${row.provisional ? 'P' : ''}`;
+    marker.append(text);
+    svg.append(marker);
+  }
+  const legend = svgElement('g', { class: 'rt-status-legend', 'aria-label': 'I: Insufficient data; P: Provisional, estimate withheld; blank: no row. IP means both statuses.' });
+  legend.append(svgElement('rect', { x: 40, y: 217, width: 10, height: 12, fill: `url(#${hatchId})` }),
+    svgElement('rect', { x: 215, y: 217, width: 10, height: 12, class: 'rt-provisional-band' }));
+  for (const [px, label] of [[56, 'I: Insufficient data'], [231, 'P: Provisional (withheld)'], [450, 'Blank: no row']] as const) {
+    const text = svgElement('text', { x: px, y: 227, class: 'axis-label' });
+    text.textContent = label;
+    legend.append(text);
+  }
+  svg.append(legend);
   svg.append(svgElement('line', { x1: 40, x2: 610, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));
   const groups: RtEstimate[][] = [];
   for (const row of drawable) {

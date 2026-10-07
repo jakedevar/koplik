@@ -7,6 +7,19 @@ export interface MapView {
   destroy(): void;
 }
 
+/** Boundary attribution uses its own v1 provenance, never a guessed data provider. */
+export function boundaryAttribution(boundaries: Boundaries): string {
+  const labels = new Set<string>();
+  for (const feature of boundaries.features) {
+    if (!feature.properties.provenance?.length) labels.add('Boundary source / licence unavailable');
+    for (const record of feature.properties.provenance || []) labels.add(`${record.source_id} · ${record.licence_id}`);
+  }
+  if (!labels.size) labels.add('Boundary source / licence unavailable');
+  // MapLibre treats attribution as HTML; source metadata stays plain text.
+  return [...labels].sort().map((label) => label.replace(/[&<>"']/g, (character) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)).join(' | ');
+}
+
 export function mapFeatures(data: Dataset, level: 'state' | 'county', metric: Metric, selected: string) {
   const source = level === 'state' ? data.states : data.counties;
   return {
@@ -36,7 +49,7 @@ export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: 
     center: [-98, 38], zoom: 3, attributionControl: false,
   });
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
-  map.addControl(new maplibregl.AttributionControl({ compact: false, customAttribution: data.synthetic ? 'Synthetic test geometry' : 'US Census Bureau · public domain' }));
+  map.addControl(new maplibregl.AttributionControl({ compact: false }));
   let current: ['state' | 'county', Metric, string] = ['state', 'cases-2025', '48'];
   let ready = false;
   let previousLevel = 'state';
@@ -50,7 +63,7 @@ export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: 
       pixels.set([shade, shade, shade, 255], offset);
     }
     map.addImage('missing-hatch', { width: 8, height: 8, data: pixels });
-    map.addSource('regions', { type: 'geojson', data: mapFeatures(data, ...current) });
+    map.addSource('regions', { type: 'geojson', data: mapFeatures(data, ...current), attribution: boundaryAttribution(current[0] === 'state' ? data.states : data.counties) });
     map.addLayer({ id: 'reported', type: 'fill', source: 'regions', filter: ['==', ['get', 'missing'], false],
       paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'value'], 0, '#edf4ed', 1, '#c5ddc3', 50, '#68a58d', 100, '#286e66', 500, '#123f3b'], 'fill-opacity': 0.9 } });
     map.addLayer({ id: 'missing', type: 'fill', source: 'regions', filter: ['==', ['get', 'missing'], true], paint: { 'fill-pattern': 'missing-hatch' } });
@@ -74,7 +87,9 @@ export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: 
     const oldSelection = current[2];
     current = [level, metric, selected];
     if (!ready) return;
-    (map.getSource('regions') as GeoJSONSource).setData(mapFeatures(data, level, metric, selected));
+    const source = map.getSource('regions') as GeoJSONSource;
+    source.attribution = boundaryAttribution(level === 'state' ? data.states : data.counties);
+    source.setData(mapFeatures(data, level, metric, selected));
     map.setPaintProperty('reported', 'fill-color', metric === 'coverage' && level === 'state' ?
       ['interpolate', ['linear'], ['get', 'value'], 0, '#f3d9a6', 80, '#ead38a', 90, '#8db896', 95, '#357c68', 100, '#123f3b'] :
       ['interpolate', ['linear'], ['get', 'value'], 0, '#edf4ed', 1, '#c5ddc3', 50, '#68a58d', 100, '#286e66', 500, '#123f3b']);
