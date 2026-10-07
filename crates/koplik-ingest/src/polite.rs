@@ -23,11 +23,12 @@ pub const MIN_HOST_INTERVAL: Duration = Duration::from_secs(1);
 /// so live fetching refuses.
 pub const CONTACT_ENV: &str = "KOPLIK_CONTACT";
 
-/// Contact sent in the User-Agent when `KOPLIK_CONTACT` is unset: the operator's public GitHub
-/// profile (no personal e-mail). Decision `ingest-contact`, ruled 2026-10-07 by the global
-/// manager (node 73306b5f) under the operator's standing directive; issue #1413. When a public
-/// Koplik repository exists, switch this to that repository's URL.
-pub const DEFAULT_CONTACT: &str = "https://github.com/jakedevar";
+/// Contact sent in the User-Agent when `KOPLIK_CONTACT` is unset: the public Koplik repository
+/// (no personal e-mail). Decision `ingest-contact`, ruled 2026-10-07 by the global manager (node
+/// 73306b5f) under the operator's standing directive (#1413: the operator's public GitHub profile
+/// until a public repository existed); switched to the repository at the public release, step (b)
+/// of #1449. Census hosts use the Census contact instead (#1427).
+pub const DEFAULT_CONTACT: &str = "https://github.com/jakedevar/koplik";
 
 /// Pure contact resolution from the raw value of `KOPLIK_CONTACT` (`None` = unset):
 /// non-blank value -> that value, trimmed; unset -> [`DEFAULT_CONTACT`]; set but empty/blank
@@ -850,8 +851,8 @@ mod tests {
 
     #[test]
     fn contact_resolution_unset_default_override_blank_refuse() {
-        // The committed default is the operator's public profile: a URL, never an e-mail.
-        assert_eq!(DEFAULT_CONTACT, "https://github.com/jakedevar");
+        // The committed default is the public Koplik repository: a URL, never an e-mail.
+        assert_eq!(DEFAULT_CONTACT, "https://github.com/jakedevar/koplik");
         // (raw KOPLIK_CONTACT value, resolved contact); `None` raw = unset.
         let table: [(Option<&str>, Option<&str>); 6] = [
             (None, Some(DEFAULT_CONTACT)),
@@ -895,7 +896,7 @@ mod tests {
         assert!(
             unset
                 .iter()
-                .all(|u| *u == ua("https://github.com/jakedevar"))
+                .all(|u| *u == ua("https://github.com/jakedevar/koplik"))
         );
         let over = user_agents_for(Some("https://example.org/koplik")).unwrap();
         assert!(!over.is_empty());

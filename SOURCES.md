@@ -79,10 +79,11 @@ reproducibly. data.cdc.gov's `robots.txt` allows `/resource/` with `Crawl-delay:
 `koplik-ingest/<version> (measles data demonstration project; <contact>)`. The contact is
 resolved in one place (`polite::contact_from_env`, via `PoliteConfig::live_from_env`): the
 `KOPLIK_CONTACT` environment variable when set and non-blank (an e-mail address or repository URL);
-the committed default `polite::DEFAULT_CONTACT = https://github.com/jakedevar` (the operator's public
-GitHub profile, no e-mail; decision `ingest-contact`, 2026-10-07, #1413) when it is unset; and
+the committed default `polite::DEFAULT_CONTACT = https://github.com/jakedevar/koplik` (the public
+Koplik repository, no e-mail; decision `ingest-contact`, 2026-10-07, #1413; switched from the
+operator's public GitHub profile at the public release, #1449) when it is unset; and
 **a refusal, before the store is opened or any request is sent, when it is set but empty or blank**
-(an explicit opt-out). When a public Koplik repository exists, switch the default to its URL.
+(an explicit opt-out).
 Offline parsing and all tests need no contact.
 
 **Census contact (per host).** Requests to Census hosts (`www2.census.gov`, any `*.census.gov`;
@@ -142,7 +143,7 @@ number). `m1` ("current week") is not used.
 
 ## Texas DSHS 2025 West Texas outbreak, cases by county over time (`dshs-*`)
 
-Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` identifies the client with the contact described under "Client identification" above (default `https://github.com/jakedevar`, override `KOPLIK_CONTACT`; a blank value refuses). Commands:
+Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` identifies the client with the contact described under "Client identification" above (default `https://github.com/jakedevar/koplik`, override `KOPLIK_CONTACT`; a blank value refuses). Commands:
 `koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
 `koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), unmapped names,
 parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
@@ -292,7 +293,7 @@ Use one shared `PoliteFetcher` per pipeline run: it tracks attempts and makes at
 GET per named file, including failures (no retries or redirects). Requests remain
 sequential, paced at least one second apart, and carry the polite identifying User-Agent.
 `PoliteConfig::live_from_env()` resolves the contact (`KOPLIK_CONTACT`, else the committed
-`ingest-contact` default `https://github.com/jakedevar`; blank refuses).
+`ingest-contact` default `https://github.com/jakedevar/koplik`; blank refuses).
 Every other URL and host still follows the reviewed robots policy.
 
 `census_files::fetch_to_store` re-verifies cached bytes against their content address and

@@ -21,7 +21,7 @@ live CLI command and the pipeline's ingest stage):
 
 | `KOPLIK_CONTACT` | contact sent |
 | --- | --- |
-| unset | `polite::DEFAULT_CONTACT` = `https://github.com/jakedevar` (operator's public profile; decision `ingest-contact`, #1413) |
+| unset | `polite::DEFAULT_CONTACT` = `https://github.com/jakedevar/koplik` (the public Koplik repository; decision `ingest-contact`, #1413, switched at the public release, #1449) |
 | set, non-blank | that value (an e-mail address or repository URL), trimmed |
 | set but empty or blank | none: live fetching **refuses** before opening the store or sending any request (explicit opt-out) |
 

@@ -21,7 +21,7 @@ To repeat a capture with the exact recorded URL, source id and terms id, choose 
 path and use the fixture recorder (run from the repository root):
 
 Live capture identifies the client with the contact from `KOPLIK_CONTACT` (default
-`https://github.com/jakedevar` when unset); a blank value refuses before creating a store or
+`https://github.com/jakedevar/koplik` when unset); a blank value refuses before creating a store or
 sending a request. Offline parsing needs no contact.
 
 ```bash
