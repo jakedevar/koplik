@@ -113,7 +113,7 @@ describe('forecast panel', () => {
     expect([...panel.children].slice(0, 3).map((c) => c.tagName)).toEqual(['H2', 'DIV', 'P']);
     expect(panel.querySelector('.forecast-withheld-top')?.textContent).toContain('We publish forecasts only for the 1 series whose own test result meets our rule, and we do not publish forecasts for the other 1.');
     expect(panel.querySelector('.forecast-status')?.textContent).toContain('1 of 4 series have a forecast that meets our publication rule; 1 more are withheld');
-    expect([...panel.querySelectorAll<HTMLSelectElement>('#forecast-geography optgroup')].map((g) => g.label)).toEqual(['Forecast available', 'Forecast withheld: not published', 'Insufficient data: no forecast']);
+    expect([...panel.querySelectorAll<HTMLOptGroupElement>('#forecast-geography optgroup')].map((g) => g.label)).toEqual(['Forecast available', 'Forecast withheld: not published', 'Insufficient data: no forecast']);
     some.cleanup();
 
     // Every forecast withheld, with the committed NNDSS report's pooled numbers: no chart anywhere, the exact notice first.

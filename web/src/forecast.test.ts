@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { admits, basisLabel, evaluationScope, insufficientSkillStatus, insufficientWords, loadForecast, mismatch, noMeasuredSkill, measuredScoresOf, noSkillWords, parseForecast, percent, policyWords, pooledWords, quantileAt, seriesEvaluationScope, seriesRows, seriesSkillWords, skillWords, weekOrdinal, withheldNotice, withheldSeriesWords, type Forecast, type ForecastProvenance } from './forecast';
+import { admits, basisLabel, evaluationScope, insufficientSkillStatus, insufficientWords, loadForecast, mismatch, noMeasuredSkill, measuredScoresOf, noSkillWords, parseForecast, percent, policyWords, pooledWords, quantileAt, seriesEvaluationScope, seriesRows, seriesSkillWords, skillWords, weekOrdinal, withheldNotice, withheldSeriesWords, type Forecast, type ForecastProvenance, type ForecastSeries } from './forecast';
 import { fixtureRoot } from './fixtures.test-utils';
 
 const read = (name: string) => JSON.parse(readFileSync(resolve(fixtureRoot, `synthetic-v1/${name}`), 'utf8'));
@@ -242,7 +242,7 @@ describe('plain words', () => {
     expect(words.measured).toContain('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 50.0% of the time (2 of 4)');
     expect(words.rule).toBe(policyWords(c.publication_policy));
     // Insufficient data for a skill, or never tested, say that instead and show no numbers.
-    const below = { ...kansas, skill: insufficientSkillStatus, withheld: 'insufficient_data_for_skill' as const };
+    const below = { ...kansas, skill: insufficientSkillStatus as ForecastSeries['skill'], withheld: 'insufficient_data_for_skill' as const };
     c.series_backtest!.by_series.find((e) => e.geography === '20')!.measured = null;
     const w2 = withheldSeriesWords(c, below, 'Kansas');
     expect(w2.measured).toBe('');
