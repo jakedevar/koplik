@@ -236,7 +236,10 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     }
     const citationHeader = element('thead'); citationHeader.append(citationHead);
     citations.append(citationHeader, citationBody);
-    parameters.append(element('summary', 'Model parameters and their sources'), parameterJson, citations);
+    // A horizontal scroll container, so the cited sources scroll on a narrow screen instead of being clipped by the panel.
+    const citationScroll = element('div', undefined, 'table-scroll');
+    citationScroll.append(citations);
+    parameters.append(element('summary', 'Model parameters and their sources'), parameterJson, citationScroll);
     metadata.append(seedingLine, sources, seedingDetails, parameters);
     update(true);
   }).catch((error: unknown) => { if (!disposed) fail(error instanceof Error ? error.message : String(error)); });

@@ -252,3 +252,23 @@ test('the navbar fits a narrow screen', async ({ page }) => {
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
+
+test('every page fits a narrow screen with its provenance text wrapped, not clipped', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  for (const entry of pages) {
+    await page.goto(`./${entry.hash}`);
+    await expectPageChrome(page, entry.name);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    // Panels clip overflow, so also require every visible element to end inside the viewport.
+    // Content of a horizontal scroll container (.table-scroll) scrolls rather than clips; the container itself must fit.
+    const clipped = await page.evaluate(() => [...document.querySelectorAll('main *')]
+      .filter((el) => (el as HTMLElement).offsetParent !== null && !el.parentElement?.closest('.table-scroll'))
+      .filter((el) => el.getBoundingClientRect().right > 390.5)
+      .map((el) => `${el.tagName.toLowerCase()}.${String(el.className)}`));
+    expect(clipped, entry.name).toEqual([]);
+  }
+  // The Census file URLs and SHA-256 hashes are shown in full on the Sources page.
+  await page.goto('./#/sources');
+  const firstFile = page.locator('.census-files li').first();
+  await expect(firstFile).toContainText(/SHA-256 [0-9a-f]{64}/);
+});

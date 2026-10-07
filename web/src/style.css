@@ -126,6 +126,8 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 
 .attribution { padding: 16px 20px; }
 .attribution h2 { margin: 0 0 6px; }
+.census-files { padding-left: 20px; }
+.census-files li, .census-files a, .census-file-hash { overflow-wrap: anywhere; }
 .attribution-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 14px; }
 .attribution-list a { font-weight: 650; }
 .attribution-ruling { font-size: 12px; color: #557069; }
