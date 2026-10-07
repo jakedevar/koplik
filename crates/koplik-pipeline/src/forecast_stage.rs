@@ -22,23 +22,28 @@
 //!   some infectivity). Elsewhere the companion says `insufficient_data` and why, and no row is
 //!   written: never an estimate. A series whose latest data is older than the origin week has a
 //!   missing count in its window and so is `insufficient_data`.
-//! * **Skill.** The measured backtest skill is attached only from a committed report that was
-//!   run with exactly this configuration ([`skill_from_report`]); otherwise the companion says
-//!   there is none. The backtest scored one series (the Texas DSHS 2025 outbreak total by
-//!   report date), so a series is marked `backtested` only when it is that series
-//!   ([`is_backtested`]); every other series is published as `not backtested; no measured skill`,
-//!   and nothing about the backtest's calibration is said of it.
+//! * **Skill.** Two evaluations can be attached, each only from a committed report that was run with
+//!   exactly this configuration. The report-vintage backtest scored one series (the Texas DSHS 2025
+//!   outbreak total by report date; [`skill_from_report`], [`is_backtested`]). The pseudo-real-time
+//!   backtest of the CDC NNDSS state series (#1503; [`series_backtest_from_report`]) scored every
+//!   state series where the method's rule held and states, for each, whether its skill is measured
+//!   (a floor of scored targets and origin weeks fixed before any score) or has insufficient data.
+//!   A series gets a skill from an evaluation only through that evaluation's own entry for it
+//!   ([`series_skill`]); every other series is published as `not backtested; no measured skill`,
+//!   and no number is offered as evidence about a series it was not measured on.
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use koplik_contracts::v1::{Forecast, GeoId, MmwrWeek, Sha256Hex};
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
-use koplik_contracts::v5::{
+use koplik_contracts::v6::{
     BacktestSkill, FORECAST_PROVENANCE_VERSION, ForecastInput, ForecastProvenance, ForecastSeries,
-    ForecastStatus, InsufficientReason, ParameterProvenance, SeriesSkill, SkillByHorizon,
+    ForecastStatus, InformationBasis, InsufficientReason, MeasuredScores, ParameterProvenance,
+    PooledScores, SeriesBacktest, SeriesBacktestEntry, SeriesSkill, SkillByHorizon,
 };
 use koplik_epi::forecast::{ForecastConfig, ProjectionStatus, forecast_weekly};
 use koplik_epi::rt::{InsufficientReason as EpiReason, case_definitions};
+use koplik_ingest::cdc;
 use koplik_ingest::store::sha256_of;
 use serde::Deserialize;
 use serde_json::json;
@@ -57,6 +62,12 @@ pub const FORECAST_SEED: u64 = 20_250_101;
 pub const BACKTEST_REPORT_PATH: &str = "data/reports/backtest/west-texas-2025.json";
 /// The same report relative to the reports root (`Config::reports`).
 pub const BACKTEST_REPORT_REL: &str = "backtest/west-texas-2025.json";
+
+/// The pseudo-real-time NNDSS state-series report (#1503), as the companion cites it and relative
+/// to the reports root.
+pub use crate::nndss_backtest::{
+    REPORT_PATH as SERIES_BACKTEST_REPORT_PATH, REPORT_REL as SERIES_BACKTEST_REPORT_REL,
+};
 
 /// The case definition of the backtested series: the Texas DSHS outbreak total counts confirmed
 /// cases (`koplik_epi::backtest::vintages`; the report's scope says "confirmed cases").
@@ -105,6 +116,35 @@ pub fn is_backtested(
             && !source_ids.is_empty()
             && source_ids.iter().all(|id| DSHS_REPORT_SOURCES.contains(id))
     })
+}
+
+/// Which evaluation, if any, measured a series' skill, and what it found. The report-vintage
+/// backtest speaks only for the series it scored ([`is_backtested`]); the series backtest only
+/// through its own entry for the series, and only for a series made entirely of NNDSS rows under
+/// the case definition it scored. Anything else is not backtested.
+pub fn series_skill(
+    skill: Option<&BacktestSkill>,
+    series_backtest: Option<&SeriesBacktest>,
+    geography: GeoId,
+    definition: CaseDefinition,
+    source_ids: &BTreeSet<&str>,
+) -> SeriesSkill {
+    if is_backtested(skill, geography, definition, source_ids) {
+        return SeriesSkill::Backtested;
+    }
+    let from_nndss = !source_ids.is_empty() && source_ids.iter().all(|id| *id == cdc::SOURCE_ID);
+    if let Some(b) = series_backtest
+        && from_nndss
+        && definition == b.case_definition
+        && let Some(entry) = b.by_series.iter().find(|e| e.geography == geography)
+    {
+        return if entry.measured.is_some() {
+            SeriesSkill::Measured
+        } else {
+            SeriesSkill::InsufficientData
+        };
+    }
+    SeriesSkill::NotBacktested
 }
 
 /// One configuration value with the value this forecast ran with and its citation.
@@ -234,6 +274,7 @@ pub fn build(
     cases: &[WeeklyCaseCount],
     input: ForecastInput,
     skill: Option<BacktestSkill>,
+    series_backtest: Option<SeriesBacktest>,
 ) -> Result<Option<Built>> {
     let cfg = forecast_config();
     cfg.validate().map_err(PipelineError::Forecast)?;
@@ -260,16 +301,13 @@ pub fn build(
     let mut rows = Vec::new();
     let mut series = Vec::new();
     for (geography, definition) in &definitions {
-        let skill_status = if is_backtested(
+        let skill_status = series_skill(
             skill.as_ref(),
+            series_backtest.as_ref(),
             *geography,
             *definition,
             sources.get(geography).unwrap_or(&BTreeSet::new()),
-        ) {
-            SeriesSkill::Backtested
-        } else {
-            SeriesSkill::NotBacktested
-        };
+        );
         let entry = match by_geography.get(geography) {
             Some(f) => match f.projection.status {
                 ProjectionStatus::Ok => {
@@ -305,14 +343,7 @@ pub fn build(
         series.push(entry);
     }
 
-    let forecast_count = series
-        .iter()
-        .filter(|s| s.status == ForecastStatus::Forecast)
-        .count();
-    let backtested_count = series
-        .iter()
-        .filter(|s| s.skill == SeriesSkill::Backtested)
-        .count();
+    let scope_note = scope_note(skill.as_ref(), series_backtest.as_ref(), &series);
     let provenance = ForecastProvenance {
         contract_version: FORECAST_PROVENANCE_VERSION,
         artifact: ARTIFACT.to_owned(),
@@ -336,36 +367,75 @@ pub fn build(
         input,
         parameters: parameters(&cfg, FORECAST_SEED, provisional_weeks),
         series,
-        scope_note: scope_note(skill.as_ref(), forecast_count, backtested_count),
+        scope_note,
         backtest: skill,
+        series_backtest,
     };
     Ok(Some(Built { rows, provenance }))
 }
 
-/// What the attached skill does and does not say about the series forecast. A series the backtest
-/// did not score has no measured skill, and the backtest's scores are not offered as evidence
-/// about it.
-fn scope_note(skill: Option<&BacktestSkill>, forecast: usize, backtested: usize) -> String {
-    let Some(skill) = skill else {
+/// What the attached evaluations do and do not say about the series forecast. A series an
+/// evaluation did not score has no measured skill from it, and its scores are not offered as
+/// evidence about any other series.
+fn scope_note(
+    skill: Option<&BacktestSkill>,
+    series_backtest: Option<&SeriesBacktest>,
+    series: &[ForecastSeries],
+) -> String {
+    let forecast: Vec<&ForecastSeries> = series
+        .iter()
+        .filter(|s| s.status == ForecastStatus::Forecast)
+        .collect();
+    let count = |want: SeriesSkill| forecast.iter().filter(|s| s.skill == want).count();
+    let n = forecast.len();
+    if skill.is_none() && series_backtest.is_none() {
         return format!(
-            "No backtest report for exactly this configuration is attached, so no skill has been measured for these forecasts ({forecast} series forecast)."
+            "No backtest report for exactly this configuration is attached, so no skill has been measured for these forecasts ({n} series forecast)."
         );
-    };
-    let unmeasured = forecast.saturating_sub(backtested);
-    let which = match (forecast, unmeasured) {
-        (0, _) => "No series was forecast.".to_owned(),
-        (_, 0) => format!("Every one of the {forecast} series forecast here is that series."),
-        (n, m) if n == m => format!(
-            "None of the {n} series forecast here is that series: none was backtested and none has a measured skill."
-        ),
-        (n, m) => format!(
-            "{m} of the {n} series forecast here are not that series: they were not backtested and have no measured skill."
-        ),
-    };
-    format!(
-        "The backtest scored one series only: {}. {which} Its scores are reported separately, as an evaluation of the method on that series, and are not a measure of the forecasts of any other series.",
-        skill.series
-    )
+    }
+    if n == 0 {
+        return "No series was forecast, so there is no forecast for a backtest to speak to."
+            .to_owned();
+    }
+    let mut parts = Vec::new();
+    if let Some(b) = series_backtest {
+        let (measured, insufficient) = (
+            count(SeriesSkill::Measured),
+            count(SeriesSkill::InsufficientData),
+        );
+        parts.push(format!(
+            "In the backtest of {}: {measured} of the {n} series forecast here have a measured skill (at least {} scored targets from at least {} origin weeks, a floor fixed before any score) and {insufficient} have insufficient data for one. A series' skill is its own and no other series' number is evidence about it. Real-time status: {}.",
+            b.name, b.minimum_targets, b.minimum_origin_weeks,
+            match b.basis {
+                InformationBasis::PseudoRealTime => "pseudo-real-time (revised counts truncated at each forecast date), not real-time",
+                InformationBasis::RealTimeByVintage => "real-time by report vintage",
+            }
+        ));
+    }
+    if let Some(skill) = skill {
+        let backtested = count(SeriesSkill::Backtested);
+        parts.push(match (n, backtested) {
+            (_, 0) => format!(
+                "The report-vintage backtest scored one series only: {}. None of the {n} series forecast here is that series. Its scores are reported separately, as an evaluation of the method on that series, and are not a measure of the forecasts of any other series.",
+                skill.series
+            ),
+            (n, b) if n == b => format!(
+                "The report-vintage backtest scored one series only: {}. Every one of the {n} series forecast here is that series.",
+                skill.series
+            ),
+            (n, b) => format!(
+                "The report-vintage backtest scored one series only: {}. {b} of the {n} series forecast here is that series. Its scores are not a measure of the forecasts of any other series.",
+                skill.series
+            ),
+        });
+    }
+    let unmeasured = count(SeriesSkill::NotBacktested);
+    if unmeasured > 0 {
+        parts.push(format!(
+            "{unmeasured} of the {n} series forecast here were not backtested and have no measured skill."
+        ));
+    }
+    parts.join(" ")
 }
 
 /// A share as a percentage with exactly one decimal (`62.5%`), the one precision the page and the
@@ -511,7 +581,7 @@ pub fn skill_from_report(
     let coverage_90 = need("coverage_90", p.pooled.coverage_90)?;
     let limitations = vec![
         format!(
-            "One series and one period: {}. No state series, county series or other outbreak was scored.",
+            "One series and one period: {}. This evaluation scored nothing else: no other outbreak and no county series (the CDC NNDSS state series have their own, separate evaluation).",
             report.scope
         ),
         format!(
@@ -564,6 +634,276 @@ pub fn skill_from_report(
         report_path: BACKTEST_REPORT_PATH.to_owned(),
         report_sha256: sha256_of(bytes),
         manifest_sha256: Sha256Hex::new(report.manifest_sha256).map_err(|e| e.to_string())?,
+        limitations,
+    })
+}
+
+// ---------------------------------------------------------------------------------------------
+// The committed NNDSS state-series backtest report (#1503)
+
+#[derive(Deserialize)]
+struct StateReportSeries {
+    geography: GeoId,
+    origins_forecast: u32,
+    origin_weeks_scored: u32,
+    measured: bool,
+    pooled: ReportSummary,
+    by_horizon: Vec<ReportSummary>,
+    not_forecast: BTreeMap<String, u32>,
+}
+
+#[derive(Deserialize)]
+struct StateReportFloor {
+    min_targets: u32,
+    min_origin_weeks: u32,
+}
+
+#[derive(Deserialize)]
+struct StateReportPrimary {
+    seed: u64,
+    window_weeks: u32,
+    max_lag_weeks: u32,
+    min_cases: u32,
+    horizon_weeks: u32,
+    run_count: u32,
+    provisional_weeks: u32,
+    floor: StateReportFloor,
+    series: Vec<StateReportSeries>,
+    series_scored: u32,
+    forecasts_scored: u32,
+    by_horizon: Vec<ReportSummary>,
+    pooled: ReportSummary,
+    pooled_measured: bool,
+}
+
+#[derive(Deserialize)]
+struct StateReportInput {
+    source_id: String,
+    sha256: String,
+}
+
+#[derive(Deserialize)]
+struct StateReport {
+    input: StateReportInput,
+    protocol: String,
+    scope: String,
+    primary: StateReportPrimary,
+}
+
+/// The label a pseudo-real-time backtest must carry (spec E5): a report without it is refused, so
+/// a truncation of revised counts is never published as a real-time score.
+const PSEUDO_REAL_TIME: &str = "pseudo-real-time (revised counts truncated at each forecast date)";
+
+/// The name of the NNDSS state-series evaluation in a sentence ("the backtest of ...").
+const SERIES_BACKTEST_NAME: &str = "the CDC NNDSS state series";
+
+fn measured_scores(
+    summary: &ReportSummary,
+    by_horizon: &[ReportSummary],
+) -> std::result::Result<MeasuredScores, String> {
+    let need = |name: &str, v: Option<f64>| {
+        v.ok_or_else(|| {
+            format!(
+                "a measured summary of {} targets lacks its {name}",
+                summary.n
+            )
+        })
+    };
+    Ok(MeasuredScores {
+        targets: summary.n,
+        mean_crps: need("mean_crps", summary.mean_crps)?,
+        coverage_50: need("coverage_50", summary.coverage_50)?,
+        coverage_90: need("coverage_90", summary.coverage_90)?,
+        mean_persistence_abs_error: need(
+            "mean_persistence_abs_error",
+            summary.mean_persistence_abs_error,
+        )?,
+        by_horizon: by_horizon
+            .iter()
+            .map(|h| SkillByHorizon {
+                horizon: h.horizon,
+                n: h.n,
+                mean_crps: h.mean_crps,
+                coverage_50: h.coverage_50,
+                coverage_90: h.coverage_90,
+            })
+            .collect(),
+    })
+}
+
+/// The evaluation the committed NNDSS state-series report measured, read exactly as written, or
+/// the reason none is attached: the report does not parse, is not pseudo-real-time-labelled, or
+/// was run with a different configuration than the one being published (its numbers would describe
+/// another method).
+pub fn series_backtest_from_report(
+    bytes: &[u8],
+    cfg: &ForecastConfig,
+    provisional_weeks: u32,
+) -> std::result::Result<SeriesBacktest, String> {
+    let report: StateReport =
+        serde_json::from_slice(bytes).map_err(|e| format!("the report does not parse: {e}"))?;
+    let p = &report.primary;
+    let ran_with = (
+        p.window_weeks,
+        p.max_lag_weeks,
+        p.min_cases,
+        p.horizon_weeks,
+        p.run_count,
+        p.provisional_weeks,
+    );
+    let publishing = (
+        cfg.renewal.window,
+        cfg.max_lag_weeks,
+        cfg.renewal.min_cases,
+        cfg.horizon_weeks,
+        cfg.run_count,
+        provisional_weeks,
+    );
+    if ran_with != publishing {
+        return Err(format!(
+            "the report was run with (window, look-back, min cases, horizon, members, provisional weeks) = {ran_with:?}, not the {publishing:?} being published"
+        ));
+    }
+    if p.seed != FORECAST_SEED {
+        return Err(format!(
+            "the report's seed {} is not the published seed {FORECAST_SEED}",
+            p.seed
+        ));
+    }
+    if report.input.source_id != cdc::SOURCE_ID {
+        return Err(format!(
+            "the report was run on {}, not {}",
+            report.input.source_id,
+            cdc::SOURCE_ID
+        ));
+    }
+    if !report.protocol.starts_with(PSEUDO_REAL_TIME) {
+        return Err(format!(
+            "the report's protocol does not carry the label \"{PSEUDO_REAL_TIME}\""
+        ));
+    }
+    let mut entries = Vec::with_capacity(p.series.len());
+    for s in &p.series {
+        let reached =
+            p.floor.min_targets <= s.pooled.n && p.floor.min_origin_weeks <= s.origin_weeks_scored;
+        if reached != s.measured {
+            return Err(format!(
+                "series {}: the report's measured flag disagrees with its own floor",
+                s.geography
+            ));
+        }
+        entries.push(SeriesBacktestEntry {
+            geography: s.geography,
+            forecasts: s.origins_forecast,
+            origin_weeks: s.origin_weeks_scored,
+            targets: s.pooled.n,
+            measured: if s.measured {
+                Some(measured_scores(&s.pooled, &s.by_horizon)?)
+            } else {
+                None
+            },
+        });
+    }
+    let targets: u64 = p.series.iter().map(|s| u64::from(s.pooled.n)).sum();
+    if targets != u64::from(p.pooled.n) {
+        return Err(format!(
+            "the report lists {targets} scored targets in its series but its pooled summary says {}",
+            p.pooled.n
+        ));
+    }
+    let pooled = if p.pooled_measured {
+        Some(PooledScores {
+            forecasts: p.forecasts_scored,
+            series: p.series_scored,
+            scores: measured_scores(&p.pooled, &p.by_horizon)?,
+        })
+    } else {
+        None
+    };
+
+    let considered = p.series.len();
+    let scored = p.series_scored;
+    let measured = p.series.iter().filter(|s| s.measured).count();
+    let forecasts: u32 = p.series.iter().map(|s| s.origins_forecast).sum();
+    let refused: u32 = p
+        .series
+        .iter()
+        .map(|s| {
+            s.not_forecast
+                .get("projection_overflow")
+                .copied()
+                .unwrap_or(0)
+        })
+        .sum();
+    let origin_weeks = |s: &StateReportSeries| s.origin_weeks_scored;
+    let most = p.series.iter().map(origin_weeks).max().unwrap_or(0);
+    let least = p
+        .series
+        .iter()
+        .map(origin_weeks)
+        .filter(|n| *n > 0)
+        .min()
+        .unwrap_or(0);
+    let limitations = {
+        let mut list = vec![
+            format!(
+                "Scope: {}. Nothing else was scored here: not the Texas DSHS county series, not confirmed cases only, not symptom-onset incidence.",
+                report.scope
+            ),
+            format!(
+                "{PSEUDO_REAL_TIME}: CDC publishes no revision history and one retrieval of this source is held, so this is not a real-time backtest. Each forecast was given only the weeks up to its origin week, from the retrieved series; if CDC rewrote earlier weeks when it republished, a forecaster at the time saw different counts, and the effect on these scores cannot be measured from one retrieval."
+            ),
+            format!(
+                "Only the series where the method's own minimum-count rule held were forecast and scored: {scored} of the {considered} state, territory and DC series ever were ({forecasts} forecasts), so the other {} are insufficient data for any skill. Only {measured} of the {scored} reach the floor of {} scored targets from {} origin weeks; the rest have insufficient data for a measured skill and no number is given for them.",
+                considered as u32 - scored,
+                p.floor.min_targets,
+                p.floor.min_origin_weeks
+            ),
+            format!(
+                "A small and correlated sample: the {} scored targets come from {} forecasts; the 8 horizons of one origin and neighbouring origins share data, so independent evidence is nearer the {least} to {most} origin weeks per scored series than the targets. No interval is given for any score; small differences between series mean nothing.",
+                p.pooled.n, p.forecasts_scored
+            ),
+            "Mean CRPS is in cases and the forecast has no ceiling on growth, so it is dominated by the few forecasts that grew most and grows with the horizon by orders of magnitude; compare it with the persistence column of the same row, not across series of different size.".to_owned(),
+            format!(
+                "Scores are conditional on the method making a forecast: {refused} origin(s) where the projection passed the method's limit were refused and are not scored, and they are the origins where the method would have been furthest off."
+            ),
+            "Counts are by CDC report week (the growth of the published cumulative), not symptom onset, and combine confirmed and unknown-status cases.".to_owned(),
+        ];
+        if let (Some(c50), Some(c90)) = (p.pooled.coverage_50, p.pooled.coverage_90) {
+            list.insert(
+                3,
+                format!(
+                    "In this backtest the intervals were not well calibrated: pooled over every scored target, 90% intervals contained the observed count {}{} of the time (nominal 90%) and 50% intervals {}{} (nominal 50%). The model has no overdispersion and holds its growth rate constant over the horizon.",
+                    percent(c90),
+                    out_of(c90, p.pooled.n),
+                    percent(c50),
+                    out_of(c50, p.pooled.n)
+                ),
+            );
+        }
+        list
+    };
+    Ok(SeriesBacktest {
+        name: SERIES_BACKTEST_NAME.to_owned(),
+        series: report
+            .scope
+            .split(';')
+            .next()
+            .unwrap_or(&report.scope)
+            .trim()
+            .to_owned(),
+        case_definition: CaseDefinition::ConfirmedOrUnknownStatus,
+        basis: InformationBasis::PseudoRealTime,
+        protocol: report.protocol.clone(),
+        seed: p.seed,
+        provisional_weeks: p.provisional_weeks,
+        minimum_targets: p.floor.min_targets,
+        minimum_origin_weeks: p.floor.min_origin_weeks,
+        pooled,
+        by_series: entries,
+        report_path: SERIES_BACKTEST_REPORT_PATH.to_owned(),
+        report_sha256: sha256_of(bytes),
+        input_sha256: Sha256Hex::new(report.input.sha256).map_err(|e| e.to_string())?,
         limitations,
     })
 }
@@ -629,7 +969,7 @@ mod tests {
     }
 
     fn built(cases: &[WeeklyCaseCount]) -> Built {
-        build(cases, input(), None).unwrap().unwrap()
+        build(cases, input(), None, None).unwrap().unwrap()
     }
 
     #[test]
@@ -762,7 +1102,7 @@ mod tests {
     fn case_definitions_are_never_mixed() {
         let mut cases = series("12", 20, 10);
         cases[3].case_definition = CaseDefinition::Confirmed;
-        assert!(build(&cases, input(), None).is_err());
+        assert!(build(&cases, input(), None, None).is_err());
         // Two geographies may each have their own definition; each is forecast under it.
         let mut cases = series("12", 20, 10);
         cases.extend(series("13", 20, 10).into_iter().map(|mut r| {
@@ -787,7 +1127,7 @@ mod tests {
 
     #[test]
     fn no_rows_means_nothing_to_forecast() {
-        assert!(build(&[], input(), None).unwrap().is_none());
+        assert!(build(&[], input(), None, None).unwrap().is_none());
     }
 
     #[test]
@@ -959,7 +1299,7 @@ mod tests {
         let skill = skill_from_report(&skill_json(|_| {}), &forecast_config()).unwrap();
         let mut cases = series("48", 20, 10);
         cases.extend(series("12", 20, 10));
-        let b = build(&cases, input(), Some(skill)).unwrap().unwrap();
+        let b = build(&cases, input(), Some(skill), None).unwrap().unwrap();
         assert!(
             b.provenance
                 .series
@@ -972,12 +1312,136 @@ mod tests {
                 .contains("None of the 2 series forecast here is that series")
         );
         assert!(b.provenance.backtest.is_some());
-        let none = build(&cases, input(), None).unwrap().unwrap();
+        let none = build(&cases, input(), None, None).unwrap().unwrap();
         assert!(none.provenance.backtest.is_none());
         assert!(
             none.provenance
                 .scope_note
                 .contains("no skill has been measured")
+        );
+    }
+
+    /// A state-series report with series "12" above the floor (3 horizons' worth of targets
+    /// stand in for it: floor 4 targets from 2 origin weeks) and "13" below it.
+    fn state_report(edit: impl FnOnce(&mut serde_json::Value)) -> Vec<u8> {
+        let summary = |horizon: u32, n: u32| {
+            if n == 0 {
+                json!({"horizon": horizon, "n": 0, "mean_crps": null, "coverage_50": null,
+                       "coverage_90": null, "mean_persistence_abs_error": null})
+            } else {
+                json!({"horizon": horizon, "n": n, "mean_crps": 2.0, "coverage_50": 0.5,
+                       "coverage_90": 1.0, "mean_persistence_abs_error": 4.0})
+            }
+        };
+        let horizons = |ns: [u32; 2]| json!([summary(1, ns[0]), summary(2, ns[1])]);
+        let mut v = json!({
+            "input": {"source_id": "cdc-nndss-weekly-measles", "sha256": "ab".repeat(32)},
+            "protocol": "pseudo-real-time (revised counts truncated at each forecast date): one retrieval",
+            "scope": "the CDC NNDSS weekly counts of each state; not the DSHS county series",
+            "primary": {
+                "seed": FORECAST_SEED, "window_weeks": 3, "max_lag_weeks": 3, "min_cases": 11,
+                "horizon_weeks": 8, "run_count": 1000, "provisional_weeks": 2,
+                "floor": {"min_targets": 4, "min_origin_weeks": 2},
+                "series": [
+                    {"geography": "12", "origins_forecast": 3, "origin_weeks_scored": 2, "measured": true,
+                     "pooled": summary(0, 4), "by_horizon": horizons([2, 2]), "not_forecast": {"below_threshold": 9}},
+                    {"geography": "13", "origins_forecast": 1, "origin_weeks_scored": 1, "measured": false,
+                     "pooled": summary(0, 2), "by_horizon": horizons([1, 1]), "not_forecast": {"projection_overflow": 1}}
+                ],
+                "series_scored": 2, "forecasts_scored": 3,
+                "by_horizon": horizons([3, 3]), "pooled": summary(0, 6), "pooled_measured": true
+            }
+        });
+        edit(&mut v);
+        serde_json::to_vec(&v).unwrap()
+    }
+
+    #[test]
+    fn a_state_report_becomes_the_series_backtest_with_scores_only_above_the_floor() {
+        let b = series_backtest_from_report(&state_report(|_| {}), &forecast_config(), 2).unwrap();
+        assert_eq!(b.basis, InformationBasis::PseudoRealTime);
+        assert_eq!((b.minimum_targets, b.minimum_origin_weeks), (4, 2));
+        assert_eq!(b.by_series.len(), 2);
+        let above = &b.by_series[0];
+        assert_eq!(
+            (above.targets, above.origin_weeks, above.forecasts),
+            (4, 2, 3)
+        );
+        assert_eq!(above.measured.as_ref().unwrap().mean_crps, 2.0);
+        // Below the floor: the counts, never the scores.
+        let below = &b.by_series[1];
+        assert_eq!((below.targets, below.origin_weeks), (2, 1));
+        assert!(below.measured.is_none());
+        let pooled = b.pooled.as_ref().unwrap();
+        assert_eq!(
+            (pooled.forecasts, pooled.series, pooled.scores.targets),
+            (3, 2, 6)
+        );
+        assert_eq!(b.report_sha256, sha256_of(&state_report(|_| {})));
+        assert!(
+            b.limitations
+                .join(" ")
+                .contains("1 origin(s) where the projection passed")
+        );
+        // The companion contract accepts what the pipeline builds.
+        let json = serde_json::to_value(&b).unwrap();
+        assert!(serde_json::from_value::<SeriesBacktest>(json).is_ok());
+    }
+
+    #[test]
+    fn a_state_report_that_does_not_fit_the_published_forecast_is_refused() {
+        let attempt = |edit: fn(&mut serde_json::Value)| {
+            series_backtest_from_report(&state_report(edit), &forecast_config(), 2).unwrap_err()
+        };
+        assert!(
+            attempt(|v| v["primary"]["window_weeks"] = json!(2)).contains("report was run with")
+        );
+        assert!(
+            attempt(|v| v["primary"]["provisional_weeks"] = json!(1))
+                .contains("report was run with")
+        );
+        assert!(attempt(|v| v["primary"]["seed"] = json!(3)).contains("seed"));
+        assert!(attempt(|v| v["input"]["source_id"] = json!("dshs")).contains("run on"));
+        assert!(attempt(|v| v["protocol"] = json!("real-time")).contains("label"));
+        // The report's own measured flag must agree with its floor, and its pooled numbers with its series.
+        assert!(attempt(|v| v["primary"]["series"][1]["measured"] = json!(true)).contains("floor"));
+        assert!(attempt(|v| v["primary"]["pooled"]["n"] = json!(7)).contains("pooled summary"));
+        assert!(series_backtest_from_report(b"nope", &forecast_config(), 2).is_err());
+        // Pooled below the floor is "no pooled result", not an invented one.
+        let b = series_backtest_from_report(
+            &state_report(|v| v["primary"]["pooled_measured"] = json!(false)),
+            &forecast_config(),
+            2,
+        )
+        .unwrap();
+        assert!(b.pooled.is_none());
+    }
+
+    #[test]
+    fn a_series_takes_its_skill_only_from_its_own_entry() {
+        let b = series_backtest_from_report(&state_report(|_| {}), &forecast_config(), 2).unwrap();
+        let cdc: BTreeSet<&str> = ["cdc-nndss-weekly-measles"].into();
+        let dshs: BTreeSet<&str> = ["dshs-measles-data-report-wayback"].into();
+        let unknown = CaseDefinition::ConfirmedOrUnknownStatus;
+        let skill = |g: &str, d, src: &BTreeSet<&str>| {
+            series_skill(None, Some(&b), g.parse().unwrap(), d, src)
+        };
+        assert_eq!(skill("12", unknown, &cdc), SeriesSkill::Measured);
+        assert_eq!(skill("13", unknown, &cdc), SeriesSkill::InsufficientData);
+        // Not in the report, another definition, or another source: not backtested.
+        assert_eq!(skill("14", unknown, &cdc), SeriesSkill::NotBacktested);
+        assert_eq!(
+            skill("12", CaseDefinition::Confirmed, &cdc),
+            SeriesSkill::NotBacktested
+        );
+        assert_eq!(skill("12", unknown, &dshs), SeriesSkill::NotBacktested);
+        assert_eq!(
+            skill("12", unknown, &BTreeSet::new()),
+            SeriesSkill::NotBacktested
+        );
+        assert_eq!(
+            series_skill(None, None, "12".parse().unwrap(), unknown, &cdc),
+            SeriesSkill::NotBacktested
         );
     }
 }

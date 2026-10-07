@@ -11,7 +11,7 @@
 //!                                                                 <work>/scenarios/gaines-2025{,.provenance}.json
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
 //! forecast  <work>/validate/weekly-cases.json                  -> <work>/forecast/forecast{,.provenance}.json
-//!           + the committed backtest report in <reports>          <work>/forecast/backtest-west-texas-2025.json
+//!           + the committed backtest reports in <reports>         <work>/forecast/backtest-{west-texas-2025,cdc-states}.json
 //! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v1/*.json, <out>/scenarios/*.json,
 //!                                                                 <out>/forecasts/*.json, <out>/manifest.json
 //! ```
@@ -30,8 +30,8 @@
 //! `forecast` from the validated weekly case series by the pre-registered method of
 //! `koplik_epi::forecast`; see [`forecast_stage`] for the rule, which series it forecasts and why
 //! the rest are `insufficient_data`. Its companion `forecasts/weekly-cases.provenance.json`
-//! (contract v5) carries the method, parameter citations, seed, input hash and the backtest's
-//! measured skill with its scope.
+//! (contract v6) carries the method, parameter citations, seed, input hash and the backtests'
+//! measured skills with their scope.
 
 pub mod forecast_stage;
 pub mod nndss_backtest;
@@ -47,7 +47,7 @@ use koplik_contracts::v1::{
     GeoId, Geography, KindergartenMmrCoverage, Provenances, RtEstimate, Sha256Hex, StateFips,
 };
 use koplik_contracts::v3::WeeklyCaseCount;
-use koplik_contracts::{v1, v3, v5};
+use koplik_contracts::{v1, v3, v6};
 use koplik_epi::rt::{RtConfig, RtError, case_definitions, estimate_weekly};
 use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
@@ -95,9 +95,11 @@ pub const WEB_BOUNDARY_ARTIFACTS: [&str; 2] = ["us-states", "texas-counties"];
 /// The what-if scenario the web app loads from `<out>/scenarios/` (see `web/src/scenario.ts`).
 pub const SCENARIO_ARTIFACT: &str = "gaines-2025";
 /// The forecast the web app loads from `<out>/forecasts/` (see `web/src/forecast.ts`): v1
-/// `Forecast` rows, their v5 provenance companion and the backtest report the skill was read from.
+/// `Forecast` rows, their v6 provenance companion and the backtest reports the skills were read from.
 pub const FORECAST_ARTIFACT: &str = forecast_stage::ARTIFACT;
 pub const FORECAST_BACKTEST_ARTIFACT: &str = "backtest-west-texas-2025";
+/// The pseudo-real-time NNDSS state-series backtest report published beside it (#1503).
+pub const FORECAST_SERIES_BACKTEST_ARTIFACT: &str = "backtest-cdc-states";
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -1335,6 +1337,7 @@ fn infer(config: &Config) -> Result<Manifest> {
 const FORECAST_ROWS_REL: &str = "forecast/forecast.json";
 const FORECAST_PROVENANCE_REL: &str = "forecast/forecast.provenance.json";
 const FORECAST_BACKTEST_REL: &str = "forecast/backtest-west-texas-2025.json";
+const FORECAST_SERIES_BACKTEST_REL: &str = "forecast/backtest-cdc-states.json";
 
 fn forecast(config: &Config) -> Result<Manifest> {
     clear_dir(&config.work.join("forecast"))?;
@@ -1381,7 +1384,42 @@ fn forecast(config: &Config) -> Result<Manifest> {
         },
     };
 
-    match forecast_stage::build(&cases, forecast_stage::input_of(&bytes, cases.len()), skill)? {
+    // The pseudo-real-time backtest of the CDC NNDSS state series (#1503), attached the same way:
+    // only from the committed report run with exactly this configuration and carrying its label.
+    let series_report_path = config.reports.join(forecast_stage::SERIES_BACKTEST_REPORT_REL);
+    let series_report = match fs::read(&series_report_path) {
+        Ok(report) => Some(report),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(PipelineError::io(&series_report_path, e)),
+    };
+    let series_backtest = match &series_report {
+        None => {
+            m.notes.push(format!(
+                "no series backtest attached: {} is not present",
+                forecast_stage::SERIES_BACKTEST_REPORT_PATH
+            ));
+            None
+        }
+        Some(report) => match forecast_stage::series_backtest_from_report(
+            report,
+            &forecast_stage::forecast_config(),
+            rt_config().provisional_weeks,
+        ) {
+            Ok(b) => Some(b),
+            Err(why) => {
+                m.notes
+                    .push(format!("no series backtest attached: {why}"));
+                None
+            }
+        },
+    };
+
+    match forecast_stage::build(
+        &cases,
+        forecast_stage::input_of(&bytes, cases.len()),
+        skill,
+        series_backtest,
+    )? {
         None => {
             m.items.insert(
                 "forecast".to_owned(),
@@ -1396,7 +1434,7 @@ fn forecast(config: &Config) -> Result<Manifest> {
             let insufficient = p
                 .series
                 .iter()
-                .filter(|s| s.status == v5::ForecastStatus::InsufficientData)
+                .filter(|s| s.status == v6::ForecastStatus::InsufficientData)
                 .count();
             m.notes.push(format!(
                 "origin MMWR {} (latest week with data {}); seed {}; {} series forecast, {} insufficient data; the pre-registered method and defaults of koplik_epi::forecast, unchanged",
@@ -1429,6 +1467,24 @@ fn forecast(config: &Config) -> Result<Manifest> {
                 m.notes.push(format!(
                     "backtest skill read from {} (sha256 {})",
                     skill.report_path, skill.report_sha256
+                ));
+            }
+            if let (Some(b), Some(report)) = (&p.series_backtest, &series_report) {
+                // The series backtest's report, byte for byte, so every published number can be
+                // checked against it (`b.report_sha256`).
+                let copy = write_file(&config.work, FORECAST_SERIES_BACKTEST_REL, report)?;
+                if copy.sha256 != b.report_sha256 {
+                    return Err(PipelineError::Data(
+                        "the copied series backtest report does not match the hash it cites".into(),
+                    ));
+                }
+                m.outputs.push(copy);
+                m.notes.push(format!(
+                    "series backtest read from {} (sha256 {}); {} of {} series have a measured skill",
+                    b.report_path,
+                    b.report_sha256,
+                    p.series.iter().filter(|s| s.skill == v6::SeriesSkill::Measured).count(),
+                    p.series.len()
                 ));
             }
             m.items.insert(
@@ -1639,7 +1695,7 @@ fn build(config: &Config) -> Result<Manifest> {
                 provenance_path.display()
             )));
         }
-        let provenance: v5::ForecastProvenance = read_json(&provenance_path)?;
+        let provenance: v6::ForecastProvenance = read_json(&provenance_path)?;
         provenance
             .check_against(&rows)
             .map_err(|e| PipelineError::Data(format!("{}: {e}", provenance_path.display())))?;
@@ -1664,6 +1720,20 @@ fn build(config: &Config) -> Result<Manifest> {
                 format!("forecasts/{FORECAST_BACKTEST_ARTIFACT}.json"),
             ));
         }
+        if let Some(b) = &provenance.series_backtest {
+            let report_path = config.work.join(FORECAST_SERIES_BACKTEST_REL);
+            let report = fs::read(&report_path).map_err(|e| PipelineError::io(&report_path, e))?;
+            if hash_bytes(&report) != b.report_sha256 {
+                return Err(PipelineError::Data(format!(
+                    "{} does not match the report hash its series backtest cites",
+                    report_path.display()
+                )));
+            }
+            files.push((
+                FORECAST_SERIES_BACKTEST_REL,
+                format!("forecasts/{FORECAST_SERIES_BACKTEST_ARTIFACT}.json"),
+            ));
+        }
         for (from, to) in files {
             m.inputs.push(hash_file(&config.work, from)?);
             let path = config.work.join(from);
@@ -1679,7 +1749,7 @@ fn build(config: &Config) -> Result<Manifest> {
                     provenance
                         .series
                         .iter()
-                        .filter(|s| s.status == v5::ForecastStatus::InsufficientData)
+                        .filter(|s| s.status == v6::ForecastStatus::InsufficientData)
                         .count() as u64,
                 ),
             },

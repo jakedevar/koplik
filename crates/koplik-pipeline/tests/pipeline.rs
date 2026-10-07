@@ -12,7 +12,9 @@ use koplik_contracts::v1::{
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
-use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason, SeriesSkill};
+use koplik_contracts::v6::{
+    ForecastProvenance, ForecastStatus, InformationBasis, InsufficientReason, SeriesSkill,
+};
 use koplik_ingest::store::sha256_of;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
@@ -886,14 +888,12 @@ fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() 
     assert!(skill.series.contains("Texas DSHS outbreak total"));
     assert!(skill.series.contains("confirmed"));
     assert!(skill.limitations[0].contains("no county-level backtest"));
+    // None of the series forecast is the DSHS outbreak total: the report-vintage backtest speaks
+    // for none of them (the NNDSS state series have their own evaluation, checked below).
+    assert!(p.series.iter().all(|s| s.skill != SeriesSkill::Backtested));
     assert!(
-        p.series
-            .iter()
-            .all(|s| s.skill == SeriesSkill::NotBacktested)
-    );
-    assert!(
-        p.scope_note
-            .contains("is that series: none was backtested and none has a measured skill"),
+        p.scope_note.contains("None of the")
+            && p.scope_note.contains("series forecast here is that series"),
         "{}",
         p.scope_note
     );
@@ -912,6 +912,256 @@ fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() 
     assert_eq!(
         fs::read(config.work.join("forecast/backtest-west-texas-2025.json")).unwrap(),
         bytes
+    );
+}
+
+/// The series published as forecast, by the skill the companion gives them.
+fn skills_of(p: &ForecastProvenance) -> BTreeMap<GeoId, SeriesSkill> {
+    p.series.iter().map(|s| (s.geography, s.skill)).collect()
+}
+
+#[test]
+fn the_series_backtest_is_the_committed_report_exactly_and_labelled_pseudo_real_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let (_, p) = forecast_outputs(&config);
+    let b = p
+        .series_backtest
+        .as_ref()
+        .expect("the committed report matches the configuration");
+    let path = repo().join("data/reports/backtest/cdc-states.json");
+    let bytes = fs::read(&path).unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(b.report_sha256, sha256_of(&bytes));
+    assert_eq!(b.report_path, "data/reports/backtest/cdc-states.json");
+    // It is the pseudo-real-time label, never real-time, in the typed basis and in the words.
+    assert_eq!(b.basis, InformationBasis::PseudoRealTime);
+    assert!(
+        b.protocol
+            .contains("pseudo-real-time (revised counts truncated at each forecast date)"),
+        "{}",
+        b.protocol
+    );
+    assert!(
+        b.limitations
+            .join("\n")
+            .contains("not a real-time backtest")
+    );
+    // It ran on the committed NNDSS snapshot, and says so.
+    let fixture = fs::read(repo().join("data/fixtures/cdc/nndss-measles-weekly.json")).unwrap();
+    assert_eq!(b.input_sha256, sha256_of(&fixture));
+    assert_eq!(
+        b.input_sha256.as_str(),
+        report["input"]["sha256"].as_str().unwrap()
+    );
+    // The floor and the seed are the pre-registered ones, and the published forecast's seed.
+    assert_eq!((b.minimum_targets, b.minimum_origin_weeks), (40, 10));
+    assert_eq!((b.seed, b.provisional_weeks), (p.seed, 2));
+    // Every number is the report's, to the bit.
+    let primary = &report["primary"];
+    let pooled = b
+        .pooled
+        .as_ref()
+        .expect("the pooled result reaches the floor");
+    assert_eq!(
+        pooled.scores.targets as u64,
+        primary["pooled"]["n"].as_u64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.mean_crps,
+        primary["pooled"]["mean_crps"].as_f64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.coverage_50,
+        primary["pooled"]["coverage_50"].as_f64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.coverage_90,
+        primary["pooled"]["coverage_90"].as_f64().unwrap()
+    );
+    assert_eq!(pooled.scores.by_horizon.len(), 8);
+    // The measured numbers, as recorded in thoughts/shared/research/backtest-cdc-states.md.
+    assert_eq!(pooled.scores.targets, 1748);
+    assert_eq!((pooled.forecasts, pooled.series), (239, 22));
+    assert_eq!(
+        (
+            format!("{:.2}", pooled.scores.coverage_50),
+            format!("{:.2}", pooled.scores.coverage_90)
+        ),
+        ("0.21".to_owned(), "0.39".to_owned())
+    );
+    // One entry per series of the report; scores only for the series that reach the floor.
+    let reported = primary["series"].as_array().unwrap();
+    assert_eq!(b.by_series.len(), reported.len());
+    for (entry, series) in b.by_series.iter().zip(reported) {
+        assert_eq!(
+            entry.geography.to_string(),
+            series["geography"].as_str().unwrap()
+        );
+        assert_eq!(
+            entry.targets as u64,
+            series["pooled"]["n"].as_u64().unwrap()
+        );
+        assert_eq!(
+            entry.measured.is_some(),
+            series["measured"].as_bool().unwrap()
+        );
+        if let Some(m) = &entry.measured {
+            assert!(entry.targets >= 40 && entry.origin_weeks >= 10);
+            assert_eq!(m.mean_crps, series["pooled"]["mean_crps"].as_f64().unwrap());
+            assert_eq!(
+                m.mean_persistence_abs_error,
+                series["pooled"]["mean_persistence_abs_error"]
+                    .as_f64()
+                    .unwrap()
+            );
+        } else {
+            assert!(entry.targets < 40 || entry.origin_weeks < 10);
+        }
+    }
+    let texas = b
+        .by_series
+        .iter()
+        .find(|e| e.geography.to_string() == "48")
+        .unwrap();
+    assert_eq!((texas.targets, texas.origin_weeks), (288, 36));
+    assert_eq!(
+        format!("{:.2}", texas.measured.as_ref().unwrap().mean_crps),
+        "3374.24"
+    );
+    let measured: BTreeSet<String> = b
+        .by_series
+        .iter()
+        .filter(|e| e.measured.is_some())
+        .map(|e| e.geography.to_string())
+        .collect();
+    assert_eq!(
+        measured.into_iter().collect::<Vec<_>>(),
+        ["04", "20", "35", "42", "45", "48", "49"]
+    );
+
+    // Each series' skill is its own entry's: NNDSS state series are measured or insufficient, the
+    // Texas DSHS county series (a different source and definition) were never scored.
+    let skills = skills_of(&p);
+    for s in &p.series {
+        match s.case_definition {
+            CaseDefinition::ConfirmedOrUnknownStatus => {
+                let entry = b.by_series.iter().find(|e| e.geography == s.geography);
+                match entry {
+                    Some(e) if e.measured.is_some() => {
+                        assert_eq!(
+                            skills[&s.geography],
+                            SeriesSkill::Measured,
+                            "{}",
+                            s.geography
+                        )
+                    }
+                    Some(_) => assert_eq!(
+                        skills[&s.geography],
+                        SeriesSkill::InsufficientData,
+                        "{}",
+                        s.geography
+                    ),
+                    None => assert_eq!(skills[&s.geography], SeriesSkill::NotBacktested),
+                }
+            }
+            _ => assert_eq!(
+                skills[&s.geography],
+                SeriesSkill::NotBacktested,
+                "{}",
+                s.geography
+            ),
+        }
+    }
+    assert!(
+        skills.values().any(|k| *k == SeriesSkill::Measured)
+            && skills.values().any(|k| *k == SeriesSkill::InsufficientData)
+            && skills.values().any(|k| *k == SeriesSkill::NotBacktested),
+        "the fixtures exercise every status: {skills:?}"
+    );
+    assert!(
+        p.scope_note.contains("pseudo-real-time"),
+        "{}",
+        p.scope_note
+    );
+    // The report is copied byte for byte beside the rows, and published by build.
+    assert_eq!(
+        fs::read(config.work.join("forecast/backtest-cdc-states.json")).unwrap(),
+        bytes
+    );
+    run_stage(Stage::Build, &config).unwrap();
+    assert_eq!(
+        fs::read(config.out.join("forecasts/backtest-cdc-states.json")).unwrap(),
+        bytes
+    );
+}
+
+#[test]
+fn a_series_backtest_run_with_another_configuration_or_without_its_label_is_not_attached() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = fixture_config(dir.path());
+    let original: serde_json::Value = read(&repo().join("data/reports/backtest/cdc-states.json"));
+    let attempt = |config: &mut Config, name: &str, edit: &dyn Fn(&mut serde_json::Value)| {
+        let reports = dir.path().join(name);
+        fs::create_dir_all(reports.join("backtest")).unwrap();
+        let mut report = original.clone();
+        edit(&mut report);
+        fs::write(
+            reports.join("backtest/cdc-states.json"),
+            serde_json::to_vec(&report).unwrap(),
+        )
+        .unwrap();
+        config.reports = reports;
+        let all = run_all(config);
+        (
+            all[&Stage::Forecast].notes.clone(),
+            forecast_outputs(config).1,
+        )
+    };
+    for (name, edit) in [
+        (
+            "other-window",
+            (&|r: &mut serde_json::Value| r["primary"]["window_weeks"] = serde_json::json!(2))
+                as &dyn Fn(&mut serde_json::Value),
+        ),
+        ("other-seed", &|r| {
+            r["primary"]["seed"] = serde_json::json!(1)
+        }),
+        ("other-provisional-weeks", &|r| {
+            r["primary"]["provisional_weeks"] = serde_json::json!(1)
+        }),
+        ("real-time-label", &|r| {
+            r["protocol"] = serde_json::json!("real-time by report vintage")
+        }),
+        ("other-source", &|r| {
+            r["input"]["source_id"] = serde_json::json!("texas-dshs")
+        }),
+    ] {
+        let (notes, p) = attempt(&mut config, name, edit);
+        assert!(
+            notes
+                .iter()
+                .any(|n| n.contains("no series backtest attached")),
+            "{name}: {notes:?}"
+        );
+        assert!(p.series_backtest.is_none(), "{name}");
+        assert!(
+            p.series
+                .iter()
+                .all(|s| s.skill == SeriesSkill::NotBacktested),
+            "{name}: without the evaluation no series claims a skill"
+        );
+    }
+    // No report at all.
+    config.reports = dir.path().join("no-reports");
+    let all = run_all(&config);
+    assert!(forecast_outputs(&config).1.series_backtest.is_none());
+    assert!(
+        all[&Stage::Forecast]
+            .notes
+            .iter()
+            .any(|n| n.contains("no series backtest attached"))
     );
 }
 

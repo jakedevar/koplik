@@ -104,3 +104,87 @@ pub fn run(bytes: &[u8], retrieval: &Retrieval) -> Result<Report> {
         primary,
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
+    use super::*;
+
+    fn repo() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
+    }
+
+    fn fixture() -> (Vec<u8>, Retrieval) {
+        let dir = repo().join("data/fixtures/cdc");
+        let bytes = fs::read(dir.join("nndss-measles-weekly.json")).unwrap();
+        let record = serde_json::from_slice(
+            &fs::read(dir.join("nndss-measles-weekly.retrieval.json")).unwrap(),
+        )
+        .unwrap();
+        (bytes, record)
+    }
+
+    #[test]
+    fn the_backtest_runs_with_the_published_configuration_and_the_pre_registered_floors() {
+        let cfg = backtest_config();
+        assert_eq!(cfg.forecast, forecast_config());
+        assert_eq!(cfg.seed, FORECAST_SEED);
+        assert_eq!(cfg.provisional_weeks, 2);
+        assert_eq!(cfg.floor, SkillFloor::PRE_REGISTERED);
+        assert_eq!(
+            (cfg.floor.min_targets, cfg.floor.min_origin_weeks),
+            (40, 10)
+        );
+        assert!(
+            PROTOCOL
+                .starts_with("pseudo-real-time (revised counts truncated at each forecast date)")
+        );
+    }
+
+    /// The committed report is what the code produces: Texas, re-run here from the committed
+    /// snapshot, is the committed report's Texas series to the bit (every series draws from its own
+    /// geography's seeds, so one series can be re-run alone). The full re-run is the example, and
+    /// is deterministic.
+    #[test]
+    fn the_committed_report_matches_a_fresh_run_of_one_series() {
+        let (bytes, record) = fixture();
+        let committed: serde_json::Value =
+            serde_json::from_slice(&fs::read(repo().join(REPORT_PATH)).unwrap()).unwrap();
+        assert_eq!(committed["input"]["sha256"], record.sha256.to_string());
+        assert_eq!(committed["protocol"], PROTOCOL);
+        let texas: koplik_contracts::v3::GeoId = "48".parse().unwrap();
+        let rows: Vec<_> = cdc::parse_weekly_cases(&bytes, &record)
+            .unwrap()
+            .into_iter()
+            .filter(|r| r.geography == texas)
+            .collect();
+        // The last week of the whole series, not of Texas alone, bounds the origins and the truth.
+        assert_eq!(rows.len(), 91);
+        let fresh = run_truncated_backtest(&rows, &backtest_config()).unwrap();
+        // Through text and back, as the committed report was read: serde_json's default float
+        // parser is not correctly rounded, so comparing a computed value with a parsed one can
+        // differ in the last digit while the printed bytes are identical.
+        let fresh: serde_json::Value =
+            serde_json::from_str(&serde_json::to_string(&fresh.series[0]).unwrap()).unwrap();
+        let committed = committed["primary"]["series"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["geography"] == "48")
+            .unwrap();
+        for (key, want) in committed.as_object().unwrap() {
+            assert_eq!(&fresh[key], want, "{key} differs");
+        }
+        assert_eq!(&fresh, committed);
+    }
+
+    #[test]
+    fn a_report_is_only_made_from_the_snapshot_it_cites() {
+        let (mut bytes, record) = fixture();
+        bytes.push(b' ');
+        let e = run(&bytes, &record).unwrap_err().to_string();
+        assert!(e.contains("do not match their retrieval record"), "{e}");
+    }
+}
