@@ -36,13 +36,14 @@ use koplik_contracts::v1::{
     Forecast, ForecastQuantile, GeoId, MmwrError, MmwrWeek, Provenance, ProvenanceError,
     Provenances,
 };
+use koplik_contracts::v3::CaseDefinition;
 use rand_chacha::ChaCha8Rng;
 use rand_core::SeedableRng;
 use sha2::{Digest, Sha256};
 
 use crate::rt::{
     DiscreteSerialInterval, GammaDist, InsufficientReason, RenewalConfig, RtError, SerialInterval,
-    WeeklyCaseRow, case_definitions, estimate_series,
+    WeeklyCaseRow, estimate_series,
 };
 use crate::sampling::{poisson, uniform};
 
@@ -113,7 +114,7 @@ impl ForecastConfig {
     pub const DEFAULT_MAX_LAG_WEEKS: u32 = 3;
 
     /// Estimation window in weeks, pre-registered at 3. Nouvellet et al. 2018 estimate
-    /// transmissibility over "recent time windows" of a few weeks chosen ad hoc; here the
+    /// transmissibility over a recent window whose length they choose per outbreak; here the
     /// rule is fixed before any score: three weeks is about 1.8 mean measles serial
     /// intervals (11.7 d), so the window spans at least one generation of infectors and
     /// their infectees, while staying short enough to follow a change in transmission
@@ -348,7 +349,8 @@ pub struct WeeklyForecast {
 /// (a week with no row is missing, like a row whose count is `missing`; a geography with
 /// no row at `origin` is therefore `insufficient_data`). Two rows for one geography and
 /// week are an error. As in `crate::rt::estimate_weekly`, each geography must keep one
-/// case definition, which the forecast inherits. Output is in geography order; each
+/// case definition among the rows at or before the origin, which the forecast inherits
+/// (rows after the origin are not consulted for this either). Output is in geography order; each
 /// row's provenance is the union of the input rows' provenance in week order.
 pub fn forecast_weekly<R: WeeklyCaseRow>(
     rows: &[R],
@@ -357,12 +359,22 @@ pub fn forecast_weekly<R: WeeklyCaseRow>(
     seed: u64,
 ) -> Result<Vec<WeeklyForecast>, ForecastError> {
     cfg.validate()?;
-    case_definitions(rows)?;
     let mut by_geo: BTreeMap<GeoId, BTreeMap<MmwrWeek, &R>> = BTreeMap::new();
+    let mut definitions: BTreeMap<GeoId, CaseDefinition> = BTreeMap::new();
     for row in rows {
-        // Information cutoff: nothing after the origin week is looked at.
+        // Information cutoff: nothing after the origin week is looked at, not even its
+        // case definition.
         if row.week() > origin {
             continue;
+        }
+        let found = *definitions
+            .entry(row.geography())
+            .or_insert(row.case_definition());
+        if found != row.case_definition() {
+            return Err(RtError::MixedCaseDefinition {
+                geography: row.geography(),
+            }
+            .into());
         }
         if by_geo
             .entry(row.geography())

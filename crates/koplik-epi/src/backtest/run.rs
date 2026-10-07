@@ -31,7 +31,12 @@ pub enum BacktestError {
     Forecast(#[from] ForecastError),
     #[error("backtest needs at least one forecast date")]
     NoForecastDates,
+    #[error("invalid backtest configuration: {0}")]
+    Config(String),
 }
+
+/// Quantile levels the scoring reads: the median and the 50% and 90% central intervals.
+pub const SCORED_LEVELS: [f64; 5] = [0.05, 0.25, 0.5, 0.75, 0.95];
 
 /// What a backtest runs.
 #[derive(Debug, Clone, PartialEq)]
@@ -171,6 +176,13 @@ pub fn run_backtest(
         return Err(BacktestError::NoForecastDates);
     }
     cfg.forecast.validate()?;
+    for level in SCORED_LEVELS {
+        if !cfg.forecast.levels.iter().any(|l| (l - level).abs() < 1e-9) {
+            return Err(BacktestError::Config(format!(
+                "forecast levels must include the scored quantile {level}"
+            )));
+        }
+    }
     let truth_series = weekly_from_vintages(cfg.geography, vintages, None)?;
     let truth: Vec<(MmwrWeek, Option<u32>)> = truth_series
         .rows
@@ -241,7 +253,7 @@ pub fn run_backtest(
                     .iter()
                     .find(|q| (q.level - level).abs() < 1e-9)
                     .map(|q| q.value)
-                    .expect("hub levels include the scored quantiles")
+                    .expect("SCORED_LEVELS were validated against cfg.forecast.levels")
             };
             let observed = observed_at(row.target_week);
             let members = projection.at_horizon(horizon);

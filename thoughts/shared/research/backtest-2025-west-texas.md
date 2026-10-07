@@ -30,8 +30,9 @@ What it is **not**:
   outbreak's January-February growth exists only in news releases that are not parsed.
   The first weekly count is MMWR week 11 (2025-03-09 to 03-15). Under the honest
   before-series rule (unknown, not zero) a forecast needs the serial-interval look-back and
-  the estimation window to be fully known, so the earliest possible origin is week 16 and
-  the March growth phase cannot be forecast from this data.
+  the estimation window to be fully known; with weeks 13-15 also missing (see "Data actually
+  available"), the earliest possible origin is week 21, and the March-April growth phase
+  cannot be forecast from this data.
 
 Every number in the report traces to a version's snapshot: `data/reports/backtest/west-texas-2025.json`
 records the manifest's SHA-256, and the manifest records each version's capture URL, capture

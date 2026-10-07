@@ -54,8 +54,6 @@ pub enum VintageError {
     Provenance(#[from] ProvenanceError),
     #[error("vintages mix case definitions")]
     MixedCaseDefinition,
-    #[error("no vintage labels its count: the series has no case definition")]
-    NoCaseDefinition,
 }
 
 /// The series known at `known_at` (every version when `None`).
@@ -78,21 +76,23 @@ pub fn weekly_from_vintages(
     vintages: &[ReportVintage],
     known_at: Option<DateTime<Utc>>,
 ) -> Result<KnownSeries, VintageError> {
-    // The series' definition comes from the labelled versions (all of them, not only the
-    // known ones, so the rows carry one definition whatever the cutoff).
+    // Information cutoff first: a version first seen after `known_at` is not consulted for
+    // anything, not even its case definition.
+    let known: Vec<&ReportVintage> = vintages
+        .iter()
+        .filter(|v| known_at.is_none_or(|t| v.first_seen_at <= t))
+        .collect();
+    // The series' definition comes from the known labelled versions. Known versions that
+    // disagree are an error; none labelled means no confirmed count can be formed, so the
+    // series has no rows (the week bookkeeping below still says what was known).
     let mut definition = None;
-    for v in vintages {
+    for v in &known {
         match (definition, v.case_definition) {
             (None, Some(d)) => definition = Some(d),
             (Some(a), Some(b)) if a != b => return Err(VintageError::MixedCaseDefinition),
             _ => {}
         }
     }
-    let definition = definition.ok_or(VintageError::NoCaseDefinition)?;
-    let known: Vec<&ReportVintage> = vintages
-        .iter()
-        .filter(|v| known_at.is_none_or(|t| v.first_seen_at <= t))
-        .collect();
     // Last version per week: latest report date, then latest first-seen time.
     let mut by_week: BTreeMap<MmwrWeek, &ReportVintage> = BTreeMap::new();
     for v in &known {
@@ -114,6 +114,9 @@ pub fn weekly_from_vintages(
         if Some(week) >= last_report_week {
             break;
         }
+        let Some(definition) = definition else {
+            break;
+        };
         let previous = by_week.get(&week.prev()?);
         let (cases, provenance) = match previous {
             Some(p) => {

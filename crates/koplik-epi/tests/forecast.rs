@@ -94,6 +94,21 @@ fn rows_after_the_origin_never_change_the_forecast() {
 }
 
 #[test]
+fn a_future_row_with_another_case_definition_does_not_change_the_forecast() {
+    let origin = week(12);
+    let base = forecast_weekly(&history(), origin, &quick(), 7).unwrap();
+    let mut rows = history();
+    let mut other = reported(texas(), 13, 70);
+    other.case_definition = CaseDefinition::ConfirmedOrUnknownStatus;
+    rows.push(other);
+    assert_eq!(forecast_weekly(&rows, origin, &quick(), 7).unwrap(), base);
+    // At or before the origin the definitions must agree.
+    let mut rows = history();
+    rows[11].case_definition = CaseDefinition::ConfirmedOrUnknownStatus;
+    assert!(forecast_weekly(&rows, origin, &quick(), 7).is_err());
+}
+
+#[test]
 fn a_missing_origin_week_is_insufficient_even_when_later_weeks_exist() {
     let mut rows = history();
     rows.retain(|r| r.week != week(12));

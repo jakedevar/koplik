@@ -5,7 +5,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use koplik_contracts::v3::{CaseCount, CaseDefinition, GeoId, MissingReason, MmwrWeek, Provenance};
 use koplik_epi::backtest::manifest::{ManifestError, outbreak_total_vintages};
-use koplik_epi::backtest::run::{BacktestConfig, run_backtest, wednesdays_between};
+use koplik_epi::backtest::run::{BacktestConfig, BacktestError, run_backtest, wednesdays_between};
 use koplik_epi::backtest::vintages::{ReportVintage, weekly_from_vintages};
 use koplik_epi::forecast::ForecastConfig;
 
@@ -138,12 +138,55 @@ fn an_unlabelled_version_still_bounds_its_week_but_yields_no_confirmed_count() {
             .iter()
             .all(|r| r.case_definition == CaseDefinition::Confirmed)
     );
-    // A series with no labelled version has no definition at all.
+    // A series with no labelled version has no confirmed counts: no rows, but what was
+    // known is still reported.
     let mut none = synthetic();
     for v in &mut none {
         v.case_definition = None;
     }
-    assert!(weekly_from_vintages(texas(), &none, None).is_err());
+    let s = weekly_from_vintages(texas(), &none, None).unwrap();
+    assert!(s.rows.is_empty());
+    assert_eq!(
+        (s.known_versions, s.last_complete_week),
+        (11, Some(week(14)))
+    );
+}
+
+#[test]
+fn a_vintage_first_seen_after_the_cutoff_cannot_change_the_known_series() {
+    let cutoff = at("2025-03-27T00:00:00Z");
+    let base = weekly_from_vintages(texas(), &synthetic(), Some(cutoff)).unwrap();
+    let mut later = synthetic();
+    let mut other = vintage("2025-03-20", "2025-04-16T00:00:00Z", 999);
+    other.case_definition = Some(CaseDefinition::ConfirmedOrUnknownStatus);
+    later.push(other);
+    // Dated before the cutoff but seen after it, with another definition: invisible.
+    assert_eq!(
+        weekly_from_vintages(texas(), &later, Some(cutoff)).unwrap(),
+        base
+    );
+    // Once it is known, the mixture is an error.
+    assert!(weekly_from_vintages(texas(), &later, None).is_err());
+}
+
+#[test]
+fn scoring_levels_are_validated_up_front() {
+    let vintages = long_synthetic();
+    let cfg = BacktestConfig {
+        forecast: ForecastConfig {
+            run_count: 10,
+            levels: vec![0.5],
+            ..ForecastConfig::default()
+        },
+        seed: 3,
+        geography: texas(),
+        forecast_dates: wednesdays_between(
+            vintages.first().unwrap().first_seen_at,
+            vintages.last().unwrap().first_seen_at,
+        ),
+    };
+    let err = run_backtest(&vintages, &cfg).unwrap_err();
+    assert!(matches!(err, BacktestError::Config(_)), "{err}");
 }
 
 #[test]
