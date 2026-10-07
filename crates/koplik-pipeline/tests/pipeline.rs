@@ -303,7 +303,7 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
         validated.items["cumulative-cases"],
         ItemStatus::Present {
             rows: Some(342),
-            gaps: Some(152),
+            gaps: Some(204),
             ..
         }
     ));
@@ -324,7 +324,7 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
         built.items["cumulative-cases"],
         ItemStatus::Present {
             rows: Some(342),
-            gaps: Some(152),
+            gaps: Some(204),
             ..
         }
     ));

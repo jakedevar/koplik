@@ -84,9 +84,12 @@ series from the weekly one and nothing is derived between them. Points only: no 
 joins reports, because nothing is known between them, and no weekly count is computed from it.
 Each point opens its provenance drawer (the report snapshot and the Census file that keyed the
 county). A report that gives no usable count for the county (`no_county_table`,
-`not_labelled_confirmed`, `not_listed` or `ambiguous`) is an × on a strip under the plot, listed
-in words under the chart and in the exact-reports table, never drawn at zero. A county no report
-names has no series and the page says so. Row keys are unique per geography and report date.
+`not_labelled_confirmed`, `not_listed_in_county_table` or `ambiguous`) is an × on a strip under the plot, listed
+in words under the chart and in the exact-reports table, never drawn at zero. Every plotted
+value is a number a report's county table prints; a county a table does not list is such an ×, not a
+zero. A county none of the outbreak county tables prints has no series; the page says no usable
+series is available from those tables (DSHS also lists counties in separate tables of other Texas
+cases, which this series does not read), not that the county is absent from the reports. Row keys are unique per geography and report date.
 The loader requires the file like the others; the pipeline writes an explicitly empty envelope
 (and records the item as missing) when no DSHS source is in the store. The weekly county series
 keeps its own "No data" cells, now with the reason in words and a note above the weekly chart.

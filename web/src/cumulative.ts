@@ -13,9 +13,15 @@ export const cumulativeHeading = 'Cumulative confirmed cases as reported by Texa
 export const cumulativeMissingWords: Record<CumulativeMissingReason, string> = {
   no_county_table: 'DSHS published no county table in this report',
   not_labelled_confirmed: 'this report’s county table does not say its counts are confirmed cases',
-  not_listed: 'the county is not listed in this report, and the report does not show that it lists every county, so its absence is not read as zero',
+  not_listed_in_county_table: 'this report’s county table does not list the county, so it prints no count for it; its absence is not read as zero',
   ambiguous: 'the county’s count in this report could not be read as one number',
 };
+
+/**
+ * Said for a county with no usable series. It does not say DSHS never mentions the county: DSHS also lists counties in
+ * tables of other Texas cases (not part of the outbreak), which this series does not read.
+ */
+export const cumulativeNone = 'No usable cumulative county series is available for this county from DSHS’s outbreak county tables: none of the tables this site reads prints a count for it. DSHS’s separate tables of other Texas cases are not part of this series, and this is not a count of zero.';
 
 export const cumulativeExplanation = 'Each point is one DSHS report: the cumulative number of confirmed cases it printed for this county, on its report date. DSHS published these reports irregularly, so the points are unevenly spaced, they are not joined by a line, and no value is estimated between reports. A later report can print a lower count when DSHS removed or reclassified a case; each point is what that report printed. Weekly counts are not derived from this series.';
 export const cumulativeMissingExplanation = '× marks a report date where DSHS gave no usable count for this county. The count is unknown, not zero, and none is estimated; the reason is listed under the chart.';
@@ -195,7 +201,7 @@ export function cumulativeSection(rows: readonly CumulativeCaseReport[], geograp
   const confirmed = series.filter((r) => r.case_definition === 'confirmed');
   const blocks: HTMLElement[] = [element('h3', cumulativeHeading)];
   if (!confirmed.length) {
-    blocks.push(element('p', 'No cumulative series for this county: no Texas DSHS report this site reads names it. That is not a count of zero.', 'notice cumulative-none'));
+    blocks.push(element('p', cumulativeNone, 'notice cumulative-none'));
     return blocks;
   }
   if (confirmed.length < series.length) {

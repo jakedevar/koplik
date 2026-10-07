@@ -710,20 +710,92 @@ fn the_real_reports_give_a_cumulative_series_by_report_date_with_stated_gaps() {
         .collect();
     assert_eq!(counties.len(), 38);
     assert_eq!(built.series.cumulative_reports.len(), 38 * 9);
-    // The 190 printed values are exactly the pre-existing cumulative rows.
-    let printed: Vec<_> = built
+    // Every reported value is a number the report's own county table prints for that county
+    // (the table cell, read through the Census name mapping), and every county a county table
+    // does not list is missing with that reason, never a zero.
+    let mut printed = 0;
+    let mut not_listed = 0;
+    for row in &built.series.cumulative_reports {
+        let GeoId::County(county) = row.geography else {
+            panic!("county rows only");
+        };
+        let table = built
+            .vintages
+            .iter()
+            .filter(|v| v.report.report_date == row.report_date.date() && v.is_confirmed())
+            .filter_map(|v| v.report.outbreak_counties.as_ref())
+            .next_back();
+        let Some(table) = table else {
+            assert_eq!(
+                row.cases,
+                CumulativeCount::Missing {
+                    reason: CumulativeMissingReason::NoCountyTable
+                },
+                "{} {}",
+                row.geography,
+                row.report_date
+            );
+            continue;
+        };
+        let cell = table
+            .entries
+            .iter()
+            .find(|e| lookup.lookup(&e.name) == Ok(county));
+        match (row.cases, cell) {
+            (CumulativeCount::Reported { count }, Some(e)) => {
+                printed += 1;
+                assert_eq!(e.cases, Some(count));
+                assert_eq!(dshs::parse_count_cell(&e.raw), Some(count), "{}", e.raw);
+            }
+            (CumulativeCount::Reported { count }, None) => {
+                panic!(
+                    "{} {} reports {count} but the county table prints nothing for it",
+                    row.geography, row.report_date
+                )
+            }
+            (CumulativeCount::Missing { reason }, None) => {
+                not_listed += 1;
+                assert_eq!(reason, CumulativeMissingReason::NotListedInCountyTable);
+            }
+            (CumulativeCount::Missing { reason }, Some(_)) => {
+                panic!("a listed county is missing: {reason:?}")
+            }
+        }
+    }
+    assert_eq!((printed, not_listed), (138, 52));
+    let reported_rows = built
         .series
         .cumulative_reports
         .iter()
         .filter(|r| r.cases.count().is_some())
-        .map(|r| (r.geography, r.report_date.date(), r.cases.count()))
-        .collect();
-    let before: Vec<_> = built
+        .count();
+    assert_eq!(reported_rows, 138);
+    assert_eq!(
+        built.series.cumulative_reports.len() - reported_rows,
+        152 + 52
+    );
+    // The older cumulative rows (an input of the interval and weekly derivations) are unchanged:
+    // 190 rows, the same 138 printed values and 52 zeros inferred for counties a table that adds
+    // up to its Total does not list. Those zeros are not in the new series.
+    assert_eq!(built.series.cumulative.len(), 190);
+    let legacy: std::collections::BTreeMap<_, _> = built
         .series
         .cumulative
         .iter()
-        .map(|r| (r.geography, r.report_date, r.cases.count()))
+        .map(|r| ((r.geography, r.report_date), r.cases.count()))
         .collect();
-    assert_eq!(printed, before);
-    assert_eq!(printed.len(), 190);
+    for row in &built.series.cumulative_reports {
+        match row.cases {
+            CumulativeCount::Reported { count } => assert_eq!(
+                legacy[&(row.geography, row.report_date.date())],
+                Some(count)
+            ),
+            CumulativeCount::Missing {
+                reason: CumulativeMissingReason::NotListedInCountyTable,
+            } => assert_eq!(legacy[&(row.geography, row.report_date.date())], Some(0)),
+            CumulativeCount::Missing { .. } => {
+                assert!(!legacy.contains_key(&(row.geography, row.report_date.date())))
+            }
+        }
+    }
 }

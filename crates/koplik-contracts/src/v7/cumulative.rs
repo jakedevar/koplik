@@ -106,17 +106,19 @@ pub enum CumulativeMissingReason {
     /// counts are confirmed cases, so none of its counts enter a series whose case definition
     /// is `confirmed`.
     NotLabelledConfirmed,
-    /// The county is not listed in this report's table, and the table is not shown to list every
-    /// county (its rows do not add up to its printed total), so its absence cannot be read as zero.
-    NotListed,
+    /// The county is not listed in this report's county table, so the report prints no count
+    /// for it. Its absence is never read as zero, even where the table's rows add up to its
+    /// printed total: a published `reported` value is a number the report prints.
+    NotListedInCountyTable,
     /// The county is listed but its count cannot be read as one number (an unreadable cell, or
     /// the county listed more than once).
     Ambiguous,
 }
 
-/// A cumulative count that can be explicitly missing. `reported` with `count: 0` is a real zero
-/// (the report lists the county as zero, or demonstrably lists every county and omits this one);
-/// `missing` is unknown. They are never interchangeable.
+/// A cumulative count that can be explicitly missing. `reported` is a number the report prints
+/// for the county (it appears in the report's county table), including a printed `0`; a count is
+/// never inferred, summed or filled in. `missing` is unknown and says why. They are never
+/// interchangeable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case", deny_unknown_fields)]
 pub enum CumulativeCount {
@@ -144,7 +146,7 @@ pub struct CumulativeCaseReport {
     pub geography: GeoId,
     /// The date the report printed. At most one row per geography and report date.
     pub report_date: ReportDate,
-    /// The cumulative count as printed, or its explicit absence with the reason.
+    /// The cumulative count as the report prints it, or its explicit absence with the reason.
     pub cases: CumulativeCount,
     /// What the series counts. On a `missing` row it names the series the row belongs to; it does
     /// not assert that the report's own wording matched (see `not_labelled_confirmed`).

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { cumulativeChart, cumulativeGapRuns, cumulativeHeading, cumulativeMissingWords, cumulativeSection, cumulativeSeries, cumulativeTable, cumulativeText } from './cumulative';
+import { cumulativeChart, cumulativeGapRuns, cumulativeHeading, cumulativeMissingWords, cumulativeNone, cumulativeSection, cumulativeSeries, cumulativeTable, cumulativeText } from './cumulative';
 import type { CumulativeCaseReport } from './generated/v7/CumulativeCaseReport';
 import { fixtureDataset } from './fixtures.test-utils';
 
@@ -27,7 +27,8 @@ describe('cumulative series', () => {
     expect(cumulativeText(rows[0])).toBe('107 cumulative confirmed cases');
     expect(cumulativeText(rows[2])).toBe('No data: DSHS published no county table in this report');
     expect(cumulativeText(row('2025-03-11', count(0)))).toBe('0 cumulative confirmed cases');
-    expect(Object.keys(cumulativeMissingWords).sort()).toEqual(['ambiguous', 'no_county_table', 'not_labelled_confirmed', 'not_listed']);
+    expect(cumulativeText(row('2025-03-11', missing('not_listed_in_county_table')))).toBe('No data: this report’s county table does not list the county, so it prints no count for it; its absence is not read as zero');
+    expect(Object.keys(cumulativeMissingWords).sort()).toEqual(['ambiguous', 'no_county_table', 'not_labelled_confirmed', 'not_listed_in_county_table']);
   });
   it('groups consecutive reports with the same reason into one line and keeps different reasons apart', () => {
     const runs = cumulativeGapRuns([
@@ -100,7 +101,7 @@ describe('cumulative chart', () => {
     expect(single.querySelector('circle')?.getAttribute('cx')).toBe('330');
     expect(single.querySelector('circle')?.getAttribute('cy')).toBe('170');
     expect(single.outerHTML).not.toContain('NaN');
-    const onlyGaps = cumulativeChart([row('2025-03-04', missing('ambiguous')), row('2025-03-11', missing('not_listed'))], 'Gaines County');
+    const onlyGaps = cumulativeChart([row('2025-03-04', missing('ambiguous')), row('2025-03-11', missing('not_listed_in_county_table'))], 'Gaines County');
     expect(onlyGaps.querySelectorAll('circle').length).toBe(0);
     expect(onlyGaps.querySelectorAll('path.cumulative-missing').length).toBe(2);
     expect(onlyGaps.outerHTML).not.toContain('NaN');
@@ -121,7 +122,7 @@ describe('cumulative section and table', () => {
   });
   it('states that a county no report names has no series, and that this is not zero', () => {
     const blocks = cumulativeSection(rows, '48141', 'El Paso County');
-    expect(blocks.map((b) => b.textContent)).toEqual([cumulativeHeading, 'No cumulative series for this county: no Texas DSHS report this site reads names it. That is not a count of zero.']);
+    expect(blocks.map((b) => b.textContent)).toEqual([cumulativeHeading, cumulativeNone]);
   });
   it('charts only confirmed-case rows under the confirmed heading and says how many it left out', () => {
     const other: CumulativeCaseReport = { ...rows[0], report_date: '2025-03-11', case_definition: 'confirmed_or_unknown_status' };

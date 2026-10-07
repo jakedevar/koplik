@@ -46,9 +46,11 @@
 //! interpolation between reports, no value carried forward. Each report date is read from one
 //! vintage, by this precedence:
 //! 1. a county-table vintage whose own labelling establishes confirmed cases (the vintage first
-//!    seen last wins): the printed count, or `missing` with `not_listed` (the county is absent
-//!    from a table not shown to list every county) or `ambiguous` (unreadable or duplicated
-//!    cell). An absent county is `reported 0` only when the table adds up to its printed Total;
+//!    seen last wins): the count printed in the county's table cell, or `missing` with
+//!    `not_listed_in_county_table` (the county is absent from the table: nothing is printed, and
+//!    absence is never read as zero, even when the table's rows add up to its Total) or
+//!    `ambiguous` (unreadable or duplicated cell). Every `reported` value is a number that appears
+//!    in that report's county table;
 //! 2. otherwise a county-table vintage without that labelling: every county `missing`
 //!    with `not_labelled_confirmed`; its numbers are not used;
 //! 3. otherwise a vintage with no readable county table (the dashboard period): every county
@@ -338,24 +340,30 @@ struct Point<'a> {
 }
 
 impl Point<'_> {
-    /// What this report says about one county, with the reason when it says nothing usable.
+    /// What this report *prints* for one county, with the reason when it prints nothing usable.
+    /// A county absent from the table is missing, never zero: nothing is inferred here, not even
+    /// when the table's rows add up to its Total (the older series below does infer, see
+    /// [`Point::cumulative`]).
     fn reading(&self, c: CountyFips) -> CumulativeCount {
         match self.counties.get(&c) {
             Some(CaseCount::Reported { count }) => CumulativeCount::Reported { count: *count },
             Some(CaseCount::Missing { .. }) => CumulativeCount::Missing {
                 reason: CumulativeMissingReason::Ambiguous,
             },
-            None if self.complete => CumulativeCount::Reported { count: 0 },
             None => CumulativeCount::Missing {
-                reason: CumulativeMissingReason::NotListed,
+                reason: CumulativeMissingReason::NotListedInCountyTable,
             },
         }
     }
 
+    /// The cumulative the interval and weekly derivations difference. Unlike [`Point::reading`]
+    /// it counts a county absent from a table that adds up to its Total as `reported 0`, which
+    /// those derivations need to difference across reports; that zero is inferred, not printed.
     fn cumulative(&self, c: CountyFips) -> CaseCount {
-        match self.reading(c) {
-            CumulativeCount::Reported { count } => CaseCount::Reported { count },
-            CumulativeCount::Missing { .. } => missing(MissingReason::Ambiguous),
+        match self.counties.get(&c) {
+            Some(v) => *v,
+            None if self.complete => CaseCount::Reported { count: 0 },
+            None => missing(MissingReason::Ambiguous),
         }
     }
 }
@@ -1064,8 +1072,15 @@ mod tests {
                 ("2025-03-25".into(), printed(131)),
             ]
         );
-        // Terry is absent from the first table, whose rows add up to its Total: a real zero.
-        assert_eq!(by_report(&s, fips(48445))[0].1, printed(0));
+        // Terry is absent from the first table, whose rows add up to its Total. No count is
+        // printed for it, so it is missing with that reason, never a zero.
+        assert_eq!(
+            by_report(&s, fips(48445))[0],
+            (
+                "2025-03-04".into(),
+                why(CumulativeMissingReason::NotListedInCountyTable)
+            )
+        );
         // A county no confirmed table lists has no rows.
         assert!(by_report(&s, fips(48141)).is_empty());
         // One row per county and report date, every row a confirmed-case count.
@@ -1075,15 +1090,23 @@ mod tests {
                 .iter()
                 .all(|r| r.case_definition == CaseDefinition::Confirmed)
         );
-        // The older derivations are untouched: the same printed values as the published
-        // cumulative rows, and the weekly series is still derived by the documented rule.
+        // The older derivations are untouched: every printed value is the same number in the older
+        // cumulative rows, which (as the interval and weekly derivations need) still treat a
+        // county absent from a table that adds up as an inferred zero; the new series does not.
         assert_eq!(s.cumulative.len(), s.cumulative_reports.len());
         for (old, new) in s.cumulative.iter().zip(&s.cumulative_reports) {
             assert_eq!(
-                (old.geography, old.report_date, old.cases.count()),
-                (new.geography, new.report_date.date(), new.cases.count())
+                (old.geography, old.report_date),
+                (new.geography, new.report_date.date())
             );
             assert_eq!(old.provenance, new.provenance);
+            match new.cases {
+                CumulativeCount::Reported { count } => assert_eq!(old.cases, rep(count)),
+                CumulativeCount::Missing { reason } => {
+                    assert_eq!(reason, CumulativeMissingReason::NotListedInCountyTable);
+                    assert_eq!(old.cases, rep(0));
+                }
+            }
         }
         // Each row cites its own report's snapshot and the Census file that keyed the county.
         let first = &s.cumulative_reports[0];
@@ -1097,8 +1120,9 @@ mod tests {
 
     #[test]
     fn a_missing_cumulative_count_says_why() {
-        // 03-11's rows (5 + 2 = 7) do not add up to its Total (9): Terry's absence cannot be
-        // read as zero. 03-18 has an unreadable cell and a county listed twice.
+        // 03-04 and 03-11: a county absent from the table is missing, whether or not the table
+        // adds up to its Total (03-04's rows do, 03-11's, 5 + 2 = 7 against 9, do not). 03-18 has
+        // an unreadable cell and a county listed twice.
         let v = group_vintages(vec![
             report(
                 "2025-03-04",
@@ -1131,14 +1155,47 @@ mod tests {
             by_report(&s, fips(48445)),
             vec![
                 ("2025-03-04".into(), printed(1)),
-                ("2025-03-11".into(), why(CumulativeMissingReason::NotListed)),
+                (
+                    "2025-03-11".into(),
+                    why(CumulativeMissingReason::NotListedInCountyTable)
+                ),
                 ("2025-03-18".into(), amb),
             ]
         );
-        // Lubbock is absent from the first table, which adds up: a real zero.
-        assert_eq!(by_report(&s, fips(48303))[0].1, printed(0));
+        // Lubbock is absent from the first table, which adds up: missing, not an inferred zero.
+        assert_eq!(
+            by_report(&s, fips(48303))[0].1,
+            why(CumulativeMissingReason::NotListedInCountyTable)
+        );
         // A county listed twice is ambiguous, never one of its two values or their sum.
         assert_eq!(by_report(&s, fips(48165))[2].1, amb);
+    }
+
+    #[test]
+    fn only_a_zero_the_table_prints_is_a_zero() {
+        // Terry is printed as 0 in the first table and absent from the second, whose rows add
+        // up to its Total: the first is a reported zero, the second is missing.
+        let v = group_vintages(vec![
+            report(
+                "2025-03-04",
+                "20250305000000",
+                &[("Gaines", "5"), ("Terry", "0")],
+                Some(5),
+            ),
+            report("2025-03-11", "20250312000000", &[("Gaines", "6")], Some(6)),
+        ])
+        .unwrap();
+        let s = derive(&v, &lookup()).unwrap();
+        assert_eq!(
+            by_report(&s, fips(48445)),
+            vec![
+                ("2025-03-04".into(), printed(0)),
+                (
+                    "2025-03-11".into(),
+                    why(CumulativeMissingReason::NotListedInCountyTable)
+                ),
+            ]
+        );
     }
 
     #[test]

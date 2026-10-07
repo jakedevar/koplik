@@ -200,6 +200,9 @@ take part.
 
 1. *Cumulative*: the printed row. A county absent from a table is `reported 0` only if that table's rows are all
    readable and add up to its printed Total; otherwise `missing: ambiguous`. Counties never listed anywhere get no rows.
+   This zero is inferred, not printed (52 of the 190 rows with the fixtures); the series is only the input of items 2
+   and 3 (`validate/dshs-cumulative.json`, not published to the site). The published cumulative series (item 5) never
+   infers it.
 2. *Per report interval*: cumulative minus the previous county-detail report's, exact however far apart the reports
    are (03-25 to 11-24 is one interval). A fall, or an unreadable cell: `missing: ambiguous`.
 3. *Per MMWR week* (the week containing the report date; this is when DSHS published, not rash onset, and it lags
@@ -222,16 +225,20 @@ take part.
    not in any count.
 5. *Cumulative by report date* (contracts **v7**, `CumulativeCaseReport`, #1439; published as
    `v7/cumulative-cases.json` and charted per county as "Cumulative confirmed cases as reported by Texas DSHS").
-   The printed cumulative counts themselves, one row per county and report date, `case_definition: confirmed`,
-   each citing the report's snapshot and the Census county file that keyed the name. Nothing is derived from them:
-   no weekly or interval counts, no interpolation between reports, no value carried forward. Every report date held
-   gets a row for each county named in some confirmed county table, so a gap is a stated reason: a confirmed county
-   table gives the printed count (`reported 0` only when the table adds up to its printed Total, else `missing:
-   not_listed`; an unreadable or duplicated cell is `missing: ambiguous`); a county-table version whose labelling
-   does not establish confirmed cases (no `confirmed_basis`) gives `missing: not_labelled_confirmed` and none of its
-   numbers; a version with no county table (the dashboard period; with the fixtures 2025-03-28, 04-22, 05-30 and
-   08-12) gives `missing: no_county_table`. With the fixtures that is 38 counties x 9 report dates = 342 rows (190
-   printed, 152 missing).
+   The cumulative counts the reports print, one row per county and report date, `case_definition: confirmed`,
+   each citing the report's snapshot and the Census county file that keyed the name. Nothing is derived or inferred:
+   no weekly or interval counts, no interpolation between reports, no value carried forward, and no zero inferred
+   for a county a table does not list. Every report date held gets a row for each county named in some confirmed
+   county table, so a gap is a stated reason: a confirmed county table gives the number printed in the county's
+   cell (every `reported` value, a printed `0` included, appears in that report's table); a county the table does
+   not list is `missing: not_listed_in_county_table` even when the table's rows add up to its printed Total (the
+   interval and weekly derivations above still infer a zero there; that inference is theirs and is not published
+   as a printed count); an unreadable or duplicated cell is `missing: ambiguous`; a county-table version whose
+   labelling does not establish confirmed cases (no `confirmed_basis`) gives `missing: not_labelled_confirmed`
+   and none of its numbers; a version with no county table (the dashboard period; with the fixtures 2025-03-28,
+   04-22, 05-30 and 08-12) gives `missing: no_county_table`. With the fixtures that is 38 counties x 9 report
+   dates = 342 rows: 138 printed, 204 missing (152 `no_county_table`, 52 `not_listed_in_county_table`: the 29
+   counties the 2025-03-04 table does not list and the 23 the 2025-03-25 table does not list).
 6. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
    Texas's cases, so it lives in the manifest (`outbreak_total` per version) for the backtest.
 

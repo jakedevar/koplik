@@ -62,7 +62,7 @@ fn a_real_zero_and_a_missing_count_stay_different() {
     let wire = json!({"contract_version":7, "provenance":[record("a")], "rows":[
         row("48165", "2025-03-04", reported(0), json!([0])),
         row("48445", "2025-03-04",
-            json!({"status":"missing", "reason":"not_listed"}), json!([0])),
+            json!({"status":"missing", "reason":"not_listed_in_county_table"}), json!([0])),
     ]});
     let artifact = parse(wire.clone()).unwrap();
     assert_eq!(artifact.rows[0].cases.count(), Some(0));
@@ -70,7 +70,7 @@ fn a_real_zero_and_a_missing_count_stay_different() {
     assert_eq!(
         artifact.rows[1].cases,
         CumulativeCount::Missing {
-            reason: CumulativeMissingReason::NotListed
+            reason: CumulativeMissingReason::NotListedInCountyTable
         }
     );
     assert_eq!(artifact.rows[0].case_definition, CaseDefinition::Confirmed);
@@ -82,7 +82,7 @@ fn every_missing_reason_is_accepted_and_unknown_ones_are_not() {
     for reason in [
         "no_county_table",
         "not_labelled_confirmed",
-        "not_listed",
+        "not_listed_in_county_table",
         "ambiguous",
     ] {
         let mut wire = artifact();

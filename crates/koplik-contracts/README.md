@@ -67,11 +67,13 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   `CumulativeCaseReportArtifact` (#1439): a *cumulative* case count as one source printed it on
   one report date (`ReportDate`, `YYYY-MM-DD`), for one geography, with an explicit
   `case_definition`. It is not a `WeeklyCaseCount` and is never differenced into weeks,
-  interpolated between reports or carried forward. The count is `reported` (a real zero stays
-  zero) or `missing` with a reason that is never zero and never estimated: `no_county_table`
-  (a report with no readable county breakdown), `not_labelled_confirmed` (a county table whose
-  own labelling does not establish confirmed cases), `not_listed` (the county is absent from a
-  table that is not shown to list every county) or `ambiguous` (an unreadable or duplicated
+  interpolated between reports or carried forward. The count is `reported` (a number the
+  report's county table prints for the county, a printed `0` included; never inferred) or
+  `missing` with a reason that is never zero and never estimated: `no_county_table` (a report
+  with no readable county breakdown), `not_labelled_confirmed` (a county table whose own
+  labelling does not establish confirmed cases), `not_listed_in_county_table` (the county is
+  absent from the report's county table: no count is printed, and absence is not read as zero
+  even where the table's rows add up to its total) or `ambiguous` (an unreadable or duplicated
   county cell). The artifact keeps the v6 envelope (a per-file `provenance` table that each
   row indexes; the whole record is deduplicated; row and provenance order are preserved) with
   `contract_version: 7`, and rejects a second row for the same geography and report date. Every

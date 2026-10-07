@@ -4,7 +4,8 @@
  * Why a report gives no usable cumulative count for a geography. None of these is zero and none
  * is estimated: a missing count is unknown.
  */
-export type CumulativeMissingReason = "no_county_table" | "not_labelled_confirmed" | "not_listed" | "ambiguous";
+export type CumulativeMissingReason =
+  "no_county_table" | "not_labelled_confirmed" | "not_listed_in_county_table" | "ambiguous";
 /**
  * Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded
  */
@@ -29,7 +30,7 @@ export interface CumulativeCaseReport {
    */
   case_definition: "confirmed" | "confirmed_or_unknown_status";
   /**
-   * The cumulative count as printed, or its explicit absence with the reason.
+   * The cumulative count as the report prints it, or its explicit absence with the reason.
    */
   cases:
     | {

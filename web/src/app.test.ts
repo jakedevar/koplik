@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { countyWeeklyNote, disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
+import { cumulativeNone } from './cumulative';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 import { caseScales, fillColor, mapFeatures } from './map';
 
@@ -206,7 +207,7 @@ describe('Texas county drill-down: cumulative confirmed cases as reported by Tex
     data.cumulative = data.cumulative.filter((r) => r.geography !== '48165');
     select('geography', '48115');
     select('geography', '48165');
-    expect(root.querySelector('.cumulative-none')?.textContent).toBe('No cumulative series for this county: no Texas DSHS report this site reads names it. That is not a count of zero.');
+    expect(root.querySelector('.cumulative-none')?.textContent).toBe(cumulativeNone);
     expect(root.querySelector('.cumulative-table')).toBeNull();
     drill(root);
     expect(root.querySelector<HTMLElement>('.cumulative-reports')!.hidden).toBe(true);

@@ -14,9 +14,9 @@
       "const": "not_labelled_confirmed"
     },
     {
-      "description": "The county is not listed in this report's table, and the table is not shown to list every\ncounty (its rows do not add up to its printed total), so its absence cannot be read as zero.",
+      "description": "The county is not listed in this report's county table, so the report prints no count\nfor it. Its absence is never read as zero, even where the table's rows add up to its\nprinted total: a published `reported` value is a number the report prints.",
       "type": "string",
-      "const": "not_listed"
+      "const": "not_listed_in_county_table"
     },
     {
       "description": "The county is listed but its count cannot be read as one number (an unreadable cell, or\nthe county listed more than once).",
