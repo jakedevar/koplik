@@ -21,6 +21,9 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(attribution).toContainText('Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data');
   await expect(attribution).toContainText('Source: Texas Department of State Health Services (DSHS)');
   await expect(attribution.getByRole('link', { name: /Texas DSHS 2025 measles outbreak page/ })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
+  await expect(attribution).toContainText('downloaded directly from the US Census Bureau (www2.census.gov), limited to a fixed list of named public-domain files whose SHA-256 hashes are pinned');
+  await expect(attribution.getByRole('link', { name: 'https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip' })).toBeVisible();
+  await expect(attribution).toContainText('national_county2020.txt) is the one Census file not downloaded directly from the Census Bureau: Koplik uses an Internet Archive (Wayback Machine) capture');
   await expect(page.locator('.synthetic').first()).toContainText('SYNTHETIC TEST DATA');
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   await expect(page.locator('.map')).toHaveAttribute('data-map-state', 'ready');

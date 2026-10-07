@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bindProvenance, mountProvenanceDrawer, provenanceNumber, uniqueProvenance } from './provenance';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 import { mountDashboard } from './app';
-import { caseChart, rtChart } from './charts';
+import { caseCharts, rtChart } from './charts';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -66,7 +66,7 @@ describe('provenance drawer', () => {
   });
   it('supports SVG keyboard activation and updated provenance without accumulating listeners', () => {
     const { root, dialog, cleanup } = drawer();
-    const chart = caseChart(fixtureDataset().cases.filter((r) => r.geography === '48'), 2025, true);
+    const chart = caseCharts(fixtureDataset().cases.filter((r) => r.geography === '48'), 2025, true)[0];
     root.append(chart);
     const mark = chart.querySelector<SVGElement>('.case-bar')!;
     bindProvenance(mark, { label: 'Updated source', records: [second], synthetic: true });

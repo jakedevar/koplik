@@ -84,13 +84,13 @@ describe('attribution in the UI', () => {
   it('lists every source with its link and attribution text, and labels synthetic builds', () => {
     const section = attributionSection(fixtureDataset());
     document.body.append(section);
-    expect(section.querySelectorAll('li')).toHaveLength(sources.length);
+    expect(section.querySelectorAll('.attribution-list > li')).toHaveLength(sources.length);
     const text = section.textContent!;
     expect(text).toContain('Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data');
     expect(text).toContain('Source: US Census Bureau, 2024 cartographic boundary files');
     expect(text).toContain('Texas Department of State Health Services (DSHS)');
     expect(text).toContain('SYNTHETIC');
-    const links = [...section.querySelectorAll<HTMLAnchorElement>('li > a')].map((a) => a.href);
+    const links = [...section.querySelectorAll<HTMLAnchorElement>('.attribution-list > li > a')].map((a) => a.href);
     expect(links).toContain('https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
     expect(links).toContain('https://data.cdc.gov/resource/x9gk-5huc');
   });
