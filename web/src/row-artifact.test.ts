@@ -76,7 +76,7 @@ describe('v6 provenance expansion', () => {
       expect(() => parseRows('cumulative', [{ ...missing, cases }])).toThrow('invalid v7 row');
     }
     for (const report_date of ['2025-3-4', '2025-02-30', '2025-03-04T00:00:00Z', '03/04/2025']) {
-      expect(() => parseRows('cumulative', pack([{ ...legacy[0], report_date }], 7))).toThrow('invalid v6 artifact');
+      expect(() => parseRows('cumulative', pack([{ ...legacy[0], report_date } as typeof legacy[0]], 7))).toThrow('invalid v6 artifact');
     }
     expect(() => parseRows('cumulative', [{ ...legacy[0], case_definition: 'everything' }])).toThrow('invalid v7 row');
     // A weekly row is not a cumulative row, and the reverse.
