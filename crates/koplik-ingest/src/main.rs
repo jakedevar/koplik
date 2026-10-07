@@ -23,6 +23,7 @@ use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
 use koplik_ingest::census_boundaries;
 use koplik_ingest::census_counties;
+use koplik_ingest::census_population;
 use koplik_ingest::coverage;
 use koplik_ingest::dshs_series;
 use koplik_ingest::dshs_sources::{self, FetchOutcome};
@@ -46,6 +47,8 @@ const USAGE: &str = "usage:
   koplik-ingest parse cdc-coverage [--store DIR] [--first-year Y] [--last-year Y] [--out FILE] [--gaps FILE]
   koplik-ingest fetch texas-coverage [--store DIR] [--year Y]
   koplik-ingest parse texas-coverage [--store DIR] [--year Y] [--out FILE] [--gaps FILE]
+  koplik-ingest fetch census-population|census-state-population|census-county-population|census-texas-counties|census-states [--store DIR]
+  koplik-ingest parse census-state-population|census-county-population|census-texas-counties|census-states [--store DIR] [--out FILE]
   koplik-ingest list [--store DIR] [--source ID]";
 
 /// Largest response body accepted (the CDC measles query is about 1 MB).
@@ -397,6 +400,93 @@ fn run(args: Vec<String>) -> Result<()> {
                 eprintln!("converted Census snapshot {}", retrieval.sha256);
             }
             Ok(())
+        }
+        (
+            "fetch",
+            Some(
+                src @ ("census-population"
+                | "census-state-population"
+                | "census-county-population"
+                | "census-texas-counties"
+                | "census-states"),
+            ),
+        ) => {
+            flags.done()?;
+            let cfg = PoliteConfig::live_from_env()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let mut fetcher = PoliteFetcher::new(
+                UreqClient::new(Duration::from_secs(120), MAX_BODY_BYTES),
+                SystemTimekeeper::new(),
+                cfg,
+            );
+            let sources: &[&str] = if src == "census-population" {
+                &census_population::SOURCES
+            } else {
+                std::slice::from_ref(&src)
+            };
+            for source in sources {
+                let (r, _) = census_population::fetch_source(&mut fetcher, &store, source)?;
+                eprintln!(
+                    "stored {}: sha256 {} ({} bytes)",
+                    r.source_id, r.sha256, r.bytes
+                );
+                println!(
+                    "{}",
+                    serde_json::to_string(&r).expect("retrieval serialises")
+                );
+            }
+            Ok(())
+        }
+        (
+            "parse",
+            Some(
+                src @ ("census-state-population"
+                | "census-county-population"
+                | "census-texas-counties"
+                | "census-states"),
+            ),
+        ) => {
+            let out = flags.take("--out")?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let (retrieval, json) = match src {
+                "census-state-population" => {
+                    let (r, rows) = census_population::parse_latest_populations(&store, true)?;
+                    (
+                        r,
+                        serde_json::to_string(&rows).expect("population rows serialise"),
+                    )
+                }
+                "census-county-population" => {
+                    let (r, rows) = census_population::parse_latest_populations(&store, false)?;
+                    (
+                        r,
+                        serde_json::to_string(&rows).expect("population rows serialise"),
+                    )
+                }
+                "census-states" => {
+                    let (r, rows) = census_population::parse_latest_geographies(&store, true)?;
+                    (
+                        r,
+                        serde_json::to_string(&rows).expect("geography rows serialise"),
+                    )
+                }
+                _ => {
+                    let (r, rows) = census_population::parse_latest_geographies(&store, false)?;
+                    (
+                        r,
+                        serde_json::to_string(&rows).expect("geography rows serialise"),
+                    )
+                }
+            };
+            eprintln!("parsed Census records from snapshot {}", retrieval.sha256);
+            match out {
+                Some(path) => std::fs::write(&path, json).map_err(|e| IngestError::io(path, e)),
+                None => {
+                    println!("{json}");
+                    Ok(())
+                }
+            }
         }
         ("list", None) => {
             let src = flags.take("--source")?;

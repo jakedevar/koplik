@@ -16,6 +16,10 @@ table); they are not a publishing gate.
 | `census-county-codes-2020-wayback` | Census national county reference file `national_county2020.txt` (county name to FIPS) from the Internet Archive capture of 2025-02-06 | `https://web.archive.org/web/20250206022004id_/https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt` | `census-open-data-terms-unconfirmed` (US federal public domain) | Rarely (2020 vintage codes) | 2026-10-07 |
 | `census-cb-2024-states-20m` | US Census Bureau, 2024 cartographic state boundaries, 1:20m | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip | `us-census-public-domain` (US federal public domain) | Annual vintage; pinned to 2024 | 2026-10-07 (named-file decision; pinned manifest) |
 | `census-cb-2024-counties-20m` | US Census Bureau, 2024 cartographic county boundaries, 1:20m; derived output filters STATEFP=48 | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_20m.zip | `us-census-public-domain` (US federal public domain) | Annual vintage; pinned to 2024 | 2026-10-07 (named-file decision; pinned manifest) |
+| `census-state-population-2025` | Census Population Estimates Program, Vintage 2025 state totals | `https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/state/totals/NST-EST2025-ALLDATA.csv` | `us-census-public-domain` (US federal public domain) | Annual vintage; pinned to 2025 | 2026-10-07 |
+| `census-county-population-2025` | Census Population Estimates Program, Vintage 2025 county totals | `https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/counties/totals/co-est2025-alldata.csv` | `us-census-public-domain` (US federal public domain) | Annual vintage; pinned to 2025 | 2026-10-07 |
+| `census-county-gazetteer-2025` | Census 2025 Gazetteer, national counties (Texas GEOIDs and internal points) | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_counties_national.zip` | `us-census-public-domain` (US federal public domain) | Annual; pinned to 2025 | 2026-10-07 |
+| `census-state-gazetteer-2025` | Census 2025 Gazetteer, national states (state descriptors and internal points) | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_state_national.zip` | `us-census-public-domain` (US federal public domain) | Annual; pinned to 2025 | 2026-10-07 |
 | `cdc-schoolvaxview-kindergarten` | CDC SchoolVaxView, kindergarten MMR and any exemptions (Socrata `ijqb-a7ye`) | Query below; exact URL in retrieval metadata | `cdc-schoolvaxview-terms-unconfirmed` (US federal public domain) | Annual school year | 2026-10-07 |
 | `texas-dshs-kindergarten-2023` | Texas DSHS 2023–24 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2023-2024_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` (none stated; public information, attribution and link) | Annual | 2026-10-07 |
 | `texas-dshs-kindergarten-2024` | Texas DSHS 2024–25 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2024-2025_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` (none stated; public information, attribution and link) | Annual | 2026-10-07 |
@@ -39,7 +43,7 @@ mapping. A new id is only introduced for newly written data.
 | --- | --- | --- | --- | --- |
 | `cdc-open-data-terms-unconfirmed` | US federal public domain (17 USC 105) | The dataset page and metadata name no licence (`license: null`); the publisher is CDC's Office of Public Health Data, Surveillance, and Technology (`NNDSSWeb@cdc.gov`). CDC is a US federal agency, so its data is a US government work in the public domain (17 USC 105). The dataset notes say counts are provisional, subject to ongoing revision, and "presented as published each week". | "Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data, https://data.cdc.gov/resource/x9gk-5huc. Counts are provisional and combine confirmed and unknown-status cases. Koplik is not affiliated with or endorsed by CDC." | `cdc-nndss-weekly-measles` |
 | `cdc-schoolvaxview-terms-unconfirmed` | US federal public domain (17 USC 105) | The SchoolVaxView dataset is provided by CDC NCIRD, a US federal agency; US government work in the public domain (17 USC 105). | "Source: Centers for Disease Control and Prevention (CDC), SchoolVaxView, Vaccination Coverage and Exemptions among Kindergartners, https://data.cdc.gov/Vaccinations/Vaccination-Coverage-and-Exemptions-among-Kinderga/ijqb-a7ye. Not affiliated with or endorsed by CDC." | `cdc-schoolvaxview-kindergarten` |
-| `us-census-public-domain` | US federal public domain (17 USC 105) | US Census Bureau geographic materials are public domain US government works. [2024 technical documentation, §1.2](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf) states Census materials may be reproduced and requests source attribution. Boundaries are statistical depictions, not legal land descriptions (§1.1). | "Source: US Census Bureau, 2024 cartographic boundary files (1:20,000,000), https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html. Boundaries are statistical depictions, not legal land descriptions." | `census-cb-2024-states-20m`, `census-cb-2024-counties-20m` |
+| `us-census-public-domain` | US federal public domain (17 USC 105) | US Census Bureau geographic materials are public domain US government works. [2024 technical documentation, §1.2](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf) states Census materials may be reproduced and requests source attribution. Boundaries are statistical depictions, not legal land descriptions (§1.1). | "Source: US Census Bureau, 2024 cartographic boundary files (1:20,000,000), https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html; Vintage 2025 population estimates, https://www.census.gov/programs-surveys/popest.html; 2025 Gazetteer files, https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.html. Boundaries are statistical depictions, not legal land descriptions." | `census-cb-2024-states-20m`, `census-cb-2024-counties-20m`, `census-state-population-2025`, `census-county-population-2025`, `census-county-gazetteer-2025`, `census-state-gazetteer-2025` |
 | `census-open-data-terms-unconfirmed` | US federal public domain (17 USC 105) | A US Census Bureau reference file (`national_county2020.txt`: county names and FIPS codes), a US government work in the public domain (17 USC 105); the file carries no licence statement of its own. | "Source: US Census Bureau, national county reference file (2020 codes), https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt." | `census-county-codes-2020-wayback` |
 | `census-county-codes-terms-unconfirmed` | US federal public domain (17 USC 105); not consumed | Recorded only on the rejected Census county API HTTP-200 "Missing Key" response, which is a negative fixture and is never read as county identities or coverage data. | None: no data from this response is shown. | (negative fixture only) |
 | `dshs-copyright-noncommercial-no-alteration` | none stated (public information; attribution and link required) | DSHS states no data licence. Its "Copyright and Disclaimer" page (`https://www.dshs.texas.gov/site-policies/copyright-disclaimer`, read 2026-10-07) says: "Unless otherwise noted on an individual document, file, home page, or the like, DSHS grants permission to copy and distribute files, documents and information provided for non-commercial use, so long as the information is copied and distributed without alteration." The outbreak page and PDFs carry no other notice. The ruling treats DSHS data as public information used with attribution and a link; Koplik therefore always names DSHS, links the DSHS page, and states which figures it derived (differenced, re-keyed by FIPS, charted) rather than presenting them as DSHS's own. | "Source: Texas Department of State Health Services (DSHS), 2025 Measles Outbreak data, https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025. Counts were processed by Koplik (differenced by week, keyed by county FIPS); DSHS states no data licence. Not affiliated with or endorsed by DSHS." | `dshs-measles-outbreak-page`, `dshs-measles-outbreak-page-wayback`, `dshs-measles-data-report`, `dshs-measles-data-report-wayback` |
@@ -377,3 +381,86 @@ page, not data; the Census reference-file URL was denied by robots.txt. Neither 
 The rejected API bytes are a negative fixture, never a crosswalk or coverage source. Its
 source/terms ids are recorded solely as discovery provenance; no data from that response is shown or attributed.
 Credential handling follow-up: #1374. The implementation uses the public DSHS table instead.
+## Census population and geography (`census-*-2025`)
+
+The connector uses **Vintage 2025** PEP estimates, July 1, 2025 resident population
+(`POPESTIMATE2025`, not a Census count or the 2024 column). The Census Bureau published
+[2025 national/state estimates](https://www.census.gov/newsroom/press-kits/2026/national-state-population-estimates.html)
+in January 2026 and [2025 county totals](https://www.census.gov/data/datasets/time-series/demo/popest/2020s-counties-total.html)
+in March 2026. This is the latest annual vintage covering 2024/2025 at capture time.
+Each new vintage revises the earlier annual series; the four committed pins identify this
+specific capture, not every future response at the URLs.
+
+The [2025 Gazetteer](https://www.census.gov/geographies/reference-files/time-series/geo/gazetteer-files.2025.html)
+[record layouts](https://www.census.gov/programs-surveys/geography/technical-documentation/records-layout/gaz-record-layouts/gaz25-record-layouts.html)
+define `INTPTLAT` and `INTPTLONG` in decimal degrees. These are Census representative internal
+points, used as `Geography.centroid` for distance/gravity inputs, **not population-weighted or
+geometric centroids**. County/state names come from `NAME`, and keys from zero-padded `GEOID`.
+Both shapes remain contract v1, compatible with the v2/v3 geography/scenario input aliases.
+No released contract or schema is changed.
+
+### Named-file capture, provenance and terms
+
+The 2026-10-07 `census-access` decision, option A with limits under the operator's standing
+directive, authorizes these named Census population-estimate and Gazetteer works as public
+domain US government materials (17 USC 105), with source attribution. The existing
+`us-census-public-domain` id applies. This implements that decision; it is not a new licence
+acceptance by this worker. The URLs above and the exact pins in
+`crates/koplik-ingest/manifests/census-population-2025.json` are the entire four-file scope:
+
+| File | SHA-256 | Bytes |
+| --- | --- | --- |
+| `NST-EST2025-ALLDATA.csv` | `92188e29cb0a67dcf95afa7d6c47359409782f086478b70ea4128eb70e223ca9` | 53555 |
+| `co-est2025-alldata.csv` | `4f5a499d851e2cb48fd7a5405e5a9235453a8a66933657aacd10df0e264f35d5` | 2071735 |
+| `2025_Gaz_counties_national.zip` | `4c90d0f805779923b5958ab13d0c1e9b99fe4932b786bfcf75dd739bb2dcb4ea` | 138993 |
+| `2025_Gaz_state_national.zip` | `5c0bb56f4824af366538d73bffd229e790d301356624302eeca24d09cf27ba30` | 2863 |
+
+All captures reuse #1350's `census_files::fetch_to_store` and the same polite fetcher/store,
+with `KOPLIK_CONTACT=https://github.com/jakedevar`. A single `fetch census-population` run
+requests the four files sequentially, with the enforced per-host delay; each URL gets at most
+one GET per run, without retries, redirects, directory walking or link following. A verified
+cached snapshot matching a pin returns its original retrieval receipt without any request.
+Robots rules remain honored for every URL outside these named-file manifests. No API key
+is required, requested, or placed in provenance. Changed bytes fail pin verification before
+storage. Normal public parsers also verify source id, exact URL, terms id, HTTP success,
+byte length and pinned snapshot hash before emitting rows.
+
+Initial pin discovery followed the same process documented for #1350: the fixed four named
+URLs were queried once through that exception against an explicitly nonmatching empty-body
+digest; `PinMismatch` reported the measured hashes without storing data. The measured
+manifest was committed at `ef54d28` **before** one sequential capture. Discovery never
+updates a manifest or accepts revised bytes automatically. The real-byte files and original
+retrieval receipts are in `data/fixtures/census-population/`; nothing was trimmed or edited.
+
+### Parser scope and missing data
+
+Population CSVs use exact named headers and summary levels: `040` from the state file
+(50 states, DC, Puerto Rico; 52 rows) and `050` with `STATE=48` from the county file (254 rows).
+State totals, US totals, regions/divisions and counties outside Texas are excluded from the
+appropriate output. The county CSV has Latin-1 text outside Texas; the parser reads byte
+records and decodes only the numeric/key fields, preserving source bytes and avoiding lossy
+UTF-8 replacement. It does not use county-name spelling to identify population rows.
+
+The Gazetteer selects exactly `2025_Gaz_state_national.txt` or
+`2025_Gaz_counties_national.txt`, not a ZIP member containing a convenient substring. It
+bounds decompression, requires pipe-delimited columns, filters county GEOIDs by Texas FIPS,
+and emits ordered `Geography` rows. It never extracts archive paths to disk.
+
+Every expected geography must occur exactly once. Missing/duplicate/unexpected geography
+keys refuse the complete export and identify the affected FIPS; an incomplete national file
+cannot pass merely because its row count looks plausible. Population v1 has no missing-count
+variant, so blank, suppressed, malformed, negative, fractional or overflowing population
+values refuse population export with the geography named in the error; there is no zero
+fill, omission or imputation. A genuine numeric zero remains zero. Missing, malformed,
+nonfinite or out-of-range coordinate pairs become `Geography.centroid: null`, v1's explicit
+missing form. A genuine `(0, 0)` remains a point. The pinned snapshots have no gaps for the
+52 published state-level geographies or 254 Texas counties; all their internal points are
+present. Other US territories are outside these population/Gazetteer files' published scope.
+
+`fetch census-population` captures all four files in one governed run; individual source
+commands are `census-state-population`, `census-county-population`, `census-texas-counties` and
+`census-states`. The corresponding `parse` commands run entirely offline with optional
+`--out FILE` and emit v1 arrays. Each population/geography row retains the raw-file SHA-256,
+exact source URL, retrieval time and `us-census-public-domain` id. Gaines County (48165) in
+these bytes has resident population **23,956** and internal point **32.743942, -102.631561**.
+Statewide Texas population is **31,709,821**. No population or coordinate is imputed.

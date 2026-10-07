@@ -31,6 +31,7 @@ zip = { version = "6", default-features = false, features = ["deflate"] }
 calamine = { version = "0.36.1", default-features = false }
 # HTML tables (coverage and the DSHS outbreak page).
 scraper = { version = "0.27.0", default-features = false }
+csv = "1"
 # DSHS connector: gzip-encoded archive captures (flate2) and the positioned-text PDF data
 # reports (pdf-extract; lopdf pinned to the version it uses).
 flate2 = "1"
