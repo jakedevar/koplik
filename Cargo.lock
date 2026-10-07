@@ -110,6 +110,7 @@ dependencies = [
  "libm",
  "rand_chacha",
  "rand_core",
+ "serde",
  "serde_json",
  "sha2",
  "thiserror",
