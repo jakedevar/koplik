@@ -13,14 +13,15 @@ export PUBLISH_REMOTE PUBLISH_DRY_RUN
 .PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline pipeline-fixtures serve publish
 
 check:
-	$(CARGO) check --workspace --all-targets
+	$(CARGO) fetch --locked
+	tools/offline-test.sh $(CARGO) check --offline --workspace --all-targets
 
 test:
-	$(CARGO) test --workspace
+	tools/cargo-test.sh --workspace
 
 # Regenerate the committed JSON Schema for koplik-contracts (then commit the result).
 schema:
-	KOPLIK_REGEN_SCHEMA=1 $(CARGO) test -p koplik-contracts --test schema --test schema_v2 --test schema_v3
+	KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3
 
 wasm:
 	$(CARGO) build --locked --release --target wasm32-unknown-unknown -p koplik-wasm --lib
@@ -34,7 +35,7 @@ wasm:
 
 determinism: wasm
 	$(CARGO) build --locked --release -p koplik-wasm --bin trajectory-native
-	node tools/wasm/determinism.mjs
+	tools/offline-test.sh node tools/wasm/determinism.mjs
 
 wasm-benchmark: wasm
 	node tools/wasm/benchmark.mjs
@@ -44,8 +45,7 @@ web/node_modules/.package-lock.json: web/package-lock.json
 	cd web && npm ci --no-audit --no-fund
 
 web-test: wasm web/node_modules/.package-lock.json
-	cd web && npm test
-	node --test tools/publish.test.mjs
+	tools/offline-test.sh sh -eu -c 'node --test tools/offline-test.test.mjs; cd web; npm test; cd ..; mkdir -p "$$CARGO_TARGET_DIR/publish-tests"; TMPDIR="$$CARGO_TARGET_DIR/publish-tests" node --test tools/publish.test.mjs'
 
 # Live pipeline: ingest (network, identified by KOPLIK_CONTACT or the operator's default contact;
 # a blank KOPLIK_CONTACT refuses) then validate, infer, forecast and build into web/public/data.

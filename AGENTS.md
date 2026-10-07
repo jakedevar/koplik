@@ -90,14 +90,28 @@ provenance on every number). Planned layout; the Contracts Issue creates the wor
 ## Build and test
 
 Rust is pinned by `rust-toolchain.toml` (1.94.1, the same version as `rsi`, plus `wasm32-unknown-unknown`).
-The first Issues create these Makefile targets. Until they exist, use the cargo equivalents:
+Test execution uses `tools/offline-test.sh`: an unprivileged Linux user/network
+namespace with only loopback enabled. Before every gated command, a self-test
+requires outbound TCP to fail immediately with `ENETUNREACH` and loopback TCP to
+succeed. Cargo compilation and npm installation may fetch dependencies before
+the gate; tests and their descendants cannot reach external services.
+For scoped Rust tests use `tools/cargo-test.sh -p <crate>` (accepts cargo test
+arguments), which builds with `--no-run` before executing `cargo test --offline`
+inside the gate, including doctests. Do not use bare `cargo test`.
+
+The gate requires `unshare`, unprivileged user/network namespaces, `ip` from
+iproute2, and Node. If namespace setup is unavailable it prints the reason and
+fails. `KOPLIK_ALLOW_NETWORK_TESTS=1` explicitly allows unisolated execution on
+unsupported hosts, with a warning; it is not an offline QA result.
+
+Use these Makefile targets:
 
 ```bash
-make check       # cargo check --workspace --all-targets
-make test        # cargo test --workspace (offline, fixtures only)
+make check       # fetch dependencies, then isolated cargo check --offline --workspace --all-targets
+make test        # build Rust tests, then isolated execution (fixtures only, including doctests)
 make wasm        # build koplik-wasm for wasm32 + bindings
-make determinism # native vs wasm identical-trajectory test
-make web-test    # web unit + e2e
+make determinism # build native/wasm, then isolated identical-trajectory test
+make web-test    # build/install, then isolated gate tests, web unit + e2e + local publishing test
 make pipeline    # run the pipeline from snapshots to web/public/data
 make serve       # serve the built site locally
 make publish     # build the site for GitHub Pages and push it to origin's gh-pages branch

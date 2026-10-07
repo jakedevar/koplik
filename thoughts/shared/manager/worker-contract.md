@@ -32,10 +32,23 @@ end. The manager merges, tests and pushes to `rolling`.
 
 ## 3. Verify
 
-- `~/.rsi/bin/cargo-slot cargo check --workspace --all-targets`.
+- `make check` (dependency fetch, then isolated offline workspace check).
 - The tests for the crates you touched, for example
-  `~/.rsi/bin/cargo-slot cargo test -p koplik-epi`. If you touched `koplik-epi` or
+  `tools/cargo-test.sh -p koplik-epi`, or `make test` for the workspace.
+  The wrapper accepts cargo test arguments and uses the resource governor;
+  it builds with `--no-run` before `tools/offline-test.sh` runs
+  `cargo test --offline` in an unprivileged user/network namespace. Doctests
+  and all subprocesses inherit the isolation. Do not run bare `cargo test`.
+  If you touched `koplik-epi` or
   `koplik-wasm`, also run `make determinism`. If you touched `web/`, run `make web-test`.
+- `tools/offline-test.sh <command> [args...]` gates other test commands, including
+  direct npm/Node runs. Only loopback is enabled; the gate first proves outbound
+  TCP fails with `ENETUNREACH` and loopback TCP succeeds. `make web-test` keeps
+  Vitest, Playwright's local server/browser and the publishing test's temporary
+  bare repos in one namespace. Build/install dependencies before execution.
+- Missing/disabled `unshare` or `ip` (iproute2) fails clearly without running tests.
+  `KOPLIK_ALLOW_NETWORK_TESTS=1` is an explicit, warned opt-out on unsupported
+  hosts; report such runs as unisolated, never as an offline QA pass.
 - Run commands in the foreground and `tee` long runs to a log. Never end your
   turn to wait for a build or test: your session ends with your turn and your
   background jobs are killed. Give long commands a long timeout and rerun them

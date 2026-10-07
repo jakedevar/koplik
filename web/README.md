@@ -9,7 +9,14 @@ and `make web-test` build them automatically. Unit tests render actual v2 WASM
 output from the committed SEIR fixture through an injected Worker adapter.
 
 Run `npm ci` in `web/` once. `TMPDIR=/tmp make web-test` runs Vitest and the
-Playwright smoke test offline against committed fixtures. `make serve` builds
+Playwright smoke test and the local publishing test inside
+`tools/offline-test.sh`'s network namespace, with loopback enabled and external
+TCP blocked. Dependency installation and WASM compilation happen first.
+Publishing-test scratch builds live under `CARGO_TARGET_DIR/publish-tests`;
+the browser still uses `TMPDIR=/tmp` to keep its Unix socket path short.
+Namespace setup failure refuses execution unless explicitly opted out with
+`KOPLIK_ALLOW_NETWORK_TESTS=1` (see `AGENTS.md`; that is an unisolated run).
+`make serve` builds
 and previews the production site on localhost.
 `make serve` always uses `/`. `KOPLIK_BASE_PATH=/koplik/` applies to direct
 `npm run build` and `npm run dev` commands. Serve `dist/` with any static host.
@@ -249,4 +256,4 @@ It fails explicitly if no executable is available; it never skips or downloads a
 browser during tests. Install a browser separately if needed. Always set
 `TMPDIR=/tmp` in RSI sandboxes to avoid Chromium's long Unix socket path (#1367).
 To run only the smoke test after `make wasm`, use
-`cd web && TMPDIR=/tmp npm run test:smoke`.
+`cd web && TMPDIR=/tmp ../tools/offline-test.sh npm run test:smoke`.
