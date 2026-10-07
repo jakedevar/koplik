@@ -479,3 +479,22 @@ commands are `census-state-population`, `census-county-population`, `census-texa
 exact source URL, retrieval time and `us-census-public-domain` id. Gaines County (48165) in
 these bytes has resident population **23,956** and internal point **32.743942, -102.631561**.
 Statewide Texas population is **31,709,821**. No population or coordinate is imputed.
+
+## What-if scenario inputs (`scenarios/gaines-2025.json`, #1455)
+
+`koplik-pipeline validate` builds the Gaines County 2025 what-if scenario (a v1 `ScenarioInput`)
+and its companion `scenarios/gaines-2025.provenance.json` (#1400) from store snapshots only, by a
+rule committed before it was first run (`crates/koplik-pipeline/src/scenario.rs`). Nothing is fitted
+to the outbreak; the panel says so in plain words.
+
+| Scenario input | Source and rule |
+| --- | --- |
+| Population | `census-county-population-2025`: `POPESTIMATE2025`, July 1, 2025 (a few months after the start; not back-cast). |
+| Centroid | `census-county-gazetteer-2025`: county internal point, a representative point (also attached to `Geography.centroid`). |
+| Baseline coverage | `texas-dshs-kindergarten-2023`: 2023-24 Texas DSHS kindergarten MMR coverage, as published; a county without a reported row is excluded, never imputed. |
+| Start week, initial infectious | The earliest retained DSHS report vintage that has a confirmed-case county table with a Gaines row (2025-03-04, MMWR 2025-W10, 107 confirmed cases in the fixtures), taken as recorded; reporting multiplier `1.0` (no under-reporting correction), initial exposed `0`. Names map to FIPS through `census-county-codes-2020-wayback`. DSHS counts are cumulative, so seeding them as currently infectious overstates current prevalence; the model is not corrected for it. |
+| Parameters | `koplik_epi::default_parameters()` unchanged, each cited in the companion from `koplik_epi::parameter_citations()` (Guerra et al. 2017; CDC Pink Book ch. 13; CDC vaccine considerations; the spec for numerical choices). |
+| Nodes | Gaines County alone: the cited defaults carry no gravity coupling, so a neighbour would be an inert node. A coupled neighbourhood is a configuration (`ScenarioConfig::neighbourhood`) that needs explicit gravity coefficients, none of which has a Texas citation. |
+| Seed, runs | Seed `20250304` (arbitrary, fixed, recorded), 1,000 runs. |
+
+The measured replay against DSHS counts is `thoughts/shared/notes/gaines-2025-scenario-replay.md`.

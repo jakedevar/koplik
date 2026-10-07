@@ -73,5 +73,15 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(drawer).toContainText('Derived from the exact replay scenario, across all its counties');
   await expect(drawer).toContainText('SYNTHETIC');
   await close.press('Escape'); await expect(median).toBeFocused();
+
+  // The panel says what it is, shows how it was seeded, and cites every parameter.
+  const panel = page.locator('.what-if');
+  await expect(panel).toContainText('A what-if tool, not a fitted model');
+  await expect(panel.locator('.what-if-metadata')).toContainText('Seeded with 5 infectious and 5 exposed in Gaines County');
+  await panel.getByText('Model parameters and their sources', { exact: true }).click();
+  await expect(panel.locator('.parameter-citations tbody tr')).toHaveCount(8);
+  await panel.locator('.parameter-citations tbody tr').first().getByRole('button').click();
+  await expect(drawer).toContainText('Published source: SYNTHETIC fixture');
+  await close.press('Escape');
   expect(external).toEqual([]); expect(pageErrors).toEqual([]);
 });

@@ -2,11 +2,14 @@ import type { Provenance } from './generated/Provenance';
 import { attributionFor, licenceTerms } from './attribution';
 
 // Local display metadata, not a new published artifact shape. Partial records stay partial.
+export interface PublishedCitation { source: string; url?: string | null; note?: string }
 export interface ProvenanceInfo {
   label: string;
   records: readonly Partial<Provenance>[];
   synthetic?: boolean;
   note?: string;
+  /** Literature a model parameter is cited to: published sources, not stored snapshots. */
+  citations?: readonly PublishedCitation[];
 }
 type FocusTarget = HTMLElement | SVGElement;
 interface Request extends ProvenanceInfo { trigger: FocusTarget }
@@ -104,7 +107,16 @@ export function mountProvenanceDrawer(root: HTMLElement): () => void {
       label.className = 'synthetic notice'; content.append(label);
     }
     if (request.note) content.append(element('p', request.note));
-    if (!records.length) content.append(element('p', 'Source provenance missing: this artifact does not link source records for this value.'));
+    for (const citation of request.citations || []) {
+      const section = element('section'); section.className = 'provenance-citation';
+      section.append(element('p', `Published source: ${citation.source}`));
+      if (citation.url && /^https?:\/\//i.test(citation.url)) {
+        const link = element('a', citation.url); link.href = citation.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; section.append(link);
+      }
+      if (citation.note) section.append(element('p', citation.note));
+      content.append(section);
+    }
+    if (!records.length && !request.citations?.length) content.append(element('p', 'Source provenance missing: this artifact does not link source records for this value.'));
     for (const record of records) {
       const section = element('section'); section.className = 'provenance-record';
       const list = element('dl');

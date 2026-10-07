@@ -1,0 +1,169 @@
+{
+  "artifact_version": 1,
+  "scenario": "gaines-2025",
+  "statement": "SYNTHETIC FIXTURE for development and tests only: every number, source and citation here is invented. This is a what-if tool, not a fitted model.",
+  "seed": "1353",
+  "run_count": 1000,
+  "seeding": {
+    "rule": "SYNTHETIC: invented seeding for the development fixture; no report was read.",
+    "report_date": "2025-01-01",
+    "report_first_seen_at": "2025-01-01T00:00:00Z",
+    "county_name_as_printed": "Synthetic County",
+    "cell_as_printed": "5",
+    "confirmed_basis": "SYNTHETIC: not a DSHS table",
+    "recorded_confirmed_count": 5,
+    "reporting_multiplier": 1.0,
+    "exposed_per_infectious": 1.0,
+    "initial_infectious": 5,
+    "initial_exposed": 5,
+    "start_week": {
+      "year": 2025,
+      "week": 1
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-seir-fixture-not-observations",
+        "url": "file:data/fixtures/seir/synthetic-source.json",
+        "retrieved_at": "2026-10-07T02:17:12.214991Z",
+        "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+        "licence_id": "synthetic-project-test-input"
+      }
+    ],
+    "skipped_vintages": [],
+    "limitation": "SYNTHETIC: no real seeding exists in this fixture."
+  },
+  "parameters": [
+    {
+      "parameter": "r0",
+      "value": {
+        "kind": "uniform_prior",
+        "min": 12.0,
+        "max": 18.0
+      },
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "latent_period_days",
+      "value": 10.0,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "infectious_period_days",
+      "value": 8.0,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "mmr_effectiveness_one_dose",
+      "value": 0.93,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "mmr_effectiveness_two_doses",
+      "value": 0.97,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "time_step_days",
+      "value": 1.0,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "horizon_days",
+      "value": 180,
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    },
+    {
+      "parameter": "gravity",
+      "value": {
+        "scale": 0.01,
+        "origin_exponent": 1.0,
+        "destination_exponent": 1.0,
+        "distance_exponent": 2.0
+      },
+      "source": "SYNTHETIC fixture: invented value, not a citation",
+      "url": null,
+      "note": "Development fixture parameter."
+    }
+  ],
+  "nodes": [
+    {
+      "geography": "48003",
+      "name": "Synthetic 48003",
+      "population": 20000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48115",
+      "name": "Synthetic 48115",
+      "population": 15000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48165",
+      "name": "Synthetic 48165",
+      "population": 20000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48305",
+      "name": "Synthetic 48305",
+      "population": 10000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48317",
+      "name": "Synthetic 48317",
+      "population": 10000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48445",
+      "name": "Synthetic 48445",
+      "population": 15000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    },
+    {
+      "geography": "48501",
+      "name": "Synthetic 48501",
+      "population": 10000,
+      "population_basis": "SYNTHETIC: invented",
+      "centroid_basis": "SYNTHETIC: invented",
+      "coverage_school_year": "2023-24",
+      "coverage_basis": "SYNTHETIC: invented override"
+    }
+  ],
+  "excluded_nodes": [],
+  "neighbourhood_note": "SYNTHETIC: seven invented counties coupled by an invented gravity scale."
+}
