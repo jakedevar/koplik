@@ -1,49 +1,7 @@
 import maplibregl, { type GeoJSONSource } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import type { CaseDefinition, Dataset, Metric, Boundaries } from './data';
-import { mapMetricValue } from './data';
-
-export interface MapView {
-  update(level: 'state' | 'county', metric: Metric, selected: string, definition?: CaseDefinition): void;
-  destroy(): void;
-  /** Re-measure the container, e.g. when the page it sits on becomes visible again. */
-  resize?(): void;
-}
-
-/** Boundary attribution uses its own v1 provenance, never a guessed data provider. */
-export function boundaryAttribution(boundaries: Boundaries): string {
-  const labels = new Set<string>();
-  for (const feature of boundaries.features) {
-    if (!feature.properties.provenance?.length) labels.add('Boundary source / licence unavailable');
-    for (const record of feature.properties.provenance || []) labels.add(`${record.source_id} · ${record.licence_id}`);
-  }
-  if (!labels.size) labels.add('Boundary source / licence unavailable');
-  // MapLibre treats attribution as HTML; source metadata stays plain text.
-  return [...labels].sort().map((label) => label.replace(/[&<>"']/g, (character) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)).join(' | ');
-}
-
-/** One colour scale per case definition (value, colour stops); definitions never share a scale. */
-export const caseScales: Record<CaseDefinition, [number, string][]> = {
-  confirmed_or_unknown_status: [[0, '#edf4ed'], [1, '#c5ddc3'], [50, '#68a58d'], [100, '#286e66'], [500, '#123f3b']],
-  confirmed: [[0, '#eef1f8'], [1, '#c9d3ec'], [50, '#8196cf'], [100, '#46569b'], [500, '#1d2557']],
-};
-const coverageScale: [number, string][] = [[0, '#f3d9a6'], [80, '#ead38a'], [90, '#8db896'], [95, '#357c68'], [100, '#123f3b']];
-/** The fill expression for the map: coverage has its own scale; each case definition has its own. */
-export function fillColor(metric: Metric, level: 'state' | 'county', definition?: CaseDefinition) {
-  const stops = metric === 'coverage' && level === 'state' ? coverageScale : caseScales[definition ?? 'confirmed_or_unknown_status'];
-  return ['interpolate', ['linear'], ['get', 'value'], ...stops.flat()];
-}
-
-export function mapFeatures(data: Dataset, level: 'state' | 'county', metric: Metric, selected: string, definition?: CaseDefinition) {
-  const source = level === 'state' ? data.states : data.counties;
-  return {
-    ...source,
-    features: source.features.map((feature) => {
-      const value = mapMetricValue(data, feature.properties.GEOID, level === 'county' ? 'cases-2025' : metric, definition).value;
-      return { ...feature, properties: { ...feature.properties, value, missing: value === null, selected: feature.properties.GEOID === selected } };
-    }),
-  };
-}
+import { fillColor, mapFeatures, boundaryAttribution, type MapView } from './map-scales';
 
 function bounds(source: Boundaries, id?: string): [[number, number], [number, number]] | undefined {
   const coordinates: number[][] = [];
@@ -55,6 +13,8 @@ function bounds(source: Boundaries, id?: string): [[number, number], [number, nu
   return [[Math.min(...coordinates.map((p) => p[0])), Math.min(...coordinates.map((p) => p[1]))],
     [Math.max(...coordinates.map((p) => p[0])), Math.max(...coordinates.map((p) => p[1]))]];
 }
+
+export { boundaryAttribution, caseScales, fillColor, mapFeatures, type MapView } from './map-scales';
 
 export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void): MapView {
   container.dataset.mapState = 'loading';

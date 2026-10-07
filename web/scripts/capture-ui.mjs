@@ -56,7 +56,9 @@ try {
           await client.send('Emulation.setCPUThrottlingRate', { rate: throttle.cpu });
         }
         await page.addInitScript(() => {
-          window.__paint = { fcp: null, lcp: null, cls: 0 };
+          window.__paint = { fcp: null, lcp: null, cls: 0, content: null };
+          // When the first headline number is on screen: the page is useful, whatever Chrome picks as its largest paint.
+          new MutationObserver((_, observer) => { if (document.querySelector('.headline-value button')) { window.__paint.content = performance.now(); observer.disconnect(); } }).observe(document, { childList: true, subtree: true });
           new PerformanceObserver((list) => { for (const e of list.getEntries()) if (e.name === 'first-contentful-paint') window.__paint.fcp = e.startTime; }).observe({ type: 'paint', buffered: true });
           new PerformanceObserver((list) => { for (const e of list.getEntries()) window.__paint.lcp = e.startTime; }).observe({ type: 'largest-contentful-paint', buffered: true });
           new PerformanceObserver((list) => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__paint.cls += e.value; }).observe({ type: 'layout-shift', buffered: true });
@@ -64,12 +66,12 @@ try {
         await page.goto(site.url, { waitUntil: 'load' });
         await page.waitForFunction(() => document.querySelector('.headline-value button') !== null, null, { timeout: 60000 });
         await page.waitForTimeout(1500);
-        runs.push(await page.evaluate(() => ({ ...window.__paint, transferred: performance.getEntriesByType('resource').reduce((n, e) => n + e.transferSize, 0) })));
+        runs.push(await page.evaluate(() => ({ ...window.__paint, transferred: performance.getEntriesByType('resource').reduce((n, e) => n + e.transferSize, 0), requests: performance.getEntriesByType('resource').length, dataRequests: performance.getEntriesByType('resource').filter((e) => /\/data\//.test(e.name)).length })));
         await context.close();
       }
-      result[profile] = { runs, median_fcp_ms: median(runs.map((r) => r.fcp)), median_lcp_ms: median(runs.map((r) => r.lcp)), median_cls: median(runs.map((r) => r.cls)) };
+      result[profile] = { runs, median_fcp_ms: median(runs.map((r) => r.fcp)), median_lcp_ms: median(runs.map((r) => r.lcp)), median_cls: median(runs.map((r) => r.cls)), median_content_ms: median(runs.map((r) => r.content)), median_transferred_kb: Math.round(median(runs.map((r) => r.transferred)) / 1024), median_requests: median(runs.map((r) => r.requests)) };
     }
     await writeFile(`${out}/${label}-paint.json`, `${JSON.stringify(result, null, 1)}\n`);
-    for (const [profile, r] of Object.entries(result)) console.log(`${label} ${profile}: FCP ${r.median_fcp_ms.toFixed(0)} ms, LCP ${r.median_lcp_ms.toFixed(0)} ms, CLS ${r.median_cls.toFixed(3)}`);
+    for (const [profile, r] of Object.entries(result)) console.log(`${label} ${profile}: FCP ${r.median_fcp_ms.toFixed(0)} ms, LCP ${r.median_lcp_ms.toFixed(0)} ms, content ${r.median_content_ms.toFixed(0)} ms, CLS ${r.median_cls.toFixed(3)}, ${r.median_transferred_kb} KB in ${r.median_requests} requests`);
   }
 } finally { await browser.close(); await site.close(); }

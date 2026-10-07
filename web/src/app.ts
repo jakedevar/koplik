@@ -6,7 +6,8 @@ import { explorerSummary } from './summary';
 import { summarySection } from './summary-view';
 import { footerSources } from './attribution';
 import { mountRouter, pageEvent, pageHash, pageIds, pageTitles, type PageId } from './router';
-import { caseScales, createMap, type MapView } from './map';
+import { caseScales, type MapView } from './map-scales';
+import { createLazyMap } from './map-lazy';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
 /** Said above a Texas county's weekly chart: why most weeks are "No data", and that nothing fills them. */
@@ -111,7 +112,7 @@ export function showStatus(root: HTMLElement, message: string, error = false) {
 
 export type MapFactory = (container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void) => MapView;
 
-export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: MapFactory = createMap): () => void {
+export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: MapFactory = createLazyMap): () => void {
   const { pages } = shell(root);
   const main = pages.explorer;
   if (data.synthetic) main.append(element('p', 'SYNTHETIC TEST DATA · Invented values and simplified geometry for development only. These are not observed measles reports.', 'synthetic notice'));
