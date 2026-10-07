@@ -310,3 +310,75 @@ At the origin of the published forecast (2026-W36) the fixture run forecasts 6 s
 (measured: 108 targets from 17 origin weeks, mean CRPS 384.47 against 25.71 for carrying the last
 count forward, 90% coverage 34.3%) and Kentucky, Maryland, New York, Ohio and Wisconsin, which have
 insufficient data for a measured skill.
+
+## Publication policy (decided 2026-10-07 by the manager after this result; fixed here before the code that applies it)
+
+**Status of this section, stated honestly.** The measured result above came first, and it is the
+reason for this policy: the pre-registered forecaster failed its own test on the published series. So
+the policy is *not* pre-registered with respect to that result; it is a rule written from first
+principles, with thresholds fixed below and never tuned, and it is pre-registered with respect to
+every later result (a new origin, a new snapshot, a new series, a new method, a new evaluation).
+It is applied mechanically by `koplik_pipeline::forecast_stage` and re-checked by the contract's
+deserializer (`koplik_contracts::v7::PublicationPolicy::admits`) and by the web page; nobody decides
+a series by hand.
+
+**The rule.** *A series' forecast is published only if its method has a measured skill on that very
+series that meets the criterion; otherwise the forecast is withheld and the page says so and why.*
+
+A series meets the criterion exactly when **all** of these hold, on the scores the evaluation
+measured for that series (pooled over its scored targets, all horizons):
+
+1. **It has a measured skill**: the evaluation scored at least 40 targets of it from at least 10
+   origin weeks (the floor above, or the report-vintage backtest of that very series). Below the
+   floor the series has insufficient data for a skill and is withheld, whatever its scores.
+2. **Its 90% intervals are calibrated well enough: `coverage_90 >= 0.75`.** First principles: the
+   shown bands are the 50% and 90% bands, so a published band must be about what its label says. 0.75
+   is the nominal 0.90 less 0.15, the sampling noise of a coverage estimate resting on about 10
+   independent origins (a binomial standard error at 0.9 with 10 draws is about 0.095, so 1.5
+   standard errors is about 0.14). Anything lower is a band that is detectably too narrow.
+3. **It is no worse than the benchmark: `mean CRPS <= 1.0 x` the persistence baseline's mean absolute
+   error** (carrying the origin week's count forward, the baseline the protocol fixed). A forecast
+   that costs more error than repeating the latest complete week's count tells the reader less than
+   the number they already have.
+
+These are applied to the series' scores pooled over its scored targets (all 8 horizons), not per
+horizon: a series that clears the 40-target floor has only about 5 targets per horizon, too few to
+judge a horizon alone, and the long horizons, where the forecaster failed, dominate the pooled mean
+CRPS anyway. The thresholds are carried in the companion (`publication_policy`) so the page and the
+contract check the same numbers.
+
+**Mechanical consequences.**
+
+- A forecast series whose skill is `measured` (or `backtested`, for the Texas DSHS outbreak total)
+  and that meets the criterion is `forecast`: its rows are published.
+- Any other series for which the method would have forecast (its minimum-count rule held) is
+  `withheld`, with the reason: `not_backtested` (no evaluation scored it), `insufficient_data_for_skill`
+  (the evaluation ran on it but below the floor) or `skill_below_policy` (measured, but coverage or
+  CRPS fail the criterion). No rows are published for it.
+- A series for which the method's rule did not hold stays `insufficient_data` (there is nothing to
+  withhold), with the estimator's reason, or `projection_overflow` when the method refused the
+  projection.
+- The evaluation, with its numbers and scope, is always published, whether or not any series
+  qualifies. The withheld series' forecasts are computed and kept in the pipeline's work directory
+  for audit (`forecast/withheld.json`); they are never copied to the published data.
+
+**Applied to today's result (2026-10-07 snapshot, origin 2026-W36).** No series qualifies, and the
+outcome does not depend on the thresholds: the author had already seen the per-series table when
+writing them, so this is stated plainly. Seven series reach the floor (AZ, KS, NM, PA, SC, TX, UT).
+Only one has `coverage_90 >= 0.75` (Kansas, 76.8%), and its mean CRPS is 14,916,265.56 against 3.28
+for persistence; the other six fail both. Every one of the seven has a mean CRPS above its persistence
+error (the ratio runs from 1.94 for New Mexico... see the per-series table), so criterion 3 alone
+refuses all of them, whatever the coverage threshold is. Pennsylvania, the only series with a
+measured skill that the site would otherwise have forecast at this origin, has 90% coverage 34.3% and
+mean CRPS 384.47 against 25.71. The panel therefore publishes no forecast and says why, in plain
+words, with the pooled measured numbers (90% intervals contained the true count 39.0% (682 of 1,748)
+of the time; mean CRPS 23,049,631.33 against 15.42 for repeating the latest complete week's count).
+
+**What would change this.** A series becomes publishable only by a measured result, never by editing
+the thresholds: (a) a pre-registered bounded-growth variant of the method (#1515: negative-binomial
+offspring, a cited cap on R, or a smoothed input), scored on the same protocol and shown to meet the
+criterion on a series; (b) a real-time backtest by report vintage instead of pseudo-real-time
+truncation, once dated retrievals of the source exist (#1514), if it measures a different result. The
+refusal of a projection that grows past the method's limit (#1513) no longer aborts the stage: that
+series is marked `insufficient_data` with the reason `projection_overflow`, and the rest are
+published or withheld as above.
