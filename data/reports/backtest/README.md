@@ -47,4 +47,4 @@ Protocol, amendments and results: `thoughts/shared/research/backtest-cdc-states.
 ```
 
 Deterministic: the same snapshot gives the same bytes. The forecast stage reads it and attaches each
-state series' measured skill, or its absence, to the companion (contract v6).
+state series' measured skill, or its absence, to the companion (contract v7).

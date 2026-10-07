@@ -36,7 +36,7 @@ function boundaries(rows) {
   }) };
 }
 
-// A synthetic forecast pair (contract v1 Forecast rows and the v6 companion) for the web tests and the
+// A synthetic forecast pair (contract v1 Forecast rows and the v7 companion) for the web tests and the
 // dev server only: invented numbers shaped like the real artifacts, labelled SYNTHETIC throughout. The
 // forecast pipeline's own output is tested in koplik-pipeline against the committed fixtures.
 const levels = [0.05, 0.25, 0.5, 0.75, 0.95];
@@ -53,7 +53,7 @@ const forecastRows = [...forecastRowsFor('20', 6), ...forecastRowsFor('48', 3)];
 const parameter = (name, value, note) => ({ parameter: name, value, source: 'SYNTHETIC fixture: an invented value, not a published source', url: null, note });
 const hex = (seed) => createHash('sha256').update(seed).digest('hex');
 const forecastProvenance = {
-  contract_version: 6, artifact: 'weekly-cases',
+  contract_version: 7, artifact: 'weekly-cases',
   statement: 'SYNTHETIC FIXTURE. Invented projections for development; nothing here is a model run on observed counts.',
   method: 'SYNTHETIC FIXTURE: no method was run.',
   origin_week: { year: 2026, week: 1 }, latest_data_week: { year: 2026, week: 3 },

@@ -36,7 +36,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use koplik_contracts::v1::{Forecast, GeoId, MmwrWeek, Sha256Hex};
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
-use koplik_contracts::v6::{
+use koplik_contracts::v7::{
     BacktestSkill, FORECAST_PROVENANCE_VERSION, ForecastInput, ForecastProvenance, ForecastSeries,
     ForecastStatus, InformationBasis, InsufficientReason, MeasuredScores, ParameterProvenance,
     PooledScores, SeriesBacktest, SeriesBacktestEntry, SeriesSkill, SkillByHorizon,

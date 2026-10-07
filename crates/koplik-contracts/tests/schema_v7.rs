@@ -1,12 +1,12 @@
-//! Regenerates the JSON Schema for every top-level v6 type and fails when the committed
-//! files under `schema/v6/` differ. Regenerate with `make schema`
-//! (`KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema_v6`), then commit.
+//! Regenerates the JSON Schema for every top-level v7 type and fails when the committed
+//! files under `schema/v7/` differ. Regenerate with `make schema`
+//! (`KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema_v7`), then commit.
 
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::PathBuf;
 
-use koplik_contracts::v6::*;
+use koplik_contracts::v7::*;
 use schemars::{JsonSchema, schema_for};
 
 fn render<T: JsonSchema>() -> (String, String) {
@@ -61,7 +61,7 @@ fn committed_schema_matches_types() {
         return;
     }
     let mut have = BTreeMap::new();
-    for entry in fs::read_dir(&dir).expect("schema/v6 missing: run `make schema`") {
+    for entry in fs::read_dir(&dir).expect("schema/v7 missing: run `make schema`") {
         let entry = entry.unwrap();
         have.insert(
             entry.file_name().to_string_lossy().into_owned(),

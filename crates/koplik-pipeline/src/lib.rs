@@ -30,7 +30,7 @@
 //! `forecast` from the validated weekly case series by the pre-registered method of
 //! `koplik_epi::forecast`; see [`forecast_stage`] for the rule, which series it forecasts and why
 //! the rest are `insufficient_data`. Its companion `forecasts/weekly-cases.provenance.json`
-//! (contract v6) carries the method, parameter citations, seed, input hash and the backtests'
+//! (contract v7) carries the method, parameter citations, seed, input hash and the backtests'
 //! measured skills with their scope.
 
 pub mod forecast_stage;
@@ -47,7 +47,7 @@ use koplik_contracts::v1::{
     GeoId, Geography, KindergartenMmrCoverage, Provenances, RtEstimate, Sha256Hex, StateFips,
 };
 use koplik_contracts::v3::WeeklyCaseCount;
-use koplik_contracts::{v1, v3, v6};
+use koplik_contracts::{v1, v3, v7};
 use koplik_epi::rt::{RtConfig, RtError, case_definitions, estimate_weekly};
 use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
@@ -95,7 +95,7 @@ pub const WEB_BOUNDARY_ARTIFACTS: [&str; 2] = ["us-states", "texas-counties"];
 /// The what-if scenario the web app loads from `<out>/scenarios/` (see `web/src/scenario.ts`).
 pub const SCENARIO_ARTIFACT: &str = "gaines-2025";
 /// The forecast the web app loads from `<out>/forecasts/` (see `web/src/forecast.ts`): v1
-/// `Forecast` rows, their v6 provenance companion and the backtest reports the skills were read from.
+/// `Forecast` rows, their v7 provenance companion and the backtest reports the skills were read from.
 pub const FORECAST_ARTIFACT: &str = forecast_stage::ARTIFACT;
 pub const FORECAST_BACKTEST_ARTIFACT: &str = "backtest-west-texas-2025";
 /// The pseudo-real-time NNDSS state-series backtest report published beside it (#1503).
@@ -1434,7 +1434,7 @@ fn forecast(config: &Config) -> Result<Manifest> {
             let insufficient = p
                 .series
                 .iter()
-                .filter(|s| s.status == v6::ForecastStatus::InsufficientData)
+                .filter(|s| s.status == v7::ForecastStatus::InsufficientData)
                 .count();
             m.notes.push(format!(
                 "origin MMWR {} (latest week with data {}); seed {}; {} series forecast, {} insufficient data; the pre-registered method and defaults of koplik_epi::forecast, unchanged",
@@ -1483,7 +1483,7 @@ fn forecast(config: &Config) -> Result<Manifest> {
                     "series backtest read from {} (sha256 {}); {} of {} series have a measured skill",
                     b.report_path,
                     b.report_sha256,
-                    p.series.iter().filter(|s| s.skill == v6::SeriesSkill::Measured).count(),
+                    p.series.iter().filter(|s| s.skill == v7::SeriesSkill::Measured).count(),
                     p.series.len()
                 ));
             }
@@ -1695,7 +1695,7 @@ fn build(config: &Config) -> Result<Manifest> {
                 provenance_path.display()
             )));
         }
-        let provenance: v6::ForecastProvenance = read_json(&provenance_path)?;
+        let provenance: v7::ForecastProvenance = read_json(&provenance_path)?;
         provenance
             .check_against(&rows)
             .map_err(|e| PipelineError::Data(format!("{}: {e}", provenance_path.display())))?;
@@ -1749,7 +1749,7 @@ fn build(config: &Config) -> Result<Manifest> {
                     provenance
                         .series
                         .iter()
-                        .filter(|s| s.status == v6::ForecastStatus::InsufficientData)
+                        .filter(|s| s.status == v7::ForecastStatus::InsufficientData)
                         .count() as u64,
                 ),
             },

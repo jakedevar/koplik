@@ -1,4 +1,4 @@
-/* Generated from koplik-contracts schema/v6. Run npm run generate:types. */
+/* Generated from koplik-contracts schema/v7. Run npm run generate:types. */
 
 /**
  * Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded

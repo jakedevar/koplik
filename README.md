@@ -30,7 +30,7 @@ flowchart LR
   end
   subgraph rust[Rust workspace]
     ING[koplik-ingest<br/>polite fetcher, robots, pinned files<br/>content-addressed snapshot store]
-    CON[koplik-contracts<br/>versioned shapes v1-v6 + JSON Schema]
+    CON[koplik-contracts<br/>versioned shapes v1-v7 + JSON Schema]
     EPI[koplik-epi<br/>SEIR engine, R_t, forecast, backtest<br/>pure, seeded, portable]
     WASM[koplik-wasm<br/>wasm-bindgen facade]
     PIPE[koplik-pipeline<br/>ingest, validate, infer, forecast, build<br/>manifests hash every input and output]

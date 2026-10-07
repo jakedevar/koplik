@@ -54,7 +54,7 @@ describe('parseForecast', () => {
     refuse((r) => { r[0].target_week = r[0].origin_week; }, 'target_week must be after origin_week');
     refuse((r) => { r[0].quantiles[2].value = 0; }, 'values must not decrease');
     refuse((r) => { r[0].quantiles[0].level = 0.6; }, 'increase strictly');
-    refuse((_, c) => { (c as { contract_version: number }).contract_version = 4; }, 'contract_version must be 6');
+    refuse((_, c) => { (c as { contract_version: number }).contract_version = 4; }, 'contract_version must be 7');
     refuse((_, c) => { c.statement = ' '; }, 'statement must not be empty');
     refuse((_, c) => { c.parameters[0].source = ''; }, 'needs a source and a note');
     refuse((_, c) => { c.series.find((x) => x.geography === '40')!.reason = null; }, 'status and reason disagree');
@@ -69,7 +69,7 @@ describe('parseForecast', () => {
     refuse((_, c) => { c.series_backtest!.protocol = 'each forecast used only what was known'; }, 'must say so in its protocol');
     refuse((_, c) => { c.series_backtest!.by_series.push({ ...c.series_backtest!.by_series[0] }); }, 'listed twice in the series backtest');
     expect(() => parseForecast({}, companion(), true)).toThrow('expected an array');
-    expect(() => parseForecast(rows(), { ...companion(), unexpected: 1 }, true)).toThrow('invalid v6 companion');
+    expect(() => parseForecast(rows(), { ...companion(), unexpected: 1 }, true)).toThrow('invalid v7 companion');
   });
 
   it('keeps synthetic fixtures out of a production page', () => {

@@ -271,7 +271,7 @@ The pooled result is measured under the same floors (1,748 targets, 239 forecast
 
 Offline, deterministic: the same snapshot gives the same bytes. The pipeline's `forecast` stage
 reads `data/reports/backtest/cdc-states.json` and attaches each NNDSS state series' measured skill,
-or its absence, to the published forecast's provenance companion (contracts v6), only when the
+or its absence, to the published forecast's provenance companion (contracts v7), only when the
 report was run with exactly the published configuration; it also copies the report unchanged next
 to the forecasts so every number on the page can be checked against it.
 
@@ -286,11 +286,11 @@ to the forecasts so every number on the page can be checked against it.
 - #1513: the forecast stage aborts the whole run when one series' projection passes 2^40, instead of
   marking that series.
 
-## Publication (contract v6)
+## Publication (contract v7)
 
 The pipeline's `forecast` stage reads `data/reports/backtest/cdc-states.json` and attaches the
-evaluation to the forecast's provenance companion as `series_backtest` (contract **v6**; v5 is
-frozen; v6 was the next free number when this was written, and is renumbered at merge if another
+evaluation to the forecast's provenance companion as `series_backtest` (contract **v7**; v5 is
+frozen; v7 was the next free number when this was written, and is renumbered at merge if another
 Issue took it). It attaches only a report run with exactly the published configuration (window,
 look-back, minimum cases, horizon, members, seed, provisional weeks), on the NNDSS source, whose
 protocol carries the label "pseudo-real-time (revised counts truncated at each forecast date)";

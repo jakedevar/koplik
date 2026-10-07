@@ -1,7 +1,7 @@
 import forecastSchema from '../../crates/koplik-contracts/schema/v1/Forecast.schema.json';
-import provenanceSchema from '../../crates/koplik-contracts/schema/v6/ForecastProvenance.schema.json';
+import provenanceSchema from '../../crates/koplik-contracts/schema/v7/ForecastProvenance.schema.json';
 import type { Forecast } from './generated/Forecast';
-import type { ForecastProvenance } from './generated/v6/ForecastProvenance';
+import type { ForecastProvenance } from './generated/v7/ForecastProvenance';
 import { ajv } from './scenario';
 import { caseDefinitionLabels } from './data';
 
@@ -16,7 +16,7 @@ export interface Week { year: number; week: number }
 
 /**
  * The 4-8 week forecast the pipeline publishes in `data/forecasts/` (#1465): v1 `Forecast` rows and
- * their contract v6 provenance companion. Rows are shown only beside a companion that describes
+ * their contract v7 provenance companion. Rows are shown only beside a companion that describes
  * them; the cross-checks below mirror `ForecastProvenance::check_against` in koplik-contracts.
  */
 const validateRow = ajv.compile(forecastSchema);
@@ -77,10 +77,10 @@ export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, syntheti
       fail('quantile levels must increase strictly and values must not decrease');
     }
   }
-  if (!validateProvenance(provenanceRaw)) return fail(`invalid v6 companion: ${ajv.errorsText(validateProvenance.errors)}`);
+  if (!validateProvenance(provenanceRaw)) return fail(`invalid v7 companion: ${ajv.errorsText(validateProvenance.errors)}`);
   const provenance = provenanceRaw as unknown as ForecastProvenance;
   const rows = rowsRaw as Forecast[];
-  if (provenance.contract_version !== 6) fail('contract_version must be 6');
+  if (provenance.contract_version !== 7) fail('contract_version must be 7');
   for (const [name, text] of [['statement', provenance.statement], ['method', provenance.method], ['origin_rule', provenance.origin_rule], ['scope_note', provenance.scope_note]] as const) {
     if (blank(text)) fail(`${name} must not be empty`);
   }

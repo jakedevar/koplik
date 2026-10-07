@@ -8,8 +8,8 @@ use super::{
     InsufficientReason, MmwrWeek, ParameterProvenance, Sha256Hex, SkillByHorizon,
 };
 
-/// Tag every v6 forecast provenance carries.
-pub const FORECAST_PROVENANCE_VERSION: u32 = 6;
+/// Tag every v7 forecast provenance carries.
+pub const FORECAST_PROVENANCE_VERSION: u32 = 7;
 
 /// Quantile levels a forecast must publish for the web to draw it and the backtests to have
 /// scored it: the median and the 50% (0.25, 0.75) and 90% (0.05, 0.95) central intervals.

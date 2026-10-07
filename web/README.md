@@ -239,9 +239,9 @@ validated weekly case series with the **pre-registered defaults, unchanged** (3-
 look-back, at least 11 cases in the window, 8 weeks ahead, 1,000 members, the 23 hub quantile
 levels) and the recorded seed `20250101`, from an origin week two provisional weeks before the
 latest data. `build` publishes three files under `data/forecasts/`, or none:
-`weekly-cases.json` (v1 `Forecast` rows), `weekly-cases.provenance.json` (**contract v6**
-`ForecastProvenance`, schema `crates/koplik-contracts/schema/v6/ForecastProvenance.schema.json`,
-types generated into `src/generated/v6/`) and the committed backtest reports the skills were
+`weekly-cases.json` (v1 `Forecast` rows), `weekly-cases.provenance.json` (**contract v7**
+`ForecastProvenance`, schema `crates/koplik-contracts/schema/v7/ForecastProvenance.schema.json`,
+types generated into `src/generated/v7/`) and the committed backtest reports the skills were
 read from, byte for byte: `backtest-west-texas-2025.json` and `backtest-cdc-states.json`. The companion lists **every series**
 considered, each forecast or `insufficient_data` with the estimator's reason, the method and every
 parameter with its citation, the seed, run count, quantile levels and origin week, the sha256 of the

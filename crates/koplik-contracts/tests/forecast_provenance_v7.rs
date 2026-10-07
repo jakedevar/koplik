@@ -1,10 +1,10 @@
-//! Contract v6 `ForecastProvenance` (#1503): the per-series skill of a backtest over a family of
+//! Contract v7 `ForecastProvenance` (#1503): the per-series skill of a backtest over a family of
 //! series. A series' skill is `measured` exactly when the backtest's entry for it carries scores,
 //! which it does exactly when the pre-registered floor was reached; a pseudo-real-time backtest
 //! says so; the pooled numbers add up. The v5 rules (rows, bands, the report-vintage backtest)
 //! still hold.
 
-use koplik_contracts::v6::*;
+use koplik_contracts::v7::*;
 use serde_json::{Value, json};
 
 const HASH: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
@@ -89,7 +89,7 @@ fn companion() -> Value {
     // Pooled: 6 + 3 = 9 targets (horizon n 5,4,0); forecasts 3 + 2 = 5; series 2.
     series_backtest["pooled"]["scores"] = scores(&[5, 4, 0]);
     json!({
-        "contract_version": 6, "artifact": "weekly-cases",
+        "contract_version": 7, "artifact": "weekly-cases",
         "statement": "A forecast, not a fact", "method": "renewal projection",
         "origin_week": {"year": 2026, "week": 36}, "latest_data_week": {"year": 2026, "week": 38},
         "origin_rule": "two provisional weeks dropped", "horizon_weeks": 8, "run_count": 1000,
@@ -130,7 +130,7 @@ fn a_valid_companion_round_trips_and_describes_its_rows() {
     let p = parse(companion()).unwrap();
     assert_eq!(serde_json::to_value(&p).unwrap(), companion());
     assert_eq!(p.contract_version, FORECAST_PROVENANCE_VERSION);
-    assert_eq!(FORECAST_PROVENANCE_VERSION, 6);
+    assert_eq!(FORECAST_PROVENANCE_VERSION, 7);
     p.check_against(&rows(&["12", "48"])).unwrap();
     assert!(p.check_against(&rows(&["12"])).is_err());
     assert_eq!(p.series[1].skill, SeriesSkill::Measured);
@@ -279,7 +279,7 @@ fn unknown_skill_statuses_and_fields_are_rejected() {
 }
 
 /// The synthetic forecast the web tests and the dev server load (`web/scripts/build-synthetic-fixtures.mjs`)
-/// is a valid v6 companion that describes its rows: the web's own checks mirror this contract.
+/// is a valid v7 companion that describes its rows: the web's own checks mirror this contract.
 #[test]
 fn the_synthetic_web_fixture_is_a_valid_companion_that_describes_its_rows() {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))

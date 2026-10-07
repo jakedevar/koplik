@@ -12,7 +12,7 @@ use koplik_contracts::v1::{
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
-use koplik_contracts::v6::{
+use koplik_contracts::v7::{
     ForecastProvenance, ForecastStatus, InformationBasis, InsufficientReason, SeriesSkill,
 };
 use koplik_ingest::store::sha256_of;
