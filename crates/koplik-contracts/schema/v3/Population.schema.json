@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Population",
+  "description": "Resident population of a geography for a year (e.g. a Census estimate, July 1 vintage).",
+  "type": "object",
+  "properties": {
+    "count": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "geography": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenances"
+    },
+    "year": {
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "geography",
+    "year",
+    "count",
+    "provenance"
+  ],
+  "$defs": {
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

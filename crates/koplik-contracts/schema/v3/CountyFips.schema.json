@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CountyFips",
+  "description": "5-digit county FIPS code: 2-digit state prefix plus a non-zero 3-digit county part",
+  "type": "string",
+  "pattern": "^(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2})$"
+}

@@ -16,7 +16,7 @@ test:
 
 # Regenerate the committed JSON Schema for koplik-contracts (then commit the result).
 schema:
-	KOPLIK_REGEN_SCHEMA=1 $(CARGO) test -p koplik-contracts --test schema --test schema_v2
+	KOPLIK_REGEN_SCHEMA=1 $(CARGO) test -p koplik-contracts --test schema --test schema_v2 --test schema_v3
 
 wasm:
 	$(CARGO) build --locked --release --target wasm32-unknown-unknown -p koplik-wasm --lib
