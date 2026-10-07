@@ -23,9 +23,13 @@ export interface SummaryStat {
   detail: string;
   /** Every source record of every row that was summed. */
   records: Partial<Provenance>[];
+  /** The latest-week sum only: the week is provisional (reporting delay) and the count may still change. */
+  provisional?: boolean;
 }
 export interface SummaryAsOf {
   week: { year: number; week: number };
+  /** The latest week is provisional: still subject to reporting delay. */
+  provisional: boolean;
   /** The latest retrieval time among the records behind the latest week's reports, exactly as recorded. */
   retrieved?: string;
   records: Partial<Provenance>[];
@@ -42,6 +46,8 @@ export function formatRetrieved(retrieved: string): string {
   const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?Z$/.exec(retrieved);
   return match ? `${match[1]} ${match[2]} UTC` : retrieved;
 }
+/** The wording the pipeline gives its provisional flag (RtEstimate.provisional): a recent week still subject to reporting delay. */
+export const provisionalWords = 'Provisional (reporting delay): the two newest weeks are still being reported and the count may change';
 export const weekWords = (week: { year: number; week: number }) => `MMWR ${week.year} W${week.week}`;
 
 export function explorerSummary(data: Dataset): ExplorerSummary {
@@ -73,18 +79,22 @@ export function explorerSummary(data: Dataset): ExplorerSummary {
   const latestIds = new Set(inLatest.map((r) => r.geography));
   const latestSum = inLatest.reduce((n, r) => n + (r.cases.status === 'reported' ? r.cases.count : 0), 0);
   const latestRecords = uniqueProvenance(inLatest.flatMap((r) => r.provenance));
+  // The pipeline's rule (koplik-epi RtConfig.provisional_weeks = 2): the two newest weeks are provisional, and it flags them on the R_t rows.
+  // So the newest week is provisional when the state-level R_t rows for it say so; with no R_t row for that week the rule itself applies.
+  const latestRt = latest ? data.rt.filter((r) => states.has(r.geography) && r.week.year === latest.year && r.week.week === latest.week) : [];
+  const provisional = latestRt.length ? latestRt.some((r) => r.provisional) : true;
   const retrieved = latestRecords.map((r) => r.retrieved_at).filter((t): t is string => Boolean(t)).sort().at(-1);
 
   return {
     definition,
-    asOf: latest ? { week: { year: latest.year, week: latest.week }, retrieved, records: latestRecords } : undefined,
+    asOf: latest ? { week: { year: latest.year, week: latest.week }, provisional, retrieved, records: latestRecords } : undefined,
     stats: [
       periodStat('cases-2025', 'Reported cases · 2025', 'cases-2025', 2025),
       periodStat('cases-2026', 'Reported cases · 2026 to date', 'cases-2026', 2026),
       { id: 'latest-week', label: latest ? `New cases · latest week, ${weekWords(latest)}` : 'New cases · latest week', value: latest ? latestSum : null,
         included: latestIds.size, total, notIncluded: names(latestIds),
         detail: `${words} · ${coverage(latestIds.size)} reported this week${latestIds.size < total ? '; the rest have no report for it and are not counted as zero' : ''}`,
-        records: latestRecords },
+        records: latestRecords, provisional },
     ],
   };
 }

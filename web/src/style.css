@@ -220,6 +220,7 @@ th, td { padding: var(--space-3); border-bottom: 1px solid var(--rule); line-hei
 .stat dd { margin: 0; }
 .stat-value { font-size: var(--text-stat); line-height: var(--leading-tight); font-weight: 650; letter-spacing: -1px; margin: var(--space-1) 0; }
 .stat-note { font-size: var(--text-xs); line-height: var(--leading-body); color: var(--ink-muted); }
+.stat-caveat { margin: var(--space-1) 0; padding: var(--space-1) var(--space-2); background: var(--notice-caution-bg); border-left: 3px solid var(--chart-provisional); color: var(--notice-caution-ink); font-size: var(--text-xs); line-height: var(--leading-body); }
 .summary-caveat { margin: var(--space-3) 0 0; font-size: var(--text-xs); color: var(--ink-muted); max-width: 900px; }
 
 /* First paint: the shell is plain HTML, the data arrives later; reserve its space so nothing moves when it does. */

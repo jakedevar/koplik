@@ -72,7 +72,7 @@ describe('explorer summary', () => {
   });
   it('renders each number as a provenance trigger with its coverage and the as-of line', () => {
     const node = summarySection(summary, false);
-    expect(node.querySelector('.summary-asof')?.textContent).toBe('Data as of MMWR 2026 W2, the latest week with reports · source snapshot retrieved 2026-10-08 11:00 UTC');
+    expect(node.querySelector('.summary-asof')?.textContent).toBe('Data as of MMWR 2026 W2, the latest week with reports (provisional: still subject to reporting delay) · source snapshot retrieved 2026-10-08 11:00 UTC');
     const values = [...node.querySelectorAll('.stat-value button')];
     expect(values.map((v) => v.textContent)).toEqual(['15', '18', '6']);
     expect(node.querySelector('[data-stat="cases-2025"] .stat-note')?.textContent).toContain('2 of 4 jurisdictions');
@@ -83,6 +83,49 @@ describe('explorer summary', () => {
     expect(seen[0].label).toBe('United States · Reported cases · 2025 · 15');
     expect(seen[0].note).toContain('Not included (no figure for it from the source\'s reports): Arizona, Arkansas.');
     expect(seen[0].records).toHaveLength(1);
+    node.remove();
+  });
+  describe('the latest week is provisional, as the pipeline flags it', () => {
+    const rtRow = (geography: string, week: number, provisional: boolean) => ({ geography, week: { year: 2026, week }, interval_level: 0.9, status: 'insufficient_data', provisional, provenance: [prov('2026-10-07T09:55:29Z')] }) as unknown as Dataset['rt'][number];
+    const flagged = explorerSummary(dataset(cases, { rt: [rtRow('01', 2, true), rtRow('02', 2, true), rtRow('01', 1, false)] }));
+    it('carries the provisional flag on the card, the as-of line and both drawers, with the count unchanged', () => {
+      expect(flagged.stats.find((s) => s.id === 'latest-week')).toMatchObject({ value: 6, provisional: true });
+      expect(flagged.asOf?.provisional).toBe(true);
+      const node = summarySection(flagged, false);
+      expect(node.querySelector('[data-stat="latest-week"] .stat-caveat')?.textContent).toBe('Provisional: this week is still subject to reporting delay and may change.');
+      expect(node.querySelectorAll('.stat-caveat')).toHaveLength(1);
+      expect(node.querySelector('.summary-asof')?.textContent).toContain('(provisional: still subject to reporting delay)');
+      expect([...node.querySelectorAll('.stat-value button')].map((v) => v.textContent)).toEqual(['15', '18', '6']);
+      const seen: { note: string }[] = [];
+      document.body.append(node);
+      node.addEventListener('koplik:provenance', (event) => seen.push((event as CustomEvent).detail));
+      (node.querySelector('[data-stat="latest-week"] .stat-value button') as HTMLElement).click();
+      (node.querySelector('.summary-asof button') as HTMLElement).click();
+      expect(seen[0].note).toContain('Provisional (reporting delay)');
+      expect(seen[1].note).toContain('Provisional (reporting delay)');
+      node.remove();
+    });
+    it('is not flagged when the pipeline marks that week final', () => {
+      const final = explorerSummary(dataset(cases, { rt: [rtRow('01', 2, false)] }));
+      expect(final.asOf?.provisional).toBe(false);
+      expect(summarySection(final, false).querySelectorAll('.stat-caveat')).toHaveLength(0);
+      expect(summarySection(final, false).querySelector('.summary-asof')?.textContent).toBe('Data as of MMWR 2026 W2, the latest week with reports · source snapshot retrieved 2026-10-08 11:00 UTC');
+    });
+  });
+  it('explains the latest-week sum for that week alone, and leaves the annual notes as they were', () => {
+    const node = summarySection(summary, false);
+    const seen: { label: string; note: string }[] = [];
+    document.body.append(node);
+    node.addEventListener('koplik:provenance', (event) => seen.push((event as CustomEvent).detail));
+    (node.querySelector('[data-stat="latest-week"] .stat-value button') as HTMLElement).click();
+    (node.querySelector('[data-stat="cases-2026"] .stat-value button') as HTMLElement).click();
+    const [latest, annual] = seen.map((e) => e.note);
+    expect(latest).toContain('A sum over 2 of 4 state-level jurisdictions');
+    expect(latest).toContain('have a reported count for this one week');
+    expect(latest).toContain('left out only when its count for this week is absent or missing');
+    expect(latest).toContain('Not included (no figure for it from the source\'s reports): Arizona, Arkansas.');
+    expect(annual).toContain('A jurisdiction with missing or incomplete weekly reports is left out');
+    expect(annual).toContain('this is not a full-year total');
     node.remove();
   });
 });

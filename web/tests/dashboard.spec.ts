@@ -259,6 +259,23 @@ test('pages are reachable by keyboard and direct hash, survive a reload, and fol
   expect(pageErrors).toEqual([]);
 });
 
+test('a lazy page whose code fails to load says so and offers a retry', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  const forecastCode = /forecast-view(\.ts|[-.\w]*\.js)(\?|$)/;
+  await page.route(forecastCode, (route) => route.abort());
+  await page.goto('./#/forecast');
+  const alert = page.getByRole('alert').filter({ hasText: 'The forecast is unavailable' });
+  await expect(alert).toBeVisible();
+  expect(pageErrors).toEqual([]);
+  // Some browsers remember a failed module fetch for the page's lifetime, so a successful retry is covered by the unit tests; here the
+  // button is offered, a click is handled (no unhandled rejection) and the unavailable state stays accessible.
+  await alert.getByRole('button', { name: 'Retry loading The forecast' }).click();
+  await expect(alert).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
 test('the navbar fits a narrow screen', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('./#/explorer');
@@ -279,6 +296,9 @@ for (const width of [390, 768]) test(`every page fits a ${width} px screen with 
   for (const entry of pages) {
     await page.goto(`./${entry.hash}`);
     await expectPageChrome(page, entry.name);
+    if (entry.name === 'Forecast') await expect(page.locator('.parameter-citations')).toBeAttached();
+    // Expanded, too: the Method and parameters table must scroll in its own wrapper, not extend past the panel.
+    await page.evaluate(() => document.querySelectorAll('main details').forEach((d) => { (d as HTMLDetailsElement).open = true; }));
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     // Panels clip overflow, so also require every visible element to end inside the viewport.
     // Content of a horizontal scroll container (.table-scroll) scrolls rather than clips; the container itself must fit.
