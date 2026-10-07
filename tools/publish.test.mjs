@@ -127,6 +127,9 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     assert.deepEqual(Object.keys(manifest.stages).sort(), ['forecast', 'infer', 'ingest', 'validate']);
     assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v6/')).sort(),
       ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v6/${name}.json`).sort());
+    // The county drill-down's cumulative DSHS series (#1439) is a v7 artifact the loader requires.
+    assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v7/')), ['data/v7/cumulative-cases.json']);
+    assert.ok(manifest.outputs.some((file) => file.path === 'v7/cumulative-cases.json'));
     for (const file of manifest.outputs) {
       const bytes = spawnSync('git', ['--git-dir', remote, 'show', `${first}:data/${file.path}`],
         { cwd: caller, maxBuffer: Math.max(1024 * 1024, file.bytes + 1024) });
