@@ -4,6 +4,12 @@ Shared, versioned data shapes for Koplik: geography keys (FIPS), MMWR weeks, pro
 case/coverage/population rows, R_t estimates, scenario inputs and forecasts. Serde types
 with generated JSON Schema; the web app reads the schema.
 
+Contract v2 re-exports the unchanged v1 inputs/rows and adds `TrajectoryResult` and
+`EnsembleResult` for the WASM simulation. Schemas for both versions are committed.
+Results retain the exact v1 input JSON (including provenance), decimal-string base
+seed, parameters, per-member derived seeds, sampled R0 and full-trajectory hashes.
+The ensemble's display fingerprint is explicitly member 0, not a median hash.
+
 ## Versioning rule
 
 - **Released versions are immutable.** `v1` is never edited after it lands on `rolling`.
