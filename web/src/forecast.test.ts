@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { insufficientWords, loadForecast, mismatch, parseForecast, quantileAt, seriesRows, skillWords, weekOrdinal, type Forecast, type ForecastProvenance } from './forecast';
+import { evaluationScope, insufficientWords, loadForecast, mismatch, noMeasuredSkill, parseForecast, percent, quantileAt, seriesRows, skillWords, weekOrdinal, type Forecast, type ForecastProvenance } from './forecast';
 import { fixtureRoot } from './fixtures.test-utils';
 
 const read = (name: string) => JSON.parse(readFileSync(resolve(fixtureRoot, `synthetic-v1/${name}`), 'utf8'));
@@ -57,7 +57,7 @@ describe('parseForecast', () => {
     refuse((_, c) => { c.statement = ' '; }, 'statement must not be empty');
     refuse((_, c) => { c.parameters[0].source = ''; }, 'needs a source and a note');
     refuse((_, c) => { c.series[0].reason = null; }, 'status and reason disagree');
-    refuse((_, c) => { c.series[1].backtested = true; }, 'marked backtested but is not the backtested series');
+    refuse((_, c) => { c.series[1].skill = 'backtested'; }, 'marked backtested but is not the backtested series');
     refuse((_, c) => { c.series.push({ ...c.series[0] }); }, 'listed twice');
     expect(() => parseForecast({}, companion(), true)).toThrow('expected an array');
     expect(() => parseForecast(rows(), { ...companion(), unexpected: 1 }, true)).toThrow('invalid v5 companion');
@@ -91,17 +91,33 @@ describe('plain words', () => {
   // The numbers of the committed backtest report, exactly as measured.
   const pooled = real.primary.pooled;
   const skill = { ...companion().backtest!, name: 'the 2025 West Texas outbreak', targets: pooled.n, mean_crps: pooled.mean_crps, coverage_50: pooled.coverage_50, coverage_90: pooled.coverage_90, mean_persistence_abs_error: pooled.mean_persistence_abs_error };
-  it('states the measured coverage and scores, and that the intervals were too narrow', () => {
-    const series = companion().series.find((s) => s.geography === '48')!;
-    const words = skillWords(skill, series);
+  it('states the measured coverage with one precision and counts, the scores, and that the backtest intervals were too narrow', () => {
+    const words = skillWords(skill);
     expect(words.headline).toBe('In a backtest on the 2025 West Texas outbreak, 90% intervals contained the true count 62.5% of the time (30 of 48); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 47.9% of the time (23 of 48); about 50% would be expected.');
     expect(words.scores).toContain('Mean CRPS 3.66 cases');
     expect(words.scores).toContain('scored 5.79');
     expect(words.scores).toContain('48 forecasts');
-    expect(words.narrow).toContain('too narrow');
-    expect(words.scope).toContain('NOT backtested');
-    expect(skillWords({ ...skill, coverage_50: 0.55, coverage_90: 0.92 }, series).narrow).toBe('');
-    expect(skillWords(skill, { ...series, backtested: true }).scope).toBe('This series is the one the backtest scored.');
+    expect(words.narrow).toBe('In this backtest the intervals were too narrow: the true count fell outside them more often than their labels say.');
+    expect(skillWords({ ...skill, coverage_50: 0.5, coverage_90: 0.9 }).narrow).toBe('');
+    expect(skillWords({ ...skill, mean_crps: 3.5 }).scores).toContain('Mean CRPS 3.50 cases');
+  });
+  it('formats every share to one decimal, as the pipeline does', () => {
+    expect([0.625, 30 / 48, 23 / 48, 0.5, 1, 0].map(percent)).toEqual(['62.5%', '62.5%', '47.9%', '50.0%', '100.0%', '0.0%']);
+  });
+  it('says a series that was not backtested has no measured skill, in the words the page shows above its chart', () => {
+    expect(noMeasuredSkill).toBe('No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.');
+    const c = companion();
+    expect(c.series.find((s) => s.geography === '48')!.skill).toBe('not backtested; no measured skill');
+  });
+  it('limits what the backtest speaks to: it is not a measure of the series that were not scored', () => {
+    const c = companion();
+    expect(evaluationScope(c)).toBe('This backtest does not measure how the forecasts above will do. None of the 1 series forecast above (confirmed or unknown-status cases) is the series that was scored: none has a measured skill. Testing the method on them has not been done yet (tracked as #1503).');
+    const scored = companion();
+    scored.series.find((s) => s.geography === '48')!.skill = 'backtested';
+    expect(evaluationScope(scored)).toContain('Every one of the 1 series forecast above is the series that was scored.');
+    const none = companion();
+    none.series.forEach((s) => { s.status = 'insufficient_data'; s.reason = 'below_threshold'; });
+    expect(evaluationScope(none)).toBe('No series was forecast, so there is nothing for this backtest to speak to.');
   });
   it('names the numbers behind every reason a series was not forecast', () => {
     const c = companion();

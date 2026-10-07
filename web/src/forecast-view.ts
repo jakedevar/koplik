@@ -1,6 +1,6 @@
 import { caseDefinitionLabels, type Dataset } from './data';
 import {
-  backtestReportPath, insufficientWords, loadForecast, parameterValue, quantileAt, seriesRows, skillWords, weekLabel, weekOrdinal,
+  backtestReportPath, evaluationScope, insufficientWords, loadForecast, noMeasuredSkill, parameterValue, quantileAt, seriesRows, skillWords, weekLabel, weekOrdinal,
   type Forecast, type ForecastProvenance, type ForecastSeries, type PublishedForecast, type Week,
 } from './forecast';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
@@ -139,7 +139,11 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   controls.hidden = true;
   const result = element('div', undefined, 'forecast-result');
   panel.append(status, notices, controls, result);
-  main.append(panel);
+  // The backtest has its own section, after the forecasts and not beside any chart; it fills in once the forecast loads.
+  const evaluation = element('section', undefined, 'panel forecast-evaluation');
+  evaluation.setAttribute('aria-label', 'How we evaluate forecasts');
+  evaluation.hidden = true;
+  main.append(panel, evaluation);
 
   let disposed = false;
   let published: PublishedForecast | undefined;
@@ -158,6 +162,12 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       note: `A model projection of weekly ${caseWords}, not a source observation: source records are the weekly reports the forecast was made from (${provenance.input.rows} input rows, sha256 ${provenance.input.sha256}). Method, seed ${provenance.seed}, ${provenance.run_count} members and every parameter with its citation are listed under "Method and parameters".`,
       citations: citationsOf(provenance),
     };
+    // A forecast of a series the backtest did not score says so first, before the reader sees the chart.
+    if (series.status === 'forecast') {
+      blocks.push(series.skill === 'backtested'
+        ? element('p', 'This series is the one the backtest scored: see "How we evaluate forecasts" below.', 'notice forecast-backtested')
+        : element('p', noMeasuredSkill, 'notice forecast-no-skill'));
+    }
     blocks.push(element('h3', `${name} · weekly ${caseWords}`));
     if (series.status === 'insufficient_data') {
       blocks.push(element('p', insufficientWords(provenance, series), 'notice forecast-insufficient'));
@@ -191,24 +201,53 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       blocks.push(details);
     }
 
-    // The skill, measured on the backtest, with its scope.
+    const method = element('details');
+    method.append(element('summary', 'Method and parameters'), element('p', provenance.statement), element('p', provenance.method), element('p', provenance.origin_rule),
+      element('p', `Seed ${provenance.seed} · ${provenance.run_count} ensemble members · input ${provenance.input.artifact} (${provenance.input.rows} rows, sha256 ${provenance.input.sha256}). ${provenance.scope_note}`));
+    const parameters = element('table', undefined, 'parameter-citations');
+    parameters.append(element('caption', 'Forecast parameters and the sources they are cited to'));
+    const parameterHead = element('tr');
+    for (const heading of ['Parameter', 'Value', 'Published source']) { const cell = element('th', heading); cell.scope = 'col'; parameterHead.append(cell); }
+    const parameterHeader = element('thead'); parameterHeader.append(parameterHead);
+    const parameterBody = element('tbody');
+    for (const parameter of provenance.parameters) {
+      const tr = element('tr');
+      const name = element('th', parameter.parameter); name.scope = 'row';
+      const valueCell = element('td');
+      const text = JSON.stringify(parameter.value);
+      valueCell.append(provenanceNumber(text, { label: `${parameter.parameter} = ${text}`, records: [], synthetic: options.synthetic, note: 'A forecast parameter, not an observation.',
+        citations: [{ source: parameter.source, url: parameter.url, note: parameter.note }] }));
+      const sourceCell = element('td', `${parameter.source}. ${parameter.note}`);
+      if (parameter.url && /^https?:\/\//i.test(parameter.url)) { const link = element('a', parameter.url); link.href = parameter.url; sourceCell.append(element('br'), link); }
+      tr.append(name, valueCell, sourceCell); parameterBody.append(tr);
+    }
+    parameters.append(parameterHeader, parameterBody);
+    method.append(parameters);
+    blocks.push(method);
+    result.replaceChildren(...blocks);
+  }
+
+  /** The backtest, as an evaluation of the method on the series it was run on: what was scored, how it did, what it does not measure. */
+  function renderEvaluation() {
+    const { provenance } = published!;
     const skill = provenance.backtest;
-    const skillBox = element('div', undefined, 'forecast-skill');
-    skillBox.append(element('h3', 'How well has this method done?'));
+    const blocks: Element[] = [element('h2', 'How we evaluate forecasts')];
+    if (options.synthetic) blocks.push(element('p', 'SYNTHETIC EVALUATION · Invented numbers for development only; nothing was backtested.', 'synthetic notice'));
     if (!skill) {
-      skillBox.append(element('p', provenance.scope_note, 'notice'));
+      blocks.push(element('p', provenance.scope_note, 'notice'));
     } else {
-      const words = skillWords(skill, series);
+      const words = skillWords(skill);
       const skillInfo: ProvenanceInfo = {
         label: `Backtest skill · ${skill.name}`, records: [], synthetic: options.synthetic,
-        note: `Measured by koplik-epi on ${skill.series}. Read exactly from the committed report ${skill.report_path} (sha256 ${skill.report_sha256}), which was run on the report-vintage manifest sha256 ${skill.manifest_sha256}. A measurement of the method on that series, not of this forecast.`,
+        note: `Measured by koplik-epi on ${skill.series}. Read exactly from the committed report ${skill.report_path} (sha256 ${skill.report_sha256}), which was run on the report-vintage manifest sha256 ${skill.manifest_sha256}. A measurement of the method on that series, not of any forecast shown above.`,
         citations: citationsOf(provenance),
       };
+      blocks.push(element('p', `We have tested this method once, on ${skill.name}: ${skill.series}. It made forecasts from ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), each using only the reports available at that date, and was scored on ${skill.targets} later weeks.`));
       const headline = element('p', undefined, 'forecast-headline');
       headline.append(provenanceNumber(words.headline, skillInfo));
-      skillBox.append(headline, element('p', words.scores));
-      if (words.narrow) skillBox.append(element('p', words.narrow, 'notice forecast-narrow'));
-      skillBox.append(element('p', words.scope, `notice ${series.backtested ? 'forecast-backtested' : 'forecast-not-backtested'}`));
+      blocks.push(headline, element('p', words.scores));
+      if (words.narrow) blocks.push(element('p', words.narrow, 'notice forecast-narrow'));
+      blocks.push(element('p', evaluationScope(provenance), 'notice forecast-evaluation-scope'));
       const horizons = element('details', undefined, 'table-scroll');
       horizons.append(element('summary', 'Backtest scores by horizon, and what the backtest does not show'));
       const table = element('table');
@@ -238,34 +277,10 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       }
       report.append(document.createTextNode(' · sha256 '), element('code', skill.report_sha256), document.createTextNode(` · seed ${skill.seed}`));
       horizons.append(table, limits, report);
-      skillBox.append(horizons);
+      blocks.push(horizons);
     }
-    blocks.push(skillBox);
-
-    const method = element('details');
-    method.append(element('summary', 'Method and parameters'), element('p', provenance.statement), element('p', provenance.method), element('p', provenance.origin_rule),
-      element('p', `Seed ${provenance.seed} · ${provenance.run_count} ensemble members · input ${provenance.input.artifact} (${provenance.input.rows} rows, sha256 ${provenance.input.sha256}). ${provenance.scope_note}`));
-    const parameters = element('table', undefined, 'parameter-citations');
-    parameters.append(element('caption', 'Forecast parameters and the sources they are cited to'));
-    const parameterHead = element('tr');
-    for (const heading of ['Parameter', 'Value', 'Published source']) { const cell = element('th', heading); cell.scope = 'col'; parameterHead.append(cell); }
-    const parameterHeader = element('thead'); parameterHeader.append(parameterHead);
-    const parameterBody = element('tbody');
-    for (const parameter of provenance.parameters) {
-      const tr = element('tr');
-      const name = element('th', parameter.parameter); name.scope = 'row';
-      const valueCell = element('td');
-      const text = JSON.stringify(parameter.value);
-      valueCell.append(provenanceNumber(text, { label: `${parameter.parameter} = ${text}`, records: [], synthetic: options.synthetic, note: 'A forecast parameter, not an observation.',
-        citations: [{ source: parameter.source, url: parameter.url, note: parameter.note }] }));
-      const sourceCell = element('td', `${parameter.source}. ${parameter.note}`);
-      if (parameter.url && /^https?:\/\//i.test(parameter.url)) { const link = element('a', parameter.url); link.href = parameter.url; sourceCell.append(element('br'), link); }
-      tr.append(name, valueCell, sourceCell); parameterBody.append(tr);
-    }
-    parameters.append(parameterHeader, parameterBody);
-    method.append(parameters);
-    blocks.push(method);
-    result.replaceChildren(...blocks);
+    evaluation.replaceChildren(...blocks);
+    evaluation.hidden = false;
   }
 
   function choose(id: string) {
@@ -307,12 +322,13 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       : `No series has enough data to forecast: all ${provenance.series.length} are insufficient data.`;
     notices.replaceChildren(
       ...(options.synthetic ? [element('p', 'SYNTHETIC FORECAST · Invented values for development only; not a model projection of any observed series.', 'synthetic notice')] : []),
-      element('p', `Model projection from reported counts, not a prediction of what will happen.${provenance.backtest && (provenance.backtest.coverage_90 < 0.9 || provenance.backtest.coverage_50 < 0.5) ? ' In its backtest the method\'s intervals were too narrow: read the bands below as optimistic.' : ''}`, 'notice'));
+      element('p', 'Model projection from reported counts, not a prediction of what will happen.', 'notice'));
     controls.hidden = false;
     fill(options.geography);
+    renderEvaluation();
   }).catch((error: unknown) => {
     if (!disposed) { status.textContent = `Forecast unavailable. ${error instanceof Error ? error.message : String(error)}`; status.setAttribute('role', 'alert'); }
   });
 
-  return () => { disposed = true; events.removeEventListener('koplik:selection', onSelection); panel.remove(); };
+  return () => { disposed = true; events.removeEventListener('koplik:selection', onSelection); panel.remove(); evaluation.remove(); };
 }

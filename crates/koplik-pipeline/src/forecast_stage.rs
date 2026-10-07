@@ -26,7 +26,8 @@
 //!   run with exactly this configuration ([`skill_from_report`]); otherwise the companion says
 //!   there is none. The backtest scored one series (the Texas DSHS 2025 outbreak total by
 //!   report date), so a series is marked `backtested` only when it is that series
-//!   ([`is_backtested`]); every other forecast is published with its skill unmeasured.
+//!   ([`is_backtested`]); every other series is published as `not backtested; no measured skill`,
+//!   and nothing about the backtest's calibration is said of it.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -34,7 +35,7 @@ use koplik_contracts::v1::{Forecast, GeoId, MmwrWeek, Sha256Hex};
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v5::{
     BacktestSkill, FORECAST_PROVENANCE_VERSION, ForecastInput, ForecastProvenance, ForecastSeries,
-    ForecastStatus, InsufficientReason, ParameterProvenance, SkillByHorizon,
+    ForecastStatus, InsufficientReason, ParameterProvenance, SeriesSkill, SkillByHorizon,
 };
 use koplik_epi::forecast::{ForecastConfig, ProjectionStatus, forecast_weekly};
 use koplik_epi::rt::{InsufficientReason as EpiReason, case_definitions};
@@ -259,12 +260,16 @@ pub fn build(
     let mut rows = Vec::new();
     let mut series = Vec::new();
     for (geography, definition) in &definitions {
-        let backtested = is_backtested(
+        let skill_status = if is_backtested(
             skill.as_ref(),
             *geography,
             *definition,
             sources.get(geography).unwrap_or(&BTreeSet::new()),
-        );
+        ) {
+            SeriesSkill::Backtested
+        } else {
+            SeriesSkill::NotBacktested
+        };
         let entry = match by_geography.get(geography) {
             Some(f) => match f.projection.status {
                 ProjectionStatus::Ok => {
@@ -275,7 +280,7 @@ pub fn build(
                         status: ForecastStatus::Forecast,
                         reason: None,
                         cases_in_window: f.projection.cases_in_window,
-                        backtested,
+                        skill: skill_status,
                     }
                 }
                 ProjectionStatus::InsufficientData(why) => ForecastSeries {
@@ -284,7 +289,7 @@ pub fn build(
                     status: ForecastStatus::InsufficientData,
                     reason: Some(reason(why)),
                     cases_in_window: f.projection.cases_in_window,
-                    backtested,
+                    skill: skill_status,
                 },
             },
             // Every row of this series is after the origin week: nothing at or before it.
@@ -294,7 +299,7 @@ pub fn build(
                 status: ForecastStatus::InsufficientData,
                 reason: Some(InsufficientReason::IncompleteWindow),
                 cases_in_window: None,
-                backtested,
+                skill: skill_status,
             },
         };
         series.push(entry);
@@ -304,7 +309,10 @@ pub fn build(
         .iter()
         .filter(|s| s.status == ForecastStatus::Forecast)
         .count();
-    let backtested_count = series.iter().filter(|s| s.backtested).count();
+    let backtested_count = series
+        .iter()
+        .filter(|s| s.skill == SeriesSkill::Backtested)
+        .count();
     let provenance = ForecastProvenance {
         contract_version: FORECAST_PROVENANCE_VERSION,
         artifact: ARTIFACT.to_owned(),
@@ -334,11 +342,13 @@ pub fn build(
     Ok(Some(Built { rows, provenance }))
 }
 
-/// What the attached skill does and does not say about the series forecast.
+/// What the attached skill does and does not say about the series forecast. A series the backtest
+/// did not score has no measured skill, and the backtest's scores are not offered as evidence
+/// about it.
 fn scope_note(skill: Option<&BacktestSkill>, forecast: usize, backtested: usize) -> String {
     let Some(skill) = skill else {
         return format!(
-            "No backtest report for exactly this configuration is attached, so the skill of these forecasts has not been measured ({forecast} series forecast)."
+            "No backtest report for exactly this configuration is attached, so no skill has been measured for these forecasts ({forecast} series forecast)."
         );
     };
     let unmeasured = forecast.saturating_sub(backtested);
@@ -346,16 +356,34 @@ fn scope_note(skill: Option<&BacktestSkill>, forecast: usize, backtested: usize)
         (0, _) => "No series was forecast.".to_owned(),
         (_, 0) => format!("Every one of the {forecast} series forecast here is that series."),
         (n, m) if n == m => format!(
-            "None of the {n} series forecast here is that series, so their skill has not been measured."
+            "None of the {n} series forecast here is that series: none was backtested and none has a measured skill."
         ),
         (n, m) => format!(
-            "{m} of the {n} series forecast here are not that series, so their skill has not been measured."
+            "{m} of the {n} series forecast here are not that series: they were not backtested and have no measured skill."
         ),
     };
     format!(
-        "The method was backtested on one series only: {}. {which} The scores show how the same method did on the backtested outbreak, not how it will do on these series.",
+        "The backtest scored one series only: {}. {which} Its scores are reported separately, as an evaluation of the method on that series, and are not a measure of the forecasts of any other series.",
         skill.series
     )
+}
+
+/// A share as a percentage with exactly one decimal (`62.5%`), the one precision the page and the
+/// companion use. Half-up on the thousandths, the same arithmetic as `web/src/forecast.ts`.
+pub fn percent(share: f64) -> String {
+    let tenths = (share * 1000.0).round() as u64;
+    format!("{}.{}%", tenths / 10, tenths % 10)
+}
+
+/// `" (30 of 48)"` when `share` is a whole number of `targets` (as a measured coverage is), else
+/// empty.
+pub fn out_of(share: f64, targets: u32) -> String {
+    let count = share * f64::from(targets);
+    if (count - count.round()).abs() < 1e-6 {
+        format!(" ({} of {targets})", count.round() as u64)
+    } else {
+        String::new()
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -372,9 +400,19 @@ struct ReportSummary {
 }
 
 #[derive(Deserialize)]
+struct ReportScore {
+    /// The count the forecast was scored against; absent when the target was not reported.
+    observed: Option<u32>,
+    /// Present exactly when the target was scored.
+    crps: Option<f64>,
+}
+
+#[derive(Deserialize)]
 struct ReportOrigin {
     origin_week: Option<MmwrWeek>,
     status: String,
+    #[serde(default)]
+    scores: Vec<ReportScore>,
 }
 
 #[derive(Deserialize)]
@@ -451,14 +489,27 @@ pub fn skill_from_report(
         .collect();
     let made: Vec<&ReportOrigin> = p.origins.iter().filter(|o| o.status == "ok").collect();
     let origin_weeks: BTreeSet<MmwrWeek> = made.iter().filter_map(|o| o.origin_week).collect();
-    let counts: Vec<u32> = p.truth.iter().filter_map(|(_, c)| *c).collect();
+    // The range of the counts the forecasts were scored against: the scored targets only, not the
+    // whole history (which includes weeks no forecast was scored on).
+    let scored: Vec<u32> = made
+        .iter()
+        .flat_map(|o| o.scores.iter())
+        .filter(|s| s.crps.is_some())
+        .filter_map(|s| s.observed)
+        .collect();
+    if scored.len() != p.pooled.n as usize {
+        return Err(format!(
+            "the report lists {} scored targets but its pooled summary says {}",
+            scored.len(),
+            p.pooled.n
+        ));
+    }
     let (lowest, highest) = (
-        counts.iter().min().copied().unwrap_or(0),
-        counts.iter().max().copied().unwrap_or(0),
+        scored.iter().min().copied().unwrap_or(0),
+        scored.iter().max().copied().unwrap_or(0),
     );
     let coverage_50 = need("coverage_50", p.pooled.coverage_50)?;
     let coverage_90 = need("coverage_90", p.pooled.coverage_90)?;
-    let percent = |x: f64| format!("{:.0}%", x * 100.0);
     let limitations = vec![
         format!(
             "One series and one period: {}. No state series, county series or other outbreak was scored.",
@@ -471,12 +522,15 @@ pub fn skill_from_report(
             origin_weeks.len()
         ),
         format!(
-            "A declining outbreak with small counts: the weekly counts it was scored on ran from {lowest} to {highest} cases. The score is in cases, so it depends on the size of the series and is not comparable with a series of a different size."
+            "Small counts: the {} weekly counts the forecasts were scored against ran from {lowest} to {highest} cases. The score is in cases, so it depends on the size of the series and is not comparable with a series of a different size.",
+            scored.len()
         ),
         format!(
-            "Intervals were not well calibrated: 90% intervals contained the observed count {} of the time (nominal 90%) and 50% intervals {} (nominal 50%). The model has no overdispersion, which under-states the spread of real measles clusters.",
+            "In this backtest the intervals were not well calibrated: 90% intervals contained the observed count {}{} of the time (nominal 90%) and 50% intervals {}{} (nominal 50%). The model has no overdispersion, which under-states the spread of real measles clusters.",
             percent(coverage_90),
-            percent(coverage_50)
+            out_of(coverage_90, p.pooled.n),
+            percent(coverage_50),
+            out_of(coverage_50, p.pooled.n)
         ),
         "Counts are by report date, not symptom onset: they say when the source published the cases.".to_owned(),
     ];
@@ -790,9 +844,11 @@ mod tests {
                 "min_cases": 11, "horizon_weeks": 8, "run_count": 1000,
                 "truth": [[{"year": 2025, "week": 11}, 61], [{"year": 2025, "week": 12}, null], [{"year": 2025, "week": 13}, 0]],
                 "origins": [
-                    {"origin_week": {"year": 2025, "week": 21}, "status": "ok"},
-                    {"origin_week": {"year": 2025, "week": 21}, "status": "ok"},
-                    {"origin_week": null, "status": "no_origin"}
+                    {"origin_week": {"year": 2025, "week": 21}, "status": "ok", "scores": [
+                        {"observed": 3, "crps": 1.0}, {"observed": null, "crps": null}]},
+                    {"origin_week": {"year": 2025, "week": 21}, "status": "ok", "scores": [
+                        {"observed": 7, "crps": 1.0}]},
+                    {"origin_week": null, "status": "no_origin", "scores": []}
                 ],
                 "by_horizon": [
                     {"horizon": 1, "n": 2, "mean_crps": 1.0, "coverage_50": 0.5, "coverage_90": 1.0, "mean_persistence_abs_error": 2.0}
@@ -813,16 +869,37 @@ mod tests {
         assert_eq!(s.report_sha256, sha256_of(&bytes));
         assert_eq!(s.case_definition, CaseDefinition::Confirmed);
         assert_eq!(s.geography.to_string(), "48");
-        assert!(
-            s.limitations
-                .iter()
-                .any(|l| l.contains("from 0 to 61 cases"))
-        );
-        assert!(
-            s.limitations
-                .iter()
-                .any(|l| l.contains("100%") && l.contains("50%"))
-        );
+        // The range is of the scored targets (3 and 7), never of the whole history (61, 0).
+        let limitations = s.limitations.join("\n");
+        assert!(limitations.contains("from 3 to 7 cases"), "{limitations}");
+        assert!(!limitations.contains("61"), "{limitations}");
+        // One precision, with counts, everywhere.
+        assert!(limitations.contains(
+            "100.0% (2 of 2) of the time (nominal 90%) and 50% intervals 50.0% (1 of 2)"
+        ));
+    }
+
+    #[test]
+    fn percentages_have_one_decimal_and_counts_when_whole() {
+        assert_eq!(percent(0.625), "62.5%");
+        assert_eq!(percent(30.0 / 48.0), "62.5%");
+        assert_eq!(percent(23.0 / 48.0), "47.9%");
+        assert_eq!(percent(0.5), "50.0%");
+        assert_eq!(percent(1.0), "100.0%");
+        assert_eq!(percent(0.0), "0.0%");
+        assert_eq!(out_of(30.0 / 48.0, 48), " (30 of 48)");
+        assert_eq!(out_of(0.5, 2), " (1 of 2)");
+        assert_eq!(out_of(0.4, 3), "");
+    }
+
+    #[test]
+    fn a_report_whose_scored_targets_disagree_with_its_summary_is_refused() {
+        let e = skill_from_report(
+            &skill_json(|v| v["primary"]["pooled"]["n"] = json!(3)),
+            &forecast_config(),
+        )
+        .unwrap_err();
+        assert!(e.contains("scored targets"), "{e}");
     }
 
     #[test]
@@ -884,7 +961,12 @@ mod tests {
         let mut cases = series("48", 20, 10);
         cases.extend(series("12", 20, 10));
         let b = build(&cases, input(), Some(skill)).unwrap().unwrap();
-        assert!(b.provenance.series.iter().all(|s| !s.backtested));
+        assert!(
+            b.provenance
+                .series
+                .iter()
+                .all(|s| s.skill == SeriesSkill::NotBacktested)
+        );
         assert!(
             b.provenance
                 .scope_note
@@ -893,6 +975,10 @@ mod tests {
         assert!(b.provenance.backtest.is_some());
         let none = build(&cases, input(), None).unwrap().unwrap();
         assert!(none.provenance.backtest.is_none());
-        assert!(none.provenance.scope_note.contains("has not been measured"));
+        assert!(
+            none.provenance
+                .scope_note
+                .contains("no skill has been measured")
+        );
     }
 }

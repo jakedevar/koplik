@@ -279,10 +279,6 @@
       "description": "One series the pipeline considered: forecast, or not and why.",
       "type": "object",
       "properties": {
-        "backtested": {
-          "description": "True only when this series is the one the backtest scored (same geography, case\ndefinition and source). Every other series is forecast by a method whose skill was not\nmeasured on it.",
-          "type": "boolean"
-        },
         "case_definition": {
           "description": "What the series counts; a forecast describes cases under this definition only.",
           "$ref": "#/$defs/CaseDefinition"
@@ -310,6 +306,10 @@
             }
           ]
         },
+        "skill": {
+          "description": "`backtested` only when this series is the one the backtest scored (same geography, case\ndefinition and source); otherwise `not backtested; no measured skill`.",
+          "$ref": "#/$defs/SeriesSkill"
+        },
         "status": {
           "$ref": "#/$defs/ForecastStatus"
         }
@@ -319,7 +319,7 @@
         "geography",
         "case_definition",
         "status",
-        "backtested"
+        "skill"
       ]
     },
     "ForecastStatus": {
@@ -425,6 +425,21 @@
         "value",
         "source",
         "note"
+      ]
+    },
+    "SeriesSkill": {
+      "description": "Whether a series has a measured skill. A forecast method is only as good as its tests on the\ndata it is run on: a series the backtest did not score has no measured skill, and says so.",
+      "oneOf": [
+        {
+          "description": "The series is the one the backtest scored (same geography, case definition and source);\nits measured skill is in `backtest`.",
+          "type": "string",
+          "const": "backtested"
+        },
+        {
+          "description": "The backtest did not score this series. Nothing has been measured about how this forecast\nwill do, and the backtest's scores are not evidence about it.",
+          "type": "string",
+          "const": "not backtested; no measured skill"
+        }
       ]
     },
     "Sha256Hex": {

@@ -524,5 +524,5 @@ Each forecast describes the case definition of its series and never mixes defini
 | Origin week | The latest week with a row, less two provisional weeks (spec E5, the rule R_t uses). Nothing after it is read. |
 | Method | Renewal-equation projection, Nouvellet et al. 2018 (Epidemics 22:29-35), R from Cori et al. 2013 over the last 3 weeks; parameters and citations in `koplik_epi::forecast` and the companion. |
 | Seed, runs | Seed `20250101` (arbitrary, fixed, the backtest's), 1,000 members, 23 hub quantile levels. |
-| Skill | `data/reports/backtest/west-texas-2025.json`, attached only when it was run with exactly this configuration, published unchanged beside the forecast. It scored the Texas DSHS 2025 outbreak total by report date: **no series forecast here is that series**, and the companion says so. |
+| Skill | `data/reports/backtest/west-texas-2025.json`, attached only when it was run with exactly this configuration, published unchanged beside the forecast. It scored the Texas DSHS 2025 outbreak total by report date: **no series forecast here is that series**, and the companion says `not backtested; no measured skill` for each. |
 

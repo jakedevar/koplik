@@ -47,7 +47,8 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   whether it was forecast or `insufficient_data` (with the estimator's reason), fixes the
   method, every configuration value with its citation, the seed, run count, quantile levels and
   origin week, hashes the input series, and carries the backtest's measured skill (CRPS, 50%/90%
-  coverage, per horizon) with the scope it was measured on and a per-series `backtested` flag.
+  coverage, per horizon) with the scope it was measured on and a per-series `skill`: `backtested`, or
+  `not backtested; no measured skill`.
   `ForecastProvenance::check_against(&[Forecast])` is the rule that forecast rows are only
   published beside a companion that describes them. The forecast rows keep their v1 shape. Every
   other type is re-exported from v4 unchanged. Schema: `schema/v5/`.

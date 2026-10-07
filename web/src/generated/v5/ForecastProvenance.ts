@@ -252,12 +252,6 @@ export interface ParameterProvenance {
  */
 export interface ForecastSeries {
   /**
-   * True only when this series is the one the backtest scored (same geography, case
-   * definition and source). Every other series is forecast by a method whose skill was not
-   * measured on it.
-   */
-  backtested: boolean;
-  /**
    * What the series counts; a forecast describes cases under this definition only.
    */
   case_definition: "confirmed" | "confirmed_or_unknown_status";
@@ -271,5 +265,10 @@ export interface ForecastSeries {
    * Present exactly when `status` is `insufficient_data`.
    */
   reason?: InsufficientReason | null;
+  /**
+   * `backtested` only when this series is the one the backtest scored (same geography, case
+   * definition and source); otherwise `not backtested; no measured skill`.
+   */
+  skill: "backtested" | "not backtested; no measured skill";
   status: ForecastStatus;
 }

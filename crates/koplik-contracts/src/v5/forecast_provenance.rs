@@ -36,6 +36,20 @@ pub enum InsufficientReason {
     NoInfectivity,
 }
 
+/// Whether a series has a measured skill. A forecast method is only as good as its tests on the
+/// data it is run on: a series the backtest did not score has no measured skill, and says so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub enum SeriesSkill {
+    /// The series is the one the backtest scored (same geography, case definition and source);
+    /// its measured skill is in `backtest`.
+    #[serde(rename = "backtested")]
+    Backtested,
+    /// The backtest did not score this series. Nothing has been measured about how this forecast
+    /// will do, and the backtest's scores are not evidence about it.
+    #[serde(rename = "not backtested; no measured skill")]
+    NotBacktested,
+}
+
 /// One series the pipeline considered: forecast, or not and why.
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -49,10 +63,9 @@ pub struct ForecastSeries {
     /// Cases in the estimation window ending at the origin week, when every count in it is
     /// known.
     pub cases_in_window: Option<u32>,
-    /// True only when this series is the one the backtest scored (same geography, case
-    /// definition and source). Every other series is forecast by a method whose skill was not
-    /// measured on it.
-    pub backtested: bool,
+    /// `backtested` only when this series is the one the backtest scored (same geography, case
+    /// definition and source); otherwise `not backtested; no measured skill`.
+    pub skill: SeriesSkill,
 }
 
 /// The series file the forecast was made from, hashed.
@@ -207,7 +220,7 @@ impl<'de> Deserialize<'de> for ForecastSeries {
             status: ForecastStatus,
             reason: Option<InsufficientReason>,
             cases_in_window: Option<u32>,
-            backtested: bool,
+            skill: SeriesSkill,
         }
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
@@ -231,7 +244,7 @@ impl<'de> Deserialize<'de> for ForecastSeries {
             status: r.status,
             reason: r.reason,
             cases_in_window: r.cases_in_window,
-            backtested: r.backtested,
+            skill: r.skill,
         })
     }
 }
@@ -420,7 +433,11 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
                 }
             }
             if let Some(b) = &r.backtest {
-                for s in r.series.iter().filter(|s| s.backtested) {
+                for s in r
+                    .series
+                    .iter()
+                    .filter(|s| s.skill == SeriesSkill::Backtested)
+                {
                     if (s.geography, s.case_definition) != (b.geography, b.case_definition) {
                         return Err(format!(
                             "series {} is marked backtested but is not the backtested series",
@@ -428,7 +445,7 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
                         ));
                     }
                 }
-            } else if r.series.iter().any(|s| s.backtested) {
+            } else if r.series.iter().any(|s| s.skill == SeriesSkill::Backtested) {
                 return Err("a series is marked backtested but there is no backtest".into());
             }
             Ok(())

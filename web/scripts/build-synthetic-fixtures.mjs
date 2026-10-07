@@ -60,9 +60,9 @@ const forecastProvenance = {
   input: { artifact: 'weekly-cases', sha256: createHash('sha256').update(JSON.stringify(cases)).digest('hex'), rows: cases.length },
   parameters: [parameter('window_weeks', 3, 'Estimation window.'), parameter('min_cases', 11, 'Minimum cases in the window.'), parameter('provisional_weeks', 2, 'Recent weeks not used.')],
   series: [
-    { geography: '40', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'below_threshold', cases_in_window: 2, backtested: false },
-    { geography: '48', case_definition: 'confirmed_or_unknown_status', status: 'forecast', reason: null, cases_in_window: 15, backtested: false },
-    { geography: '35', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'missing_count', cases_in_window: null, backtested: false },
+    { geography: '40', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'below_threshold', cases_in_window: 2, skill: 'not backtested; no measured skill' },
+    { geography: '48', case_definition: 'confirmed_or_unknown_status', status: 'forecast', reason: null, cases_in_window: 15, skill: 'not backtested; no measured skill' },
+    { geography: '35', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'missing_count', cases_in_window: null, skill: 'not backtested; no measured skill' },
   ].sort((a, b) => a.geography.localeCompare(b.geography)),
   backtest: {
     name: 'the synthetic fixture outbreak', series: 'SYNTHETIC invented outbreak total', geography: '48', case_definition: 'confirmed',

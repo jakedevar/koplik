@@ -12,7 +12,7 @@ use koplik_contracts::v1::{
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
-use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason};
+use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason, SeriesSkill};
 use koplik_ingest::store::sha256_of;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
@@ -886,13 +886,28 @@ fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() 
     assert!(skill.series.contains("Texas DSHS outbreak total"));
     assert!(skill.series.contains("confirmed"));
     assert!(skill.limitations[0].contains("no county-level backtest"));
-    assert!(p.series.iter().all(|s| !s.backtested));
+    assert!(
+        p.series
+            .iter()
+            .all(|s| s.skill == SeriesSkill::NotBacktested)
+    );
     assert!(
         p.scope_note
-            .contains("is that series, so their skill has not been measured"),
+            .contains("is that series: none was backtested and none has a measured skill"),
         "{}",
         p.scope_note
     );
+    // The limitations quote the measured coverage with one precision and counts, and the range of
+    // the scored targets (not of the whole history: 61 appears only there).
+    let limitations = skill.limitations.join("\n");
+    assert!(limitations.contains("62.5% (30 of 48)"), "{limitations}");
+    assert!(limitations.contains("47.9% (23 of 48)"), "{limitations}");
+    assert!(
+        limitations
+            .contains("48 weekly counts the forecasts were scored against ran from 0 to 10 cases"),
+        "{limitations}"
+    );
+    assert!(!limitations.contains("61"), "{limitations}");
     // The report is published byte for byte beside the rows, so the numbers can be checked.
     assert_eq!(
         fs::read(config.work.join("forecast/backtest-west-texas-2025.json")).unwrap(),
@@ -908,7 +923,7 @@ fn without_a_report_for_exactly_this_configuration_no_skill_is_attached() {
     let all = run_all(&config);
     let (rows, p) = forecast_outputs(&config);
     assert!(p.backtest.is_none());
-    assert!(p.scope_note.contains("has not been measured"));
+    assert!(p.scope_note.contains("no skill has been measured"));
     assert!(
         !rows.is_empty(),
         "the forecast itself does not depend on the report"

@@ -14,7 +14,7 @@ with `ForecastConfig::default()` unchanged and the seed `20250101` (the backtest
 `Forecast` rows plus a **contract v5** `ForecastProvenance` companion (new version; v1 to v4 are
 untouched and now frozen through v4). `build` publishes `forecasts/weekly-cases.json`, its companion and
 the backtest report the skill was read from (byte for byte), or none of them. The web panel
-("Where next?") shows the forecast beside the measured skill.
+("Where next?") shows the forecasts; the backtest is a separate section ("How we evaluate forecasts").
 
 ## Decisions (stated, not tuned)
 
@@ -31,14 +31,19 @@ the backtest report the skill was read from (byte for byte), or none of them. Th
   outbreak-associated, every county combined), 48 targets from 7 forecast dates / 5 origin weeks. No
   published series is that series: the forecasts are of CDC NNDSS state series
   (`confirmed_or_unknown_status`), and Texas DSHS county series end long before the origin. So **no
-  published forecast has been backtested**, and the page says so next to the numbers. The skill is attached
+  published forecast has been backtested**: each series says `not backtested; no measured skill` in the
+  companion, and the page says so first, above every such chart, with no skill number or calibration
+  word beside it (review 9d8d6386 of e656f57 found the earlier "read the bands as optimistic" carried the
+  DSHS calibration over to series it was never measured on). The backtest has its own section. The skill is attached
   only from a report run with exactly the published configuration (window, look-back, minimum cases,
   horizon, members, seed); a mismatch detaches it with a manifest note.
 - **Measured skill shown as measured** (pooled): mean CRPS 3.66 cases, persistence baseline 5.79; 90%
   intervals contained the truth 30 of 48 times (62.5%), 50% intervals 23 of 48 (47.9%): too narrow, and
-  the page says so (only because the measured coverage is below nominal; the sentence is conditional on
-  the numbers). Percentages are shown to one decimal with their counts rather than rounded (0.625 is
-  neither 62% nor 63%).
+  the evaluation section says so about the backtest only (the sentence is conditional on the numbers).
+  Percentages are shown with one decimal and their counts everywhere, page and companion (0.625 is
+  neither 62% nor 63%). The range of counts quoted for the backtest (0 to 10 cases) is that of the 48
+  scored targets, not of the whole history (which reaches 61 in March 2025, before any forecast could be
+  made).
 
 ## Measured on the committed fixtures (`make pipeline-fixtures`)
 

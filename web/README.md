@@ -257,15 +257,23 @@ revised, and not used) as dashed bars. The exact values are in a table with prov
 number. A series that does not meet the method's minimum-count rule says **insufficient data** and
 why, in words that name the counts; it never gets a number.
 
-Beside every forecast the panel states the **measured backtest skill in plain words**, from the
-companion exactly as measured: for example, "In a backtest on the 2025 West Texas outbreak, 90%
-intervals contained the true count 62.5% of the time (30 of 48)", the mean CRPS and the persistence
-baseline, and, when coverage is below nominal, that the intervals were too narrow. It says whether
-the series shown was backtested. **None of the forecast series is**: the backtest scored one series
-(the Texas DSHS 2025 outbreak total by report date), while the published forecasts are of CDC NNDSS
-state series (`confirmed_or_unknown_status`), so the skill is how the same method did elsewhere, not a
-measurement of these forecasts. Synthetic dev mode serves an invented, clearly labelled forecast
-pair (`data/fixtures/web/synthetic-v1/synthetic-forecast*.json`) from `npm run fixtures`.
+A forecast of a series the backtest did not score is introduced, **first, above its chart**, by:
+"No measured skill for this series. This forecast method has not been tested on this data; treat
+the bands as illustrative, not as calibrated uncertainty." No skill number and no calibration
+adjective sits in or next to the chart. Each series carries `skill` in the companion
+(`backtested`, or `not backtested; no measured skill`); the page refuses any other value. **None of
+the published series is backtested**: the backtest scored one series (the Texas DSHS 2025 outbreak
+total by report date), while the published forecasts are of CDC NNDSS state series
+(`confirmed_or_unknown_status`).
+
+The backtest is reported in its own section, **How we evaluate forecasts**, after the forecast:
+what was scored (the Texas DSHS outbreak total by report date, 2025; 48 targets from 7 forecast
+dates and 5 origin weeks), the numbers exactly as measured with one precision and counts ("90%
+intervals contained the true count 62.5% of the time (30 of 48)", 50%: 47.9% (23 of 48), mean CRPS
+3.66, persistence 5.79; the backtest's intervals were too narrow), the per-horizon table and the
+limitations, and that it does not measure the published state series (testing them is tracked as
+#1503). Synthetic dev mode serves an invented, clearly labelled forecast pair
+(`data/fixtures/web/synthetic-v1/synthetic-forecast*.json`) from `npm run fixtures`.
 
 ## Integration events
 

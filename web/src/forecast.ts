@@ -81,11 +81,12 @@ export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, syntheti
   for (const [name, text] of [['statement', provenance.statement], ['method', provenance.method], ['origin_rule', provenance.origin_rule], ['scope_note', provenance.scope_note]] as const) {
     if (blank(text)) fail(`${name} must not be empty`);
   }
+  if (provenance.series.some((s) => s.skill !== 'backtested' && s.skill !== notBacktestedStatus)) fail('a series has an unknown skill status');
   for (const parameter of provenance.parameters) if (blank(parameter.source) || blank(parameter.note)) fail(`${parameter.parameter} needs a source and a note`);
   if (new Set(provenance.series.map((s) => s.geography)).size !== provenance.series.length) fail('a series is listed twice');
   for (const s of provenance.series) {
     if ((s.status === 'forecast') !== (s.reason == null)) fail(`series ${s.geography}: status and reason disagree`);
-    if (s.backtested && (!provenance.backtest || s.geography !== provenance.backtest.geography || s.case_definition !== provenance.backtest.case_definition)) fail(`series ${s.geography} is marked backtested but is not the backtested series`);
+    if (s.skill === 'backtested' && (!provenance.backtest || s.geography !== provenance.backtest.geography || s.case_definition !== provenance.backtest.case_definition)) fail(`series ${s.geography} is marked backtested but is not the backtested series`);
   }
   const problem = mismatch(rows, provenance);
   if (problem) fail(`the companion does not describe the rows beside it (${problem})`);
@@ -129,22 +130,42 @@ export function insufficientWords(provenance: ForecastProvenance, series: Foreca
   }
 }
 
-/** A share as a percentage to one decimal, never rounded to a whole number (30 of 48 is 62.5%, not 62% or 63%). */
-const percent = (share: number) => `${Math.round(share * 1000) / 10}%`;
-/** " (30 of 48 forecasts)" when the share is a whole number of the scored targets, as it is for a measured coverage. */
-const outOf = (share: number, targets: number) => (Math.abs(share * targets - Math.round(share * targets)) < 1e-6 ? ` (${Math.round(share * targets)} of ${targets})` : '');
-const oneDecimal = (value: number) => (Math.round(value * 100) / 100).toString();
+/** What a series the backtest did not score says, wherever its forecast is shown. */
+export const notBacktestedStatus = 'not backtested; no measured skill';
+/** Shown above the chart of every forecast whose series was not backtested, before anything else. */
+export const noMeasuredSkill = 'No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.';
 
-/** The backtest's measured skill in plain words, exactly as measured (nothing is rounded beyond whole percentages and two decimals). */
-export function skillWords(skill: BacktestSkill, series: ForecastSeries | undefined) {
+/** A share as a percentage with exactly one decimal (30 of 48 is 62.5%): the one precision used everywhere, as in the pipeline's companion. */
+export const percent = (share: number) => `${(Math.round(share * 1000) / 10).toFixed(1)}%`;
+/** " (30 of 48)" when the share is a whole number of the scored targets, as a measured coverage is. */
+const outOf = (share: number, targets: number) => (Math.abs(share * targets - Math.round(share * targets)) < 1e-6 ? ` (${Math.round(share * targets)} of ${targets})` : '');
+const twoDecimals = (value: number) => value.toFixed(2);
+
+/**
+ * The backtest's measured skill in plain words, exactly as measured: percentages to one decimal with counts,
+ * scores to two decimals. This is an evaluation of the method on the backtested series; it is shown in its own
+ * section and never beside the chart of a series that was not backtested.
+ */
+export function skillWords(skill: BacktestSkill) {
   const headline = `In a backtest on ${skill.name}, 90% intervals contained the true count ${percent(skill.coverage_90)} of the time${outOf(skill.coverage_90, skill.targets)}; a well-calibrated 90% interval would, about 90%. 50% intervals contained it ${percent(skill.coverage_50)} of the time${outOf(skill.coverage_50, skill.targets)}; about 50% would be expected.`;
-  const scores = `Mean CRPS ${oneDecimal(skill.mean_crps)} cases (lower is better); carrying the latest count forward instead scored ${oneDecimal(skill.mean_persistence_abs_error)}. The test scored ${skill.targets} forecasts of later weeks, made on ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), on ${skill.series}.`;
+  const scores = `Mean CRPS ${twoDecimals(skill.mean_crps)} cases (lower is better); carrying the latest count forward instead scored ${twoDecimals(skill.mean_persistence_abs_error)}. The test scored ${skill.targets} forecasts of later weeks, made on ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), on ${skill.series}.`;
   const narrow = skill.coverage_90 < 0.9 || skill.coverage_50 < 0.5
-    ? 'The intervals were too narrow: the true count fell outside them more often than their labels say. Read the bands as optimistic.' : '';
-  const scope = !series ? '' : series.backtested
-    ? 'This series is the one the backtest scored.'
-    : `This series (${caseDefinitionLabels[series.case_definition]}) was NOT backtested: the numbers above are how the same method did on a different series, not a measurement of how this forecast will do.`;
-  return { headline, scores, narrow, scope };
+    ? 'In this backtest the intervals were too narrow: the true count fell outside them more often than their labels say.' : '';
+  return { headline, scores, narrow };
+}
+
+/** Which of the forecast series the backtest scored, in words: it measures the method on its own series only. */
+export function evaluationScope(provenance: ForecastProvenance): string {
+  const forecast = provenance.series.filter((s) => s.status === 'forecast');
+  const unmeasured = forecast.filter((s) => s.skill !== 'backtested');
+  if (!forecast.length) return 'No series was forecast, so there is nothing for this backtest to speak to.';
+  const definitions = [...new Set(unmeasured.map((s) => caseDefinitionLabels[s.case_definition]))].join(' and ');
+  const which = unmeasured.length === forecast.length
+    ? `None of the ${forecast.length} series forecast above (${definitions}) is the series that was scored: none has a measured skill.`
+    : unmeasured.length
+      ? `${unmeasured.length} of the ${forecast.length} series forecast above (${definitions}) are not the series that was scored and have no measured skill.`
+      : `Every one of the ${forecast.length} series forecast above is the series that was scored.`;
+  return `This backtest does not measure how the forecasts above will do. ${which}${unmeasured.length ? ' Testing the method on them has not been done yet (tracked as #1503).' : ''}`;
 }
 
 /** Where the pipeline publishes the exact backtest report the skill was read from. */

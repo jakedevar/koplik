@@ -14,7 +14,7 @@ mod forecast_provenance;
 pub use super::v4::*;
 pub use forecast_provenance::{
     BacktestSkill, FORECAST_PROVENANCE_VERSION, ForecastInput, ForecastProvenance, ForecastSeries,
-    ForecastStatus, InsufficientReason, SkillByHorizon,
+    ForecastStatus, InsufficientReason, SeriesSkill, SkillByHorizon,
 };
 
 /// Version label of this module, used as the schema directory name.

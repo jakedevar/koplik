@@ -57,7 +57,7 @@
       "status": "insufficient_data",
       "reason": "missing_count",
       "cases_in_window": null,
-      "backtested": false
+      "skill": "not backtested; no measured skill"
     },
     {
       "geography": "40",
@@ -65,7 +65,7 @@
       "status": "insufficient_data",
       "reason": "below_threshold",
       "cases_in_window": 2,
-      "backtested": false
+      "skill": "not backtested; no measured skill"
     },
     {
       "geography": "48",
@@ -73,7 +73,7 @@
       "status": "forecast",
       "reason": null,
       "cases_in_window": 15,
-      "backtested": false
+      "skill": "not backtested; no measured skill"
     }
   ],
   "backtest": {

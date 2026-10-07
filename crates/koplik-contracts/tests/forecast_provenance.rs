@@ -5,6 +5,7 @@ use koplik_contracts::v5::*;
 use serde_json::{Value, json};
 
 const HASH: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+const NOT_TESTED: &str = "not backtested; no measured skill";
 const LEVELS: [f64; 5] = [0.05, 0.25, 0.5, 0.75, 0.95];
 
 fn origin() -> MmwrWeek {
@@ -70,14 +71,14 @@ fn companion() -> Value {
         ],
         "series": [
             {"geography": "01", "case_definition": "confirmed_or_unknown_status", "status": "insufficient_data",
-             "reason": "below_threshold", "cases_in_window": 2, "backtested": false},
+             "reason": "below_threshold", "cases_in_window": 2, "skill": NOT_TESTED},
             {"geography": "12", "case_definition": "confirmed_or_unknown_status", "status": "forecast",
-             "reason": null, "cases_in_window": 40, "backtested": false},
+             "reason": null, "cases_in_window": 40, "skill": NOT_TESTED},
             {"geography": "48", "case_definition": "confirmed_or_unknown_status", "status": "forecast",
-             "reason": null, "cases_in_window": 15, "backtested": false}
+             "reason": null, "cases_in_window": 15, "skill": NOT_TESTED}
         ],
         "backtest": skill(),
-        "scope_note": "not backtested on these series"
+        "scope_note": "none of these series was backtested"
     })
 }
 
@@ -193,21 +194,21 @@ fn backtest_skill_is_validated_and_only_the_scored_series_can_claim_it() {
     rejects(|v| v["backtest"]["origin_weeks"] = json!(3), "origin_weeks");
     // A series that is not the scored one cannot be marked backtested ...
     rejects(
-        |v| v["series"][2]["backtested"] = json!(true),
+        |v| v["series"][2]["skill"] = json!("backtested"),
         "not the backtested series",
     );
     // ... nor any series when there is no backtest at all.
     rejects(
         |v| {
             v["backtest"] = Value::Null;
-            v["series"][2]["backtested"] = json!(true);
+            v["series"][2]["skill"] = json!("backtested");
         },
         "there is no backtest",
     );
     // The scored series (same geography and definition) may.
     let mut v = companion();
     v["series"][2]["case_definition"] = json!("confirmed");
-    v["series"][2]["backtested"] = json!(true);
+    v["series"][2]["skill"] = json!("backtested");
     assert!(parse(v).is_ok());
 }
 

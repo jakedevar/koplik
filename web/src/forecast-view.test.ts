@@ -40,20 +40,47 @@ describe('forecast panel', () => {
     cleanup();
   });
 
-  it('puts the measured skill in plain words beside the forecast, and says this series was not backtested', async () => {
+  it('says first, above the chart, that a series that was not backtested has no measured skill', async () => {
     const { main, cleanup } = mount();
     await flush();
-    const skill = main.querySelector('.forecast-skill')!;
-    expect(skill.querySelector('.forecast-headline')?.textContent).toBe('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50% of the time (2 of 4); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50% of the time (2 of 4); about 50% would be expected.');
-    expect(skill.textContent).toContain('Mean CRPS 3.5 cases');
-    expect(skill.querySelector('.forecast-narrow')?.textContent).toContain('too narrow');
-    expect(skill.querySelector('.forecast-not-backtested')?.textContent).toContain('was NOT backtested');
+    const result = main.querySelector('.forecast-result')!;
+    const banner = result.firstElementChild!;
+    expect(banner.className).toContain('forecast-no-skill');
+    expect(banner.textContent).toBe('No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.');
+    expect(result.querySelector('svg.forecast-chart')).not.toBeNull();
     expect(main.textContent).toContain('SYNTHETIC FORECAST');
     expect(main.textContent).toContain('Model projection from reported counts, not a prediction of what will happen.');
-    // Parameters carry their citations; the report is named, not linked, for a synthetic fixture.
+    // Parameters carry their citations.
     expect(main.querySelectorAll('.parameter-citations tbody tr')).toHaveLength(3);
-    expect(skill.querySelector('a')).toBeNull();
-    expect(skill.textContent).toContain('data/reports/synthetic-backtest.json');
+    cleanup();
+  });
+
+  it('puts the backtest in its own section after the forecast, as an evaluation of the method with its scope', async () => {
+    const { main, cleanup } = mount();
+    await flush();
+    const panel = main.querySelector('.forecast')!;
+    const evaluation = main.querySelector<HTMLElement>('.forecast-evaluation')!;
+    expect(panel.nextElementSibling).toBe(evaluation);
+    expect(evaluation.hidden).toBe(false);
+    expect(evaluation.querySelector('h2')?.textContent).toBe('How we evaluate forecasts');
+    expect(evaluation.querySelector('.forecast-headline')?.textContent).toBe('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50.0% of the time (2 of 4); about 50% would be expected.');
+    expect(evaluation.textContent).toContain('Mean CRPS 3.50 cases');
+    expect(evaluation.querySelector('.forecast-narrow')?.textContent).toContain('In this backtest the intervals were too narrow');
+    expect(evaluation.querySelector('.forecast-evaluation-scope')?.textContent).toContain('This backtest does not measure how the forecasts above will do. None of the 1 series forecast above (confirmed or unknown-status cases) is the series that was scored');
+    // The report is named, not linked, for a synthetic fixture.
+    expect(evaluation.querySelector('a')).toBeNull();
+    expect(evaluation.textContent).toContain('data/reports/synthetic-backtest.json');
+    cleanup();
+    expect(document.querySelector('.forecast-evaluation')).toBeNull();
+  });
+
+  it('keeps the evaluation section, with its scope note, when no backtest report is attached', async () => {
+    const noSkill = { ...published(), provenance: { ...published().provenance, backtest: null, scope_note: 'No backtest report for exactly this configuration is attached, so no skill has been measured for these forecasts (1 series forecast).' } };
+    const { main, cleanup } = mount(vi.fn().mockResolvedValue(noSkill));
+    await flush();
+    const evaluation = main.querySelector('.forecast-evaluation')!;
+    expect(evaluation.querySelector('h2')?.textContent).toBe('How we evaluate forecasts');
+    expect(evaluation.textContent).toContain('no skill has been measured for these forecasts');
     cleanup();
   });
 
