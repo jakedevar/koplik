@@ -97,6 +97,9 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .forecast summary { min-height: 32px; padding: 4px 0; }
 .forecast code, .forecast a { overflow-wrap: anywhere; }
 .forecast-result svg { display: block; width: 100%; max-width: 900px; overflow: visible; }
+.forecast-band-90 { fill: #d6e8e2; }
+.forecast-band-50 { fill: #91c2b3; }
+.forecast-median { fill: none; stroke: #196555; stroke-width: 2.5; }
 .forecast-origin { stroke: #8c9b94; stroke-width: 1; stroke-dasharray: 5 4; }
 .forecast-provisional-bar { fill: #fff; stroke: #327868; stroke-width: 1.5; stroke-dasharray: 3 2; }
 .forecast-provisional-zero { stroke: #327868; stroke-width: 3; stroke-dasharray: 2 2; }

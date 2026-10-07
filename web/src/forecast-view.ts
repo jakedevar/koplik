@@ -79,11 +79,11 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
   for (const [level, lowQ, highQ] of [[90, 0.05, 0.95], [50, 0.25, 0.75]] as const) {
     const top = rows.map((r) => `${x(weekOrdinal(r.target_week))},${y(quantileAt(r, highQ)!)}`);
     const bottom = [...rows].reverse().map((r) => `${x(weekOrdinal(r.target_week))},${y(quantileAt(r, lowQ)!)}`);
-    const band = svgNode('polygon', { points: [...top, ...bottom].join(' '), class: `ensemble-band-${level} forecast-band-${level}` });
+    const band = svgNode('polygon', { points: [...top, ...bottom].join(' '), class: `forecast-band-${level}` });
     band.append(svgNode('title', {}, `${level}% of the simulated runs fall inside this band`));
     bands.append(band);
   }
-  bands.append(svgNode('polyline', { points: rows.map((r) => `${x(weekOrdinal(r.target_week))},${y(quantileAt(r, 0.5)!)}`).join(' '), class: 'ensemble-median forecast-median' }));
+  bands.append(svgNode('polyline', { points: rows.map((r) => `${x(weekOrdinal(r.target_week))},${y(quantileAt(r, 0.5)!)}`).join(' '), class: 'forecast-median' }));
   bindProvenance(bands as unknown as SVGElement, { ...info, label: `Forecast of weekly ${caseWords} for ${name} · median and 50% and 90% bands` });
   svg.append(bands);
 
@@ -105,9 +105,9 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
   const legend = svgNode('g', { class: 'forecast-legend' });
   legend.append(svgNode('rect', { x: 50, y: 226, width: 10, height: 10, class: 'case-bar' }), svgNode('text', { x: 65, y: 235, class: 'axis-label' }, 'Reported'),
     svgNode('rect', { x: 125, y: 226, width: 10, height: 10, class: 'forecast-provisional-bar' }), svgNode('text', { x: 140, y: 235, class: 'axis-label' }, 'Provisional, not used'),
-    svgNode('rect', { x: 275, y: 226, width: 10, height: 10, class: 'ensemble-band-50' }), svgNode('text', { x: 290, y: 235, class: 'axis-label' }, '50% band'),
-    svgNode('rect', { x: 360, y: 226, width: 10, height: 10, class: 'ensemble-band-90' }), svgNode('text', { x: 375, y: 235, class: 'axis-label' }, '90% band'),
-    svgNode('line', { x1: 445, x2: 461, y1: 231, y2: 231, class: 'ensemble-median' }), svgNode('text', { x: 466, y: 235, class: 'axis-label' }, 'Forecast median'));
+    svgNode('rect', { x: 275, y: 226, width: 10, height: 10, class: 'forecast-band-50' }), svgNode('text', { x: 290, y: 235, class: 'axis-label' }, '50% band'),
+    svgNode('rect', { x: 360, y: 226, width: 10, height: 10, class: 'forecast-band-90' }), svgNode('text', { x: 375, y: 235, class: 'axis-label' }, '90% band'),
+    svgNode('line', { x1: 445, x2: 461, y1: 231, y2: 231, class: 'forecast-median' }), svgNode('text', { x: 466, y: 235, class: 'axis-label' }, 'Forecast median'));
   svg.append(legend);
   return svg;
 }
