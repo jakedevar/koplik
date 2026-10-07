@@ -1,0 +1,100 @@
+{
+ "unthrottled": {
+  "runs": [
+   {
+    "fcp": 156,
+    "lcp": 156,
+    "cls": 0,
+    "transferred": 621683
+   },
+   {
+    "fcp": 148,
+    "lcp": 148,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 144,
+    "lcp": 144,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 152,
+    "lcp": 152,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 136,
+    "lcp": 136,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 148,
+    "lcp": 148,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 148,
+    "lcp": 148,
+    "cls": 0,
+    "transferred": 621383
+   }
+  ],
+  "median_fcp_ms": 148,
+  "median_lcp_ms": 148,
+  "median_cls": 0
+ },
+ "mobile_throttled": {
+  "runs": [
+   {
+    "fcp": 2624,
+    "lcp": 4172,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2640,
+    "lcp": 4244,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2668,
+    "lcp": 4288,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2632,
+    "lcp": 4340,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2624,
+    "lcp": 4168,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2608,
+    "lcp": 4140,
+    "cls": 0,
+    "transferred": 621383
+   },
+   {
+    "fcp": 2556,
+    "lcp": 4060,
+    "cls": 0,
+    "transferred": 621383
+   }
+  ],
+  "median_fcp_ms": 2624,
+  "median_lcp_ms": 4172,
+  "median_cls": 0
+ }
+}
