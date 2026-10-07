@@ -386,8 +386,11 @@ mod tests {
         assert!(r.allowed("/private/%24"));
     }
 
-    /// The matcher as released in 46e00729, kept verbatim as an independent reference:
-    /// `*` and `$` pass through untouched in rules and in URIs.
+    /// A reference for the matcher's decisions as of 46e00729: an adapted rewrite of that
+    /// commit's normalization and precedence that shares the production `matches()` (which
+    /// is byte-identical to 46e00729's), not a verbatim copy. `*` and `$` pass through
+    /// untouched in rules and in URIs. The #1348 rev-2 round-3 reviewer cross-checked it
+    /// against the historical source over 1,860,867 comparisons with identical decisions.
     fn legacy_reference_allowed(rules: &[(bool, String)], path: &str) -> bool {
         fn norm(s: &str) -> String {
             const RESERVED: &[u8] = b":/?#[]@!$&'()*+,;=";
