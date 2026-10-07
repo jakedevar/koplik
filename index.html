@@ -5,10 +5,50 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Measles outbreak intelligence with explicit missing data and source provenance." />
     <title>Koplik · Measles outbreak intelligence</title>
-    <script type="module" crossorigin src="/koplik/assets/index-CPbrIY8t.js"></script>
-    <link rel="stylesheet" crossorigin href="/koplik/assets/index-Dor79y75.css">
+    <script type="module" crossorigin src="/koplik/assets/index-Dm2BrVwg.js"></script>
+    <link rel="stylesheet" crossorigin href="/koplik/assets/index-eEcx9JUL.css">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/geographies.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/weekly-cases.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/coverage.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/rt.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/us-states.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v6/texas-counties.json">
+    <link rel="preload" as="fetch" crossorigin="anonymous" href="/koplik/data/v8/cumulative-cases.json">
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <!-- First paint: the shell and a skeleton of the Explorer, before any script runs. app.ts draws the same shell (app.test.ts checks they agree). -->
+      <header class="site-header">
+        <a class="brand" href="#/explorer">koplik</a>
+        <span class="tagline">Measles outbreak intelligence</span>
+        <nav class="primary-nav" aria-label="Primary">
+          <ul>
+            <li><a href="#/explorer" data-page="explorer" aria-current="page">Explorer</a></li>
+            <li><a href="#/forecast" data-page="forecast">Forecast</a></li>
+            <li><a href="#/what-if" data-page="what-if">What-if</a></li>
+            <li><a href="#/sources" data-page="sources">Sources</a></li>
+          </ul>
+        </nav>
+      </header>
+      <main id="main">
+        <div class="page page-explorer skeleton" data-page-view="explorer" aria-busy="true">
+          <p class="eyebrow">SURVEILLANCE EXPLORER</p>
+          <h1>Measles across the United States</h1>
+          <p class="intro">Explore reported cases, vaccination coverage and the pace of an outbreak. Missing reports stay missing.</p>
+          <p class="notice" role="status">Loading pipeline artifacts…</p>
+          <div class="summary skeleton-summary" aria-hidden="true"><span class="skeleton-line"></span><span class="skeleton-line"></span><span class="skeleton-line"></span></div>
+          <div class="panel skeleton-grid" aria-hidden="true"><span class="skeleton-line"></span><span class="skeleton-line"></span></div>
+        </div>
+      </main>
+    </div>
+    <script>
+      // A direct link to another page: mark its nav link and drop the Explorer skeleton until the script takes over.
+      (function () {
+        var m = /^#\/?([^/?]*)/.exec(location.hash), p = m && m[1];
+        if (['forecast', 'what-if', 'sources'].indexOf(p) < 0) return;
+        document.querySelectorAll('.primary-nav a').forEach(function (a) { if (a.dataset.page === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+        document.querySelector('[data-page-view="explorer"]').hidden = true;
+      })();
+    </script>
   </body>
 </html>
