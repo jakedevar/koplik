@@ -534,9 +534,11 @@ name = "koplik-contracts"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "hex",
  "schemars",
  "serde",
  "serde_json",
+ "sha2",
  "thiserror",
 ]
 

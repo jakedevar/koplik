@@ -6,10 +6,12 @@
 //! koplik-ingest list [--store DIR] [--source ID]
 //! ```
 //!
-//! `fetch` is the only command that uses the network. `parse` is offline: it reads the latest
-//! stored CDC snapshot (re-verifying its SHA-256) and writes contracts v1 weekly-case rows as
-//! JSON (stdout, or `--out`). Set `KOPLIK_CONTACT` to a repository URL or contact address to
-//! identify the client to the data hosts.
+//! `fetch` is the only command that uses the network, and it refuses to run unless
+//! `KOPLIK_CONTACT` holds a verified contact (an e-mail address or repository URL) that is
+//! sent in the User-Agent; nothing is ever invented. `parse` and `list` are offline and need no
+//! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
+//! contracts v3 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
+//! as JSON (stdout, or `--out`).
 
 use std::process::ExitCode;
 use std::time::Duration;
@@ -21,7 +23,7 @@ use koplik_ingest::dshs_series;
 use koplik_ingest::dshs_sources::{self, FetchOutcome};
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
-use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
+use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
 use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 
@@ -30,8 +32,8 @@ const USAGE: &str = "usage:
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
   koplik-ingest fetch census-counties [--store DIR] [--direct 1]
   koplik-ingest fetch dshs-live [--store DIR]
-  koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD]
-  koplik-ingest fetch dshs-reports [--store DIR]
+  koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD] [--interval-secs N]
+  koplik-ingest fetch dshs-reports [--store DIR] [--interval-secs N]
   koplik-ingest parse dshs-cases [--store DIR] [--out DIR]
   koplik-ingest list [--store DIR] [--source ID]";
 
@@ -71,14 +73,16 @@ fn year(flag: Option<String>, default: u16) -> Result<u16> {
     }
 }
 
-fn fetcher(interval_secs: u64) -> PoliteFetcher<UreqClient, SystemTimekeeper> {
-    let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+/// A live fetcher: refuses without a verified contact (before any request), then paces
+/// requests to one host at `interval_secs` (the Internet Archive rate-limits hard).
+fn live_fetcher(interval_secs: u64) -> Result<PoliteFetcher<UreqClient, SystemTimekeeper>> {
     let cfg = PoliteConfig {
         min_interval: Duration::from_secs(interval_secs.max(1)),
         max_attempts: 5,
-        ..PoliteConfig::default()
+        ..PoliteConfig::live(contact_from_env().as_deref())?
     };
-    PoliteFetcher::new(client, SystemTimekeeper::new(), cfg)
+    let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+    Ok(PoliteFetcher::new(client, SystemTimekeeper::new(), cfg))
 }
 
 /// One line per URL; a non-zero exit when any fetch failed (failures are never dropped).
@@ -119,10 +123,9 @@ fn run(args: Vec<String>) -> Result<()> {
         .next()
         .ok_or_else(|| IngestError::Invalid("missing command".into()))?;
     let source = match cmd.as_str() {
-        "fetch" | "parse" => Some(
-            args.next()
-                .ok_or_else(|| IngestError::Invalid("missing source (cdc-cases)".into()))?,
-        ),
+        "fetch" | "parse" => Some(args.next().ok_or_else(|| {
+            IngestError::Invalid("missing source (cdc-cases, dshs-cases, ...)".into())
+        })?),
         _ => None,
     };
     let mut flags = Flags(args.collect());
@@ -137,11 +140,12 @@ fn run(args: Vec<String>) -> Result<()> {
                 u16::try_from(Utc::now().year()).unwrap_or(cdc::FIRST_YEAR),
             )?;
             flags.done()?;
+            // Identify the client before anything else: no contact, no request (and no store).
+            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
             let spec = cdc::source_spec(first, last)?;
             let store = SnapshotStore::open(&store_dir)?;
             let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
-            let mut fetcher =
-                PoliteFetcher::new(client, SystemTimekeeper::new(), PoliteConfig::default());
+            let mut fetcher = PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
             let (r, outcome) = fetch_to_store(&mut fetcher, &store, &spec)?;
             let note = match outcome {
                 PutOutcome::Created => "new snapshot",
@@ -181,12 +185,12 @@ fn run(args: Vec<String>) -> Result<()> {
         ("fetch", Some("census-counties")) => {
             let direct = flags.take("--direct")?;
             flags.done()?;
-            let store = SnapshotStore::open(&store_dir)?;
             let (spec, secs) = match direct {
                 Some(_) => (census_counties::source_spec(), 1),
                 None => (census_counties::wayback_spec(), 8),
             };
-            let mut fetcher = fetcher(secs);
+            let mut fetcher = live_fetcher(secs)?;
+            let store = SnapshotStore::open(&store_dir)?;
             let (r, _) = fetch_to_store(&mut fetcher, &store, &spec)?;
             println!(
                 "{}",
@@ -196,8 +200,8 @@ fn run(args: Vec<String>) -> Result<()> {
         }
         ("fetch", Some("dshs-live")) => {
             flags.done()?;
+            let mut fetcher = live_fetcher(1)?;
             let store = SnapshotStore::open(&store_dir)?;
-            let mut fetcher = fetcher(1);
             let specs = [
                 dshs_sources::live_spec(
                     dshs_sources::SOURCE_PAGE_LIVE,
@@ -231,16 +235,16 @@ fn run(args: Vec<String>) -> Result<()> {
             // Archive.org rate-limits well below one request a second (HTTP 429), so pace it.
             let secs = year(flags.take("--interval-secs")?, 8)?;
             flags.done()?;
+            let mut fetcher = live_fetcher(u64::from(secs))?;
             let store = SnapshotStore::open(&store_dir)?;
-            let mut fetcher = fetcher(u64::from(secs));
             let results = dshs_sources::fetch_outbreak_captures(&mut fetcher, &store, &from, &to)?;
             report_outcomes(&results)
         }
         ("fetch", Some("dshs-reports")) => {
             let secs = year(flags.take("--interval-secs")?, 8)?;
             flags.done()?;
+            let mut fetcher = live_fetcher(u64::from(secs))?;
             let store = SnapshotStore::open(&store_dir)?;
-            let mut fetcher = fetcher(u64::from(secs));
             let results = dshs_sources::fetch_report_documents(&mut fetcher, &store)?;
             report_outcomes(&results)
         }

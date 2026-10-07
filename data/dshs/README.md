@@ -14,6 +14,6 @@ cp /tmp/dshs/vintage-manifest.json /tmp/dshs/unmapped.json data/dshs/
 ```
 
 `koplik-ingest parse dshs-cases` also writes `cumulative.json`, `intervals.json` and `weekly.json`
-(contracts v1 `WeeklyCaseCount` rows) to its `--out` directory; those are pipeline outputs, not
+(contracts v3 `WeeklyCaseCount` rows, `case_definition: confirmed`) to its `--out` directory; those are pipeline outputs, not
 committed. How versions are grouped and the series derived: `SOURCES.md`, "Texas DSHS 2025 West
 Texas outbreak".

@@ -1,0 +1,188 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WeeklyCaseCount",
+  "description": "Newly reported cases in one MMWR week for one geography, under an explicit case definition.\n(Cumulative-only sources are differenced by the connector; the row is always per week.)",
+  "type": "object",
+  "properties": {
+    "case_definition": {
+      "description": "What `cases` counts.",
+      "$ref": "#/$defs/CaseDefinition"
+    },
+    "cases": {
+      "description": "The count (or its explicit absence). `reported` with `count: 0` is a real zero;\n`missing` is unknown.",
+      "$ref": "#/$defs/CaseCount"
+    },
+    "geography": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenances"
+    },
+    "week": {
+      "$ref": "#/$defs/MmwrWeek"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "geography",
+    "week",
+    "cases",
+    "case_definition",
+    "provenance"
+  ],
+  "$defs": {
+    "CaseCount": {
+      "description": "A confirmed-case count that can be explicitly missing. `reported` with `count: 0` is a\nreal zero; `missing` is unknown. They are never interchangeable.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "status": {
+              "type": "string",
+              "const": "reported"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "count"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/MissingReason"
+            },
+            "status": {
+              "type": "string",
+              "const": "missing"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "CaseDefinition": {
+      "description": "Which cases a weekly count includes. A count is only comparable with counts that share its\ndefinition, so every row states it. Add a variant (in a new contract version) for any other\nsource definition; never reuse `Confirmed` for a count that includes other case statuses.",
+      "oneOf": [
+        {
+          "description": "Only cases whose case status is confirmed under the source's case definition, with no\nother status mixed in.",
+          "type": "string",
+          "const": "confirmed"
+        },
+        {
+          "description": "Confirmed cases plus cases whose case status is unknown, without the two being told\napart. This is what CDC's NNDSS measles publication criteria publish (event code 10140:\ncase status \"confirmed\" and \"unknown\"); the weekly query has no case-status field to\nsplit them, so these counts must not be presented as confirmed cases.",
+          "type": "string",
+          "const": "confirmed_or_unknown_status"
+        }
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "MissingReason": {
+      "description": "Why a weekly count is missing.",
+      "oneOf": [
+        {
+          "description": "The source did not report this geography and week.",
+          "type": "string",
+          "const": "not_reported"
+        },
+        {
+          "description": "The source withheld the value (small-number suppression).",
+          "type": "string",
+          "const": "suppressed"
+        },
+        {
+          "description": "The source has the week but the value could not be read unambiguously.",
+          "type": "string",
+          "const": "ambiguous"
+        }
+      ]
+    },
+    "MmwrWeek": {
+      "description": "An MMWR year and week number (`week` is `1..=52` or `1..=53`).",
+      "type": "object",
+      "properties": {
+        "week": {
+          "description": "Week of the MMWR year; 1 to 52, or 53 in a 53-week year.",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 53,
+          "minimum": 1
+        },
+        "year": {
+          "description": "MMWR year (not always the calendar year of every day in the week).",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 2200,
+          "minimum": 1900
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "week"
+      ]
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

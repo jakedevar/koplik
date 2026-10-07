@@ -82,6 +82,11 @@ pub struct Report {
     pub outbreak_counties: Option<CountyTable>,
     /// Every other county table found (cases not associated with the outbreak, travel, other).
     pub other_tables: Vec<CountyTable>,
+    /// Why the counts can be called *confirmed* cases: DSHS's own table title (PDF) or a table
+    /// captioned "... Confirmed Cases ..." whose cells add up to this version's outbreak total
+    /// (HTML). `None` means that is not established for this version, and its numbers must not
+    /// be labelled confirmed.
+    pub confirmed_basis: Option<String>,
     /// Everything that could not be read or does not add up, verbatim and visible.
     pub issues: Vec<String>,
     /// The snapshot this report was read from.
@@ -290,6 +295,7 @@ pub fn parse_html_report(body: &[u8], retrieval: &Retrieval) -> Result<Report> {
         (Some(t), None) => t.total,
         (None, n) => n,
     };
+    let confirmed_basis = outbreak_total.and_then(|n| html_confirmed_basis(content, n));
     if let Some(t) = &outbreak_counties {
         check_table(t, &mut issues);
     }
@@ -314,9 +320,35 @@ pub fn parse_html_report(body: &[u8], retrieval: &Retrieval) -> Result<Report> {
         outbreak_total,
         outbreak_counties,
         other_tables: county_tables,
+        confirmed_basis,
         issues,
         retrieval: retrieval.clone(),
     })
+}
+
+/// A table captioned "... Confirmed Cases ..." (the vaccination-status table) whose numeric cells
+/// add up to the outbreak total shows that DSHS calls the counted population confirmed cases.
+fn html_confirmed_basis(content: ElementRef<'_>, outbreak_total: u32) -> Option<String> {
+    for table in content.select(&sel("table")) {
+        let caption = table
+            .select(&sel("caption"))
+            .next()
+            .map(text_of)
+            .unwrap_or_default();
+        if !caption.to_lowercase().contains("confirmed cases") {
+            continue;
+        }
+        let cells: Vec<u32> = table
+            .select(&sel("tbody td"))
+            .filter_map(|td| text_of(td).parse().ok())
+            .collect();
+        if cells.iter().sum::<u32>() == outbreak_total {
+            return Some(format!(
+                "table {caption:?} adds up to the outbreak total {outbreak_total}"
+            ));
+        }
+    }
+    None
 }
 
 /// Unreadable rows and a Total that does not equal the sum of the rows stay visible.
@@ -593,6 +625,11 @@ pub fn parse_pdf_report(body: &[u8], retrieval: &Retrieval) -> Result<Report> {
         outbreak_total,
         outbreak_counties: Some(outbreak),
         other_tables: tables,
+        confirmed_basis: lines
+            .iter()
+            .map(line_text)
+            .find(|t| t.starts_with("Table 1: Confirmed Cases"))
+            .map(|t| format!("PDF table title {t:?}")),
         issues,
         retrieval: retrieval.clone(),
     })

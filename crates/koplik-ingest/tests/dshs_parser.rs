@@ -409,7 +409,7 @@ fn derived_series_from_the_fixtures_with_provenance() {
             .iter()
             .find(|r| r.geography == gaines && r.week == MmwrWeek::new(y, w).unwrap())
             .unwrap()
-            .confirmed
+            .cases
     };
     let nr = CaseCount::Missing {
         reason: MissingReason::NotReported,
@@ -423,9 +423,16 @@ fn derived_series_from_the_fixtures_with_provenance() {
     assert_eq!(wk(2025, 14), nr);
     assert_eq!(wk(2025, 48), amb);
     assert_eq!(wk(2025, 49), nr);
+    assert!(
+        built
+            .series
+            .weekly
+            .iter()
+            .all(|w| w.case_definition == koplik_contracts::v3::CaseDefinition::Confirmed)
+    );
     // Weekly rows round-trip through the contracts type.
     let json = serde_json::to_string(&built.series.weekly).unwrap();
-    let back: Vec<koplik_contracts::v1::WeeklyCaseCount> = serde_json::from_str(&json).unwrap();
+    let back: Vec<koplik_contracts::v3::WeeklyCaseCount> = serde_json::from_str(&json).unwrap();
     assert_eq!(back, built.series.weekly);
 }
 
@@ -492,4 +499,28 @@ fn the_committed_manifest_matches_what_the_fixtures_say() {
             "2026-01-12"
         ]
     );
+}
+
+#[test]
+fn counts_are_called_confirmed_only_where_dshs_labels_them_so() {
+    // PDF: the table's own title. HTML: a "... Confirmed Cases ..." table adding to the total.
+    let pdf = report("report-2026-01-12.pdf");
+    assert!(
+        pdf.confirmed_basis
+            .as_deref()
+            .unwrap()
+            .contains("Confirmed Cases in Texas Residents")
+    );
+    for name in ["page-2025-03-04.html", "page-2025-03-25.html.gz"] {
+        let basis = report(name).confirmed_basis;
+        assert!(
+            basis
+                .as_deref()
+                .is_some_and(|b| b.contains("Confirmed Cases")),
+            "{name}: {basis:?}"
+        );
+    }
+    // The dashboard-only page has no such table: not established, so not labelled confirmed
+    // (it has no county rows to label anyway).
+    assert_eq!(report("page-2025-03-28.html.gz").confirmed_basis, None);
 }

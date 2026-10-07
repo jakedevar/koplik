@@ -13,7 +13,9 @@
 //! DSHS publishes **cumulative** outbreak cases per county. Only vintages with a readable
 //! outbreak county table take part (the Tableau-era pages publish no county breakdown that
 //! can be fetched; those vintages appear in the manifest with `county_detail: false` and
-//! contribute no county numbers: missing stays missing). If several vintages share a report
+//! contribute no county numbers: missing stays missing). Only versions whose own labelling
+//! establishes confirmed cases (`Report::confirmed_basis`) enter the series, which is emitted
+//! as contracts v3 rows with `case_definition: confirmed`. If several vintages share a report
 //! date, the one first seen last supersedes the others in the series (all stay in the
 //! manifest).
 //!
@@ -44,9 +46,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, NaiveDate, Utc};
-use koplik_contracts::v1::{
-    CaseCount, CountyFips, GeoId, MissingReason, MmwrWeek, Provenance, Provenances, Sha256Hex,
-    WeeklyCaseCount,
+use koplik_contracts::v3::{
+    CaseCount, CaseDefinition, CountyFips, GeoId, MissingReason, MmwrWeek, Provenance, Provenances,
+    Sha256Hex, WeeklyCaseCount,
 };
 use serde::{Deserialize, Serialize};
 
@@ -123,6 +125,11 @@ impl Vintage {
     pub fn has_county_detail(&self) -> bool {
         self.report.outbreak_counties.is_some()
     }
+    /// Whether DSHS's own labelling establishes these counts as confirmed cases. Versions
+    /// without that evidence stay out of the (confirmed) series.
+    pub fn is_confirmed(&self) -> bool {
+        self.report.confirmed_basis.is_some()
+    }
 }
 
 /// The content that makes two reports the same version.
@@ -190,6 +197,9 @@ pub struct ManifestEntry {
     pub outbreak_total: Option<u32>,
     /// Whether this vintage has a readable outbreak county table.
     pub county_detail: bool,
+    /// Why its counts may be called confirmed cases (see `Report::confirmed_basis`); `None`
+    /// means not established, and the version is excluded from the confirmed series.
+    pub confirmed_basis: Option<String>,
     pub county_rows: usize,
     pub data_as_of: Option<String>,
     /// Earliest evidence this version was public (capture time, else retrieval time).
@@ -230,6 +240,7 @@ pub fn manifest(vintages: &[Vintage]) -> VintageManifest {
                 format: v.report.format,
                 outbreak_total: v.report.outbreak_total,
                 county_detail: v.has_county_detail(),
+                confirmed_basis: v.report.confirmed_basis.clone(),
                 county_rows: v
                     .report
                     .outbreak_counties
@@ -328,7 +339,10 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
 
     // One point per report date among vintages with county detail; the vintage first seen last wins.
     let mut chosen: BTreeMap<NaiveDate, &Vintage> = BTreeMap::new();
-    for v in vintages.iter().filter(|v| v.has_county_detail()) {
+    for v in vintages
+        .iter()
+        .filter(|v| v.has_county_detail() && v.is_confirmed())
+    {
         let slot = chosen.entry(v.report.report_date).or_insert(v);
         if v.first_seen_at() >= slot.first_seen_at() {
             *slot = v;
@@ -470,7 +484,8 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
             weekly.push(WeeklyCaseCount {
                 geography: geo,
                 week,
-                confirmed,
+                cases: confirmed,
+                case_definition: CaseDefinition::Confirmed,
                 provenance,
             });
             if week >= last.week {
@@ -628,6 +643,7 @@ mod tests {
                 total,
             }),
             other_tables: vec![],
+            confirmed_basis: Some("test".into()),
             issues: vec![],
             retrieval: retrieval(
                 &format!("https://web.archive.org/web/{capture}id_/https://www.dshs.texas.gov/p"),
@@ -645,7 +661,7 @@ mod tests {
         s.weekly
             .iter()
             .filter(|w| w.geography == geo)
-            .map(|w| (w.week.to_string(), w.confirmed))
+            .map(|w| (w.week.to_string(), w.cases))
             .collect()
     }
 

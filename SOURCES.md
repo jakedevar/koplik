@@ -44,6 +44,12 @@ page could not be used: an automated request to `https://www.cdc.gov/measles/dat
 returned HTTP 403 on 2026-10-07 (and I did not work around the block), so it cannot be fetched
 reproducibly. data.cdc.gov's `robots.txt` allows `/resource/` with `Crawl-delay: 1`.
 
+**Client identification.** Requests send `koplik-ingest/<version> (measles data demonstration project; <contact>)`.
+The contact is whatever the operator verified and put in the `KOPLIK_CONTACT` environment variable (an e-mail
+address or repository URL); `koplik-ingest fetch` refuses to run, before any request, if it is unset or blank,
+and Koplik never invents one. `make pipeline` fetches, so it needs `KOPLIK_CONTACT` until the operator's
+verified default is committed (decision record `ingest-contact`). Offline parsing and all tests need none.
+
 **Columns used.** `states` (reporting jurisdiction name), `year` and `week` (MMWR reporting year and
 week of the weekly table), `label` (`Measles, Indigenous` or `Measles, Imported`), `m3` (cumulative
 year-to-date count as published that week), `m3_flag` (`-`, `U`, `N`, `NN`, `NP`, `NC` when there is no
@@ -69,9 +75,20 @@ number). `m1` ("current week") is not used.
    jurisdiction reports and has none, so a cumulative of `-` is a real zero.
 5. Geographies are the 50 states, DC and 5 territories keyed by state FIPS (56). Regional and national
    totals and `Non-U.S. Residents` are skipped; an unrecognised jurisdiction name is an error.
-6. Caveat not verified here: whether NNDSS measles rows contain confirmed cases only or confirmed and
-   probable. The dataset notes say "cases"; `WeeklyCaseCount.confirmed` is filled from them as published.
-   Re-check against CDC's measles case classification before the UI says "confirmed".
+6. **Case definition: confirmed OR unknown status, not "confirmed".** CDC's NNDSS Event Code List
+   lists the publication criteria for measles (rubeola), event code 10140, in column F: **"Cases with
+   confirmed and unknown case status are printed."** Both the 2025 and the 2026 editions say this
+   (read directly from the workbooks, 2026-10-07):
+   - 2025 v2: <https://ndc.services.cdc.gov/wp-content/uploads/National_Notifiable_Diseases_Surveillance_System_Event_Code_List_2025_v2_2025Nov21-508.xlsx>
+     (row for event code 10140, same text on each of its event-code tabs).
+   - 2026 v1: <https://ndc.services.cdc.gov/wp-content/uploads/National_Notifiable_Diseases_Surveillance_System_Event_Code_List_2026_v1_2026Jan12.xlsx>,
+     sheet "Event Codes", cell F98.
+
+   The weekly query has no case-status field, so confirmed cases cannot be separated from
+   unknown-status ones. The connector therefore emits **contracts v3** rows
+   (`WeeklyCaseCount.cases` with `case_definition = confirmed_or_unknown_status`) and never
+   `confirmed`; v1's `confirmed` field is not used for this source. UI and R_t consumers must say
+   "confirmed or unknown-status cases reported to NNDSS".
 
 **Fixture.** `data/fixtures/cdc/nndss-measles-weekly.json` is the unmodified response retrieved
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
@@ -79,9 +96,9 @@ number). `m1` ("current week") is not used.
 
 ## Texas DSHS 2025 West Texas outbreak, cases by county over time (`dshs-*`)
 
-Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Commands:
+Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` needs `KOPLIK_CONTACT` (a contact address or repository URL; it refuses without one). Commands:
 `koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
-`koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series, unmapped names,
+`koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), unmapped names,
 parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
 
 **Three formats, found by reading the archived pages** (the manifest `data/dshs/vintage-manifest.json` lists every
@@ -145,7 +162,14 @@ take part.
    county report after a gap, or the week of a dashboard-only last report), `missing: not_reported` for a week with no
    county report and for the first report's week (its cumulative includes all earlier cases). With the real data
    only 2025 weeks 11 and 12 have reported weekly counts per county; the rest are missing by construction.
-4. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
+4. *Case definition.* Weekly rows are contracts **v3** `WeeklyCaseCount` with `case_definition: confirmed`, and a
+   version enters them only if its own labelling establishes confirmed cases (`confirmed_basis` in the manifest): the
+   PDF's table title "Table 1: Confirmed Cases in Texas Residents", or, for the HTML pages, a "... Confirmed Cases ..."
+   (vaccination status) table whose cells add up to the outbreak total. All 10 county-detail versions pass. The early
+   pages' prose says "cases have been identified" rather than "confirmed"; the matching total in the confirmed table is
+   the only evidence that the counted population is confirmed cases, so re-check with DSHS before the UI says so
+   for March. The PDF footnote's 182 unclassifiable Gaines County reports are not in any count.
+5. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
    Texas's cases, so it lives in the manifest (`outbreak_total` per version) for the backtest.
 
 **Caveats not resolved here.** DSHS's classification ("confirmed") and revisions: counts were revised (a Lubbock vaccine
