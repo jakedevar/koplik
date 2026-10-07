@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
+use koplik_ingest::census_boundaries;
 use koplik_ingest::census_population;
 use koplik_ingest::coverage;
 use koplik_ingest::error::{IngestError, Result};
@@ -27,7 +28,6 @@ use koplik_ingest::http::UreqClient;
 use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
 use koplik_ingest::source::fetch_to_store;
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
-use koplik_ingest::census_boundaries;
 
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
@@ -38,7 +38,7 @@ const USAGE: &str = "usage:
   koplik-ingest parse cdc-coverage [--store DIR] [--first-year Y] [--last-year Y] [--out FILE] [--gaps FILE]
   koplik-ingest fetch texas-coverage [--store DIR] [--year Y]
   koplik-ingest parse texas-coverage [--store DIR] [--year Y] [--out FILE] [--gaps FILE]
-  koplik-ingest fetch census-state-population|census-county-population|census-texas-counties|census-states [--store DIR]
+  koplik-ingest fetch census-population|census-state-population|census-county-population|census-texas-counties|census-states [--store DIR]
   koplik-ingest parse census-state-population|census-county-population|census-texas-counties|census-states [--store DIR] [--out FILE]
   koplik-ingest list [--store DIR] [--source ID]";
 
@@ -229,8 +229,7 @@ fn run(args: Vec<String>) -> Result<()> {
             let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
             let store = SnapshotStore::open(&store_dir)?;
             let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
-            let mut fetcher =
-                PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
+            let mut fetcher = PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
             for retrieval in census_boundaries::fetch(&mut fetcher, &store)? {
                 println!(
                     "{}",
@@ -253,53 +252,38 @@ fn run(args: Vec<String>) -> Result<()> {
         (
             "fetch",
             Some(
-                src @ ("census-state-population"
+                src @ ("census-population"
+                | "census-state-population"
                 | "census-county-population"
                 | "census-texas-counties"
                 | "census-states"),
             ),
         ) => {
             flags.done()?;
-            let spec = census_population::source_spec(src)?;
+            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
             let store = SnapshotStore::open(&store_dir)?;
-            let client = UreqClient::new(Duration::from_secs(120), MAX_BODY_BYTES);
-            let mut fetcher =
-                PoliteFetcher::new(client, SystemTimekeeper::new(), PoliteConfig::default());
-            let (r, outcome) = fetch_to_store(&mut fetcher, &store, &spec)?;
-            let note = match outcome {
-                PutOutcome::Created => "new snapshot",
-                PutOutcome::AlreadyPresent => "unchanged bytes, no new blob",
+            let mut fetcher = PoliteFetcher::new(
+                UreqClient::new(Duration::from_secs(120), MAX_BODY_BYTES),
+                SystemTimekeeper::new(),
+                cfg,
+            );
+            let sources: &[&str] = if src == "census-population" {
+                &census_population::SOURCES
+            } else {
+                std::slice::from_ref(&src)
             };
-            eprintln!(
-                "{note}: sha256 {} ({} bytes) retrieved {}",
-                r.sha256,
-                r.bytes,
-                r.retrieved_at.to_rfc3339()
-            );
-            println!(
-                "{}",
-                serde_json::to_string(&r).expect("Retrieval serialises")
-            );
-            Ok(())
-        }
-        ("parse", Some("cdc-cases")) => {
-            let out = flags.take("--out")?;
-            flags.done()?;
-            let store = SnapshotStore::open(&store_dir)?;
-            let (retrieval, rows) = cdc::parse_latest(&store)?;
-            eprintln!(
-                "parsed {} weekly rows from snapshot {}",
-                rows.len(),
-                retrieval.sha256
-            );
-            let json = serde_json::to_string(&rows).expect("rows serialise");
-            match out {
-                Some(path) => std::fs::write(&path, json).map_err(|e| IngestError::io(path, e)),
-                None => {
-                    println!("{json}");
-                    Ok(())
-                }
+            for source in sources {
+                let (r, _) = census_population::fetch_source(&mut fetcher, &store, source)?;
+                eprintln!(
+                    "stored {}: sha256 {} ({} bytes)",
+                    r.source_id, r.sha256, r.bytes
+                );
+                println!(
+                    "{}",
+                    serde_json::to_string(&r).expect("retrieval serialises")
+                );
             }
+            Ok(())
         }
         (
             "parse",

@@ -46,6 +46,26 @@ pub fn source_spec(source_id: &str) -> Result<SourceSpec> {
     })
 }
 
+/// The fixed four-file run, sequential through one governed fetcher.
+pub const SOURCES: [&str; 4] = [
+    "census-state-population",
+    "census-county-population",
+    "census-texas-counties",
+    "census-states",
+];
+pub fn manifest() -> Result<crate::census_files::NamedFileAllowlist> {
+    crate::census_files::NamedFileAllowlist::from_json(include_bytes!(
+        "../manifests/census-population-2025.json"
+    ))
+}
+pub fn fetch_source<C: crate::http::HttpClient, T: crate::polite::Timekeeper>(
+    fetcher: &mut crate::polite::PoliteFetcher<C, T>,
+    store: &SnapshotStore,
+    source: &str,
+) -> Result<(Retrieval, crate::store::PutOutcome)> {
+    crate::census_files::fetch_to_store(fetcher, store, &source_spec(source)?, &manifest()?)
+}
+
 pub fn parse_populations(
     retrieval: &Retrieval,
     bytes: &[u8],
