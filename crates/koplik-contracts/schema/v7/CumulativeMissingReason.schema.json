@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CumulativeMissingReason",
+  "description": "Why a report gives no usable cumulative count for a geography. None of these is zero and none\nis estimated: a missing count is unknown.",
+  "oneOf": [
+    {
+      "description": "The source published a report on this date but no readable county breakdown (for\nexample the Texas DSHS dashboard period, whose county figures cannot be fetched).",
+      "type": "string",
+      "const": "no_county_table"
+    },
+    {
+      "description": "The report has a county breakdown, but its own labelling does not establish that the\ncounts are confirmed cases, so none of its counts enter a series whose case definition\nis `confirmed`.",
+      "type": "string",
+      "const": "not_labelled_confirmed"
+    },
+    {
+      "description": "The county is not listed in this report's table, and the table is not shown to list every\ncounty (its rows do not add up to its printed total), so its absence cannot be read as zero.",
+      "type": "string",
+      "const": "not_listed"
+    },
+    {
+      "description": "The county is listed but its count cannot be read as one number (an unreadable cell, or\nthe county listed more than once).",
+      "type": "string",
+      "const": "ambiguous"
+    }
+  ]
+}

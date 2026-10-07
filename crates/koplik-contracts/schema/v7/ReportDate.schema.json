@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReportDate",
+  "description": "A calendar date as printed on a report, YYYY-MM-DD, no time zone",
+  "type": "string",
+  "format": "date",
+  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+}

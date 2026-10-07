@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CumulativeCaseReport",
+  "description": "Cases counted since the outbreak began, as printed in the source's report of `report_date`,\nfor one geography, under an explicit case definition. Not a weekly count: it is never\ndifferenced into weeks here, never interpolated between reports, and never carried\nforward to a date the source did not report.",
+  "type": "object",
+  "properties": {
+    "case_definition": {
+      "description": "What the series counts. On a `missing` row it names the series the row belongs to; it does\nnot assert that the report's own wording matched (see `not_labelled_confirmed`).",
+      "$ref": "#/$defs/CaseDefinition"
+    },
+    "cases": {
+      "description": "The cumulative count as printed, or its explicit absence with the reason.",
+      "$ref": "#/$defs/CumulativeCount"
+    },
+    "geography": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "provenance": {
+      "description": "The snapshots this row was read from (the report) and any reference data used to key it.",
+      "$ref": "#/$defs/Provenances"
+    },
+    "report_date": {
+      "description": "The date the report printed. At most one row per geography and report date.",
+      "$ref": "#/$defs/ReportDate"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "geography",
+    "report_date",
+    "cases",
+    "case_definition",
+    "provenance"
+  ],
+  "$defs": {
+    "CaseDefinition": {
+      "description": "Which cases a weekly count includes. A count is only comparable with counts that share its\ndefinition, so every row states it. Add a variant (in a new contract version) for any other\nsource definition; never reuse `Confirmed` for a count that includes other case statuses.",
+      "oneOf": [
+        {
+          "description": "Only cases whose case status is confirmed under the source's case definition, with no\nother status mixed in.",
+          "type": "string",
+          "const": "confirmed"
+        },
+        {
+          "description": "Confirmed cases plus cases whose case status is unknown, without the two being told\napart. This is what CDC's NNDSS measles publication criteria publish (event code 10140:\ncase status \"confirmed\" and \"unknown\"); the weekly query has no case-status field to\nsplit them, so these counts must not be presented as confirmed cases.",
+          "type": "string",
+          "const": "confirmed_or_unknown_status"
+        }
+      ]
+    },
+    "CumulativeCount": {
+      "description": "A cumulative count that can be explicitly missing. `reported` with `count: 0` is a real zero\n(the report lists the county as zero, or demonstrably lists every county and omits this one);\n`missing` is unknown. They are never interchangeable.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0
+            },
+            "status": {
+              "type": "string",
+              "const": "reported"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "count"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/CumulativeMissingReason"
+            },
+            "status": {
+              "type": "string",
+              "const": "missing"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "CumulativeMissingReason": {
+      "description": "Why a report gives no usable cumulative count for a geography. None of these is zero and none\nis estimated: a missing count is unknown.",
+      "oneOf": [
+        {
+          "description": "The source published a report on this date but no readable county breakdown (for\nexample the Texas DSHS dashboard period, whose county figures cannot be fetched).",
+          "type": "string",
+          "const": "no_county_table"
+        },
+        {
+          "description": "The report has a county breakdown, but its own labelling does not establish that the\ncounts are confirmed cases, so none of its counts enter a series whose case definition\nis `confirmed`.",
+          "type": "string",
+          "const": "not_labelled_confirmed"
+        },
+        {
+          "description": "The county is not listed in this report's table, and the table is not shown to list every\ncounty (its rows do not add up to its printed total), so its absence cannot be read as zero.",
+          "type": "string",
+          "const": "not_listed"
+        },
+        {
+          "description": "The county is listed but its count cannot be read as one number (an unreadable cell, or\nthe county listed more than once).",
+          "type": "string",
+          "const": "ambiguous"
+        }
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "ReportDate": {
+      "description": "A calendar date as printed on a report, YYYY-MM-DD, no time zone",
+      "type": "string",
+      "format": "date",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}
