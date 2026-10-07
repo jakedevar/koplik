@@ -75,7 +75,7 @@ describe('dashboard', () => {
   it('shows synthetic labels, disclaimer, exact reports and distinctly labelled R_t quality', () => {
     const { root } = mount();
     expect(root.querySelector('.synthetic')?.textContent).toContain('SYNTHETIC TEST DATA');
-    expect(root.querySelector('footer')?.textContent).toBe(disclaimer);
+    expect(root.querySelector('footer .disclaimer')?.textContent).toBe(disclaimer);
     expect(root.querySelector('h2')?.textContent).toBe('Texas');
     expect(root.querySelector('.headline-value')?.textContent).toBe('32');
     expect(root.querySelector('.insufficient')?.textContent).toContain('Insufficient data');
@@ -140,10 +140,10 @@ describe('dashboard', () => {
   it('includes the disclaimer on loading and unavailable-data views', () => {
     const root = document.createElement('div');
     showStatus(root, 'Loading pipeline artifacts…');
-    expect(root.querySelector('footer')?.textContent).toBe(disclaimer);
+    expect(root.querySelector('footer .disclaimer')?.textContent).toBe(disclaimer);
     showStatus(root, 'Data unavailable', true);
     expect(root.querySelector('[role="alert"]')?.textContent).toBe('Data unavailable');
-    expect(root.querySelector('footer')?.textContent).toBe(disclaimer);
+    expect(root.querySelector('footer .disclaimer')?.textContent).toBe(disclaimer);
   });
   it('gives missing map features a separate flag while retaining reported zero', () => {
     const features = mapFeatures(fixtureDataset(), 'state', 'cases-2025', '40').features;

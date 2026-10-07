@@ -101,3 +101,10 @@ export function attributionFor(sourceId: string | undefined, licenceId: string |
   }
   return ids.map((id) => licenceTerms(id)?.attribution).filter((text): text is string => !!text);
 }
+
+/** The three data providers the compact footer on every page names, each with its link (DSHS terms require both). */
+export const footerSources: { label: string; url: string }[] = [
+  { label: 'CDC', url: 'https://data.cdc.gov/resource/x9gk-5huc' },
+  { label: 'US Census Bureau', url: 'https://www.census.gov/' },
+  { label: 'Texas DSHS', url: 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025' },
+];

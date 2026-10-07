@@ -2,6 +2,8 @@ import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, missingReasonWords, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
 import { cumulativeSection, cumulativeSeries, cumulativeTable } from './cumulative';
 import { attributionSection } from './attribution-view';
+import { footerSources } from './attribution';
+import { mountRouter, pageEvent, pageHash, pageIds, pageTitles, type PageId } from './router';
 import { caseScales, createMap, type MapView } from './map';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
@@ -15,29 +17,91 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
   if (className) node.className = className;
   return node;
 }
-export function shell(root: HTMLElement): HTMLElement {
+/** What the Sources page says about how every number got here (the rules in AGENTS.md and the spec). */
+export const methodNote = [
+  'Every number in Koplik traces back to a snapshot of a source: the snapshot’s SHA-256 hash, the source URL and the time it was retrieved. Click or press any number to open that record. Raw source snapshots are never edited.',
+  'Missing or ambiguous data is shown as missing, never guessed or filled in. Estimates (R_t, the forecast, the what-if) are derived from the reported counts by the code in this project, with every model parameter cited; below the minimum-count threshold we publish “insufficient data” rather than an estimate. A forecast is a model projection, not a prediction, and the what-if is a hypothetical scenario.',
+];
+
+export interface Shell {
+  main: HTMLElement;
+  /** One container per page, in navbar order; the Explorer's h1 is the dashboard's own. */
+  pages: Record<PageId, HTMLElement>;
+}
+const pageIntros: Record<Exclude<PageId, 'explorer'>, [string, string, string]> = {
+  forecast: ['FORECAST', 'Where is measles going next?', 'A model projection from reported counts, with its measured backtest skill beside it. It follows the geography chosen on the Explorer.'],
+  'what-if': ['WHAT-IF SIMULATION', 'What if vaccination coverage were different?', 'Move the slider and the in-browser ensemble re-runs a stated hypothetical outbreak. An illustrative scenario, not a prediction.'],
+  sources: ['SOURCES', 'Data sources and method', 'Where every number comes from, under what terms, and how it is handled.'],
+};
+function sourceFooter(): HTMLElement {
+  const line = element('p', undefined, 'source-footer');
+  line.append('Data: ');
+  footerSources.forEach((source, i) => {
+    const link = element('a', source.label);
+    link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+    line.append(link, i < footerSources.length - 1 ? ', ' : ' · ');
+  });
+  const all = element('a', 'Sources and attribution');
+  all.href = pageHash('sources');
+  line.append(all);
+  return line;
+}
+let unroute: (() => void) | undefined;
+export function shell(root: HTMLElement): Shell {
   root.replaceChildren();
   const header = element('header', undefined, 'site-header');
   const brand = element('a', 'koplik', 'brand');
-  brand.href = import.meta.env.BASE_URL;
-  header.append(brand, element('span', 'Measles outbreak intelligence', 'tagline'));
+  brand.href = pageHash('explorer');
+  const nav = element('nav', undefined, 'primary-nav');
+  nav.setAttribute('aria-label', 'Primary');
+  const list = element('ul');
+  for (const id of pageIds) {
+    const link = element('a', pageTitles[id]);
+    link.href = pageHash(id);
+    link.dataset.page = id;
+    const item = element('li');
+    item.append(link);
+    list.append(item);
+  }
+  nav.append(list);
+  header.append(brand, element('span', 'Measles outbreak intelligence', 'tagline'), nav);
   const main = element('main');
-  const footer = element('footer', disclaimer, 'disclaimer');
+  main.id = 'main';
+  const pages = {} as Record<PageId, HTMLElement>;
+  for (const id of pageIds) {
+    const page = element('div', undefined, `page page-${id}`);
+    page.dataset.pageView = id;
+    // Until the router runs, only the first page shows.
+    page.hidden = id !== 'explorer';
+    if (id !== 'explorer') {
+      const [eyebrow, title, intro] = pageIntros[id];
+      page.append(element('p', eyebrow, 'eyebrow'), element('h1', title), element('p', intro, 'intro'));
+    }
+    pages[id] = page;
+    main.append(page);
+  }
+  const footer = element('footer', undefined, 'site-footer');
+  // The disclaimer (spec line 7) and the source attribution appear on every page.
+  footer.append(element('p', disclaimer, 'disclaimer'), sourceFooter());
   root.append(header, main, footer);
   mountProvenanceDrawer(root);
-  return main;
+  // Each shell replaces the last one, so the previous router (bound to removed nodes) is released first.
+  unroute?.();
+  unroute = mountRouter(root);
+  return { main, pages };
 }
 export function showStatus(root: HTMLElement, message: string, error = false) {
-  const main = shell(root);
+  const { pages } = shell(root);
   const status = element('p', message, 'notice');
   status.setAttribute('role', error ? 'alert' : 'status');
-  main.append(element('h1', 'Measles across the United States'), status);
+  pages.explorer.append(element('h1', 'Measles across the United States'), status);
 }
 
 export type MapFactory = (container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void) => MapView;
 
 export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: MapFactory = createMap): () => void {
-  const main = shell(root);
+  const { pages } = shell(root);
+  const main = pages.explorer;
   if (data.synthetic) main.append(element('p', 'SYNTHETIC TEST DATA · Invented values and simplified geometry for development only. These are not observed measles reports.', 'synthetic notice'));
   main.append(element('p', 'SURVEILLANCE EXPLORER', 'eyebrow'), element('h1', 'Measles across the United States'),
     element('p', 'Explore reported cases, vaccination coverage and the pace of an outbreak. Missing reports stay missing.', 'intro'));
@@ -117,7 +181,9 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   comparisons.append(element('summary', 'Compare geography values and sources'));
   const comparisonRows = element('div', undefined, 'table-scroll');
   comparisons.append(comparisonRows); main.append(comparisons);
-  main.append(attributionSection(data));
+  // The full attribution lives on the Sources page; every page's footer links to it.
+  for (const note of methodNote) pages.sources.append(element('p', note, 'method-note'));
+  pages.sources.append(attributionSection(data));
   let map: MapView | undefined;
   function available() {
     return data.geographies.filter((g) => g.level === level && (level !== 'county' || g.id.startsWith('48')))
@@ -290,5 +356,8 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   } catch {
     mapStatus.textContent = 'Map unavailable. Select a geography below to explore all reports.';
   }
-  return () => map?.destroy();
+  // The map was laid out while hidden (or not) as the page changed: it must be told its size when the Explorer shows again.
+  const onPage = (event: Event) => { if ((event as CustomEvent<{ page: PageId }>).detail.page === 'explorer') map?.resize?.(); };
+  root.addEventListener(pageEvent, onPage);
+  return () => { root.removeEventListener(pageEvent, onPage); map?.destroy(); };
 }

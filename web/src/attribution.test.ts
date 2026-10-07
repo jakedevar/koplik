@@ -113,10 +113,12 @@ describe('attribution in the UI', () => {
     data.geographies[0].provenance = [{ ...data.geographies[0].provenance[0], source_id: 'new-source-without-terms' }];
     expect(attributionSection(data).textContent).toContain('without recorded terms or attribution: new-source-without-terms');
   });
-  it('is part of the dashboard', () => {
+  it('is the Sources page, and only there', () => {
     const root = document.createElement('div'); document.body.append(root);
     mountDashboard(root, fixtureDataset(), () => ({ update: vi.fn(), destroy: vi.fn() }));
-    expect(root.querySelector('.attribution h3')?.textContent).toBe('Data sources and attribution');
+    expect(root.querySelector('.attribution h2')?.textContent).toBe('Data sources and attribution');
+    expect(root.querySelectorAll('.attribution')).toHaveLength(1);
+    expect(root.querySelector('[data-page-view="sources"] .attribution')).not.toBeNull();
   });
   it('shows the ruling, terms and attribution beside the licence id in the provenance drawer', () => {
     const root = document.createElement('div'); document.body.append(root);

@@ -17,7 +17,7 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
 export function attributionSection(data: Dataset): HTMLElement {
   const section = element('section', undefined, 'panel attribution');
   section.setAttribute('aria-labelledby', 'attribution-heading');
-  const heading = element('h3', 'Data sources and attribution');
+  const heading = element('h2', 'Data sources and attribution');
   heading.id = 'attribution-heading';
   section.append(heading, element('p', 'CDC and Census data are US federal public domain (17 USC 105). Texas DSHS data is public information, used with attribution and a link. Open any number for the exact snapshot, terms and attribution behind it.', 'chart-note'));
   section.append(element('p', 'The Census boundary, population-estimate and Gazetteer files are downloaded directly from the US Census Bureau (www2.census.gov), limited to a fixed list of named public-domain files whose SHA-256 hashes are pinned in advance; a downloaded file that does not match its pinned hash is rejected. The exact files are listed below.', 'chart-note census-download-statement'));
