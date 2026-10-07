@@ -204,8 +204,9 @@ fn parse_html_table(table: ElementRef<'_>) -> Option<CountyTable> {
 
 /// Cumulative outbreak total from the narrative: "At this time, 709 cases have been confirmed
 /// since late January" / "159 cases have been identified". Exactly one match is accepted;
-/// zero or several is reported, not guessed.
-fn narrative_total(text: &str, issues: &mut Vec<String>) -> Option<u32> {
+/// zero or several is reported, not guessed. The second value is the verb DSHS used
+/// (`confirmed` or `identified`): only the former labels the total as confirmed cases.
+fn narrative_total(text: &str, issues: &mut Vec<String>) -> Option<(u32, &'static str)> {
     let words: Vec<&str> = text.split_whitespace().collect();
     let mut found = Vec::new();
     for w in words.windows(5) {
@@ -213,10 +214,12 @@ fn narrative_total(text: &str, issues: &mut Vec<String>) -> Option<u32> {
         if w[1] == "cases"
             && w[2] == "have"
             && w[3] == "been"
-            && (w[4].starts_with("confirmed") || w[4].starts_with("identified"))
+            && let Some(verb) = ["confirmed", "identified"]
+                .into_iter()
+                .find(|verb| w[4].starts_with(verb))
             && let Ok(n) = w[0].trim_start_matches(',').replace(',', "").parse::<u32>()
         {
-            found.push(n);
+            found.push((n, verb));
         }
     }
     match found.as_slice() {
@@ -226,7 +229,8 @@ fn narrative_total(text: &str, issues: &mut Vec<String>) -> Option<u32> {
             None
         }
         many => {
-            issues.push(format!("several case totals in the narrative: {many:?}"));
+            let totals: Vec<u32> = many.iter().map(|(n, _)| *n).collect();
+            issues.push(format!("several case totals in the narrative: {totals:?}"));
             None
         }
     }
@@ -283,7 +287,7 @@ pub fn parse_html_report(body: &[u8], retrieval: &Retrieval) -> Result<Report> {
     };
 
     let outbreak_total = match (&outbreak_counties, narrative_total) {
-        (Some(t), Some(n)) => {
+        (Some(t), Some((n, _))) => {
             if t.total.is_some_and(|tt| tt != n) {
                 issues.push(format!(
                     "narrative total {n} differs from the table's Total {:?}",
@@ -293,9 +297,20 @@ pub fn parse_html_report(body: &[u8], retrieval: &Retrieval) -> Result<Report> {
             Some(n)
         }
         (Some(t), None) => t.total,
-        (None, n) => n,
+        (None, n) => n.map(|(n, _)| n),
     };
-    let confirmed_basis = outbreak_total.and_then(|n| html_confirmed_basis(content, n));
+    // A "... Confirmed Cases ..." table adding up to the total establishes the counted
+    // population as confirmed cases; failing that, the narrative sentence that states the
+    // total does when its verb is "confirmed" ("N cases have been confirmed since late
+    // January"), not "identified". Neither: no basis.
+    let confirmed_basis = outbreak_total
+        .and_then(|n| html_confirmed_basis(content, n))
+        .or_else(|| match narrative_total {
+            Some((n, "confirmed")) => Some(format!(
+                "narrative sentence \"{n} cases have been confirmed\" states the outbreak total"
+            )),
+            _ => None,
+        });
     if let Some(t) = &outbreak_counties {
         check_table(t, &mut issues);
     }

@@ -22,7 +22,7 @@ fn vintage(report_date: &str, first_seen_at: &str, cumulative: u32) -> ReportVin
         report_date: NaiveDate::parse_from_str(report_date, "%Y-%m-%d").unwrap(),
         first_seen_at: at(first_seen_at),
         cumulative,
-        case_definition: CaseDefinition::Confirmed,
+        case_definition: Some(CaseDefinition::Confirmed),
         provenance: Provenance {
             source_id: "synthetic-vintage-test".into(),
             url: format!("https://example.test/{report_date}"),
@@ -51,6 +51,14 @@ fn synthetic() -> Vec<ReportVintage> {
         vintage("2025-04-04", "2025-04-05T03:00:00Z", 202),
         vintage("2025-04-08", "2025-04-09T07:00:00Z", 230),
     ]
+}
+
+/// The synthetic versions with the 03-21 total unlabelled (as the DSHS pages that say
+/// "cases have been identified" rather than "confirmed").
+fn with_unlabelled() -> Vec<ReportVintage> {
+    let mut v = synthetic();
+    v[5].case_definition = None;
+    v
 }
 
 fn week(n: u8) -> MmwrWeek {
@@ -106,6 +114,36 @@ fn weekly_counts_come_from_each_weeks_last_version() {
             .iter()
             .all(|r| r.case_definition == CaseDefinition::Confirmed)
     );
+}
+
+#[test]
+fn an_unlabelled_version_still_bounds_its_week_but_yields_no_confirmed_count() {
+    let s = weekly_from_vintages(texas(), &with_unlabelled(), None).unwrap();
+    let by_week: Vec<(MmwrWeek, CaseCount)> = s.rows.iter().map(|r| (r.week, r.cases)).collect();
+    // Week 12's last version (03-21) is unlabelled: week 12 (it ends there) and week 13
+    // (it starts there) are ambiguous; the 03-18 version is not promoted to "last of week".
+    assert_eq!(by_week[2].0, week(12));
+    assert_eq!(by_week[3].0, week(13));
+    for (_, cases) in &by_week[2..4] {
+        assert_eq!(
+            *cases,
+            CaseCount::Missing {
+                reason: MissingReason::Ambiguous
+            }
+        );
+    }
+    assert_eq!(by_week[1], (week(11), CaseCount::Reported { count: 40 }));
+    assert!(
+        s.rows
+            .iter()
+            .all(|r| r.case_definition == CaseDefinition::Confirmed)
+    );
+    // A series with no labelled version has no definition at all.
+    let mut none = synthetic();
+    for v in &mut none {
+        v.case_definition = None;
+    }
+    assert!(weekly_from_vintages(texas(), &none, None).is_err());
 }
 
 #[test]
@@ -282,17 +320,20 @@ fn manifest_fixture_parses_into_confirmed_outbreak_totals() {
         "synthetic-vintage-fixture"
     );
     assert_eq!(vintages[0].provenance.sha256.as_str(), &"cd".repeat(32));
-    assert!(
-        vintages
-            .iter()
-            .all(|v| v.case_definition == CaseDefinition::Confirmed)
+    // Three versions are labelled confirmed; the one without a basis is unlabelled.
+    let labelled: Vec<Option<CaseDefinition>> =
+        vintages.iter().map(|v| v.case_definition).collect();
+    assert_eq!(
+        labelled,
+        vec![
+            Some(CaseDefinition::Confirmed),
+            None,
+            Some(CaseDefinition::Confirmed),
+            Some(CaseDefinition::Confirmed)
+        ]
     );
 
-    // A version without a confirmed basis is refused, not read as confirmed.
     let mut doc: serde_json::Value = serde_json::from_str(raw).unwrap();
-    doc["entries"][1]["confirmed_basis"] = serde_json::Value::Null;
-    let err = outbreak_total_vintages(&doc.to_string()).unwrap_err();
-    assert!(matches!(err, ManifestError::Entry { .. }), "{err}");
     doc["manifest_version"] = serde_json::json!(2);
     assert!(matches!(
         outbreak_total_vintages(&doc.to_string()).unwrap_err(),

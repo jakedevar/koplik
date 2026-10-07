@@ -13,11 +13,13 @@
 //! `first_seen_at`); a week is *complete* only when a known version is dated in a later
 //! week, so a week still being reported never gets a partial count. For a complete week
 //! `W` whose previous week `W-1` also has a version, the count is
-//! `cumulative(W) - cumulative(W-1)`, `reported` when it does not fall and
-//! `missing:ambiguous` when it does (cases removed or reclassified); when `W-1` has no
-//! version the count cannot be assigned to one week and is `missing:not_reported`. Weeks
-//! with no version get no row (missing). Counts are by **report date**, not symptom
-//! onset: they say when the source published the cases.
+//! `cumulative(W) - cumulative(W-1)`, `reported` when it does not fall and both versions
+//! label their total with the series' case definition, `missing:ambiguous` when it falls
+//! (cases removed or reclassified) or when either version does not say what it counts (a
+//! total the source did not label is not a confirmed count); when `W-1` has no version the
+//! count cannot be assigned to one week and is `missing:not_reported`. Weeks with no version
+//! get no row (missing). Counts are by **report date**, not symptom onset: they say when
+//! the source published the cases.
 
 use std::collections::BTreeMap;
 
@@ -37,8 +39,9 @@ pub struct ReportVintage {
     pub first_seen_at: DateTime<Utc>,
     /// The cumulative count the version states.
     pub cumulative: u32,
-    /// What the count counts.
-    pub case_definition: CaseDefinition,
+    /// What the count counts, when the version's own labelling says so; `None` when it does
+    /// not (the version still marks its week's last report, but its count is unusable).
+    pub case_definition: Option<CaseDefinition>,
     /// Provenance of the snapshot the version was read from.
     pub provenance: Provenance,
 }
@@ -51,6 +54,8 @@ pub enum VintageError {
     Provenance(#[from] ProvenanceError),
     #[error("vintages mix case definitions")]
     MixedCaseDefinition,
+    #[error("no vintage labels its count: the series has no case definition")]
+    NoCaseDefinition,
 }
 
 /// The series known at `known_at` (every version when `None`).
@@ -73,17 +78,21 @@ pub fn weekly_from_vintages(
     vintages: &[ReportVintage],
     known_at: Option<DateTime<Utc>>,
 ) -> Result<KnownSeries, VintageError> {
+    // The series' definition comes from the labelled versions (all of them, not only the
+    // known ones, so the rows carry one definition whatever the cutoff).
+    let mut definition = None;
+    for v in vintages {
+        match (definition, v.case_definition) {
+            (None, Some(d)) => definition = Some(d),
+            (Some(a), Some(b)) if a != b => return Err(VintageError::MixedCaseDefinition),
+            _ => {}
+        }
+    }
+    let definition = definition.ok_or(VintageError::NoCaseDefinition)?;
     let known: Vec<&ReportVintage> = vintages
         .iter()
         .filter(|v| known_at.is_none_or(|t| v.first_seen_at <= t))
         .collect();
-    if let Some(first) = known.first()
-        && known
-            .iter()
-            .any(|v| v.case_definition != first.case_definition)
-    {
-        return Err(VintageError::MixedCaseDefinition);
-    }
     // Last version per week: latest report date, then latest first-seen time.
     let mut by_week: BTreeMap<MmwrWeek, &ReportVintage> = BTreeMap::new();
     for v in &known {
@@ -108,7 +117,8 @@ pub fn weekly_from_vintages(
         let previous = by_week.get(&week.prev()?);
         let (cases, provenance) = match previous {
             Some(p) => {
-                let cases = if v.cumulative >= p.cumulative {
+                let labelled = v.case_definition.is_some() && p.case_definition.is_some();
+                let cases = if labelled && v.cumulative >= p.cumulative {
                     CaseCount::Reported {
                         count: v.cumulative - p.cumulative,
                     }
@@ -134,7 +144,7 @@ pub fn weekly_from_vintages(
             geography,
             week,
             cases,
-            case_definition: v.case_definition,
+            case_definition: definition,
             provenance,
         });
     }

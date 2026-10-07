@@ -2,7 +2,7 @@
 date: 2026-10-07
 issue: 1361
 topic: 4-8 week forecast and its backtest on the 2025 West Texas measles outbreak
-status: method pre-registered (this section was written and committed before any score was computed); results appended below once run
+status: method pre-registered at commit 705bd94 (before any score was computed); results measured at the run recorded below
 ---
 
 # Forecast backtest: 2025 West Texas outbreak
@@ -93,3 +93,102 @@ forecast, a missing origin is insufficient even when later weeks exist) and on r
 version first seen after the cutoff is unknown even when dated before it); the Poisson
 sampler against the exact pmf; determinism (same seed bit-identical, other seeds and
 geographies differ).
+
+## Data actually available (measured)
+
+Manifest `data/dshs/vintage-manifest.json`, SHA-256
+`00ce05dd4730969da533bf1de684f07db8ae9485785912d28a9007f4f2b90a25`, 40 versions. Three
+things decide how much of the outbreak can be forecast, and none of them is a modelling
+choice:
+
+1. The archived page versions start on 2025-03-04, so week 10 (the first) cannot be split
+   and the first weekly count is week 11.
+2. The four dashboard-only versions of 2025-03-28 to 04-08 state their total as "cases have
+   been *identified*", not "confirmed". They keep their place as each week's last report but
+   their totals carry no case definition, so weeks 13, 14 and 15 are `missing:ambiguous`.
+   (The 26 later dashboard-only versions say "have been confirmed"; this run needed the
+   ingest crate to record that sentence as the version's `confirmed_basis`, which it now
+   does; the manifest was regenerated from the same snapshots and differs only in those 26
+   fields. The 03-28..04-08 pages were checked by reading each version's snapshot.)
+3. Nothing after the 2025-08-12 version until the 2025-11-24 PDF (same total, 762), so the
+   truth ends at week 33.
+
+Weekly truth (confirmed outbreak cases by report week): W11 61, W12 50, W13-15 missing,
+W16 56, W17 49, W18 37, W19 26, W20 9, W21 10, W22 10, W23 4, W24 2, W25 6, W26 0, W27 3,
+W28 0, W29 9, W30-33 0.
+
+With a 3-week window and a 3-week look-back that must be fully known, the first possible
+origin is **week 21** (2025-05-18 to 05-24): the March-April growth phase, where a forecast
+would matter most, is not forecastable from this data (follow-up #1445: parse the
+January-March DSHS news releases). After week 25 the window holds fewer than 11 cases most
+weeks, so those origins are `insufficient_data`, as the published R_t would be.
+
+Forecast dates: 48 Wednesdays from 2025-03-12 to 2026-02-04. Forecasts were made on 7 of
+them, from 5 distinct origins (a forecast date whose latest complete week has not advanced
+repeats the previous forecast; 06-11 repeats 06-04's origin W22 and 07-30 repeats 07-23's
+W29, and both are counted as the protocol says, so those two origins carry double weight):
+
+| forecast date | origin | window cases | R mean [90%] |
+|---|---|---|---|
+| 2025-05-28 | W21 | 45 | 0.47 [0.36, 0.58] |
+| 2025-06-04 | W22 | 29 | 0.47 [0.34, 0.62] |
+| 2025-06-11 | W22 | 29 | (same forecast) |
+| 2025-06-18 | W23 | 24 | 0.61 [0.43, 0.83] |
+| 2025-06-25 | W24 | 16 | 0.60 [0.38, 0.86] |
+| 2025-07-23 | W29 | 12 | 1.90 [1.12, 2.84] |
+| 2025-07-30 | W29 | 12 | (same forecast) |
+
+## Results (exactly as measured)
+
+Run: commit of this report, `~/.rsi/bin/cargo-slot cargo run -p koplik-epi --example backtest_west_texas -- data/dshs/vintage-manifest.json data/reports/backtest/west-texas-2025.json`
+(deterministic; the JSON holds every scored target).
+
+**Primary, pre-registered** (window 3 wk, look-back 3 wk, min cases 11, 1,000 members, seed 20250101):
+
+| horizon | n | mean CRPS (cases) | 50% coverage | 90% coverage | persistence MAE |
+|---|---|---|---|---|---|
+| 1 | 7 | 2.83 | 0.29 | 0.43 | 5.14 |
+| 2 | 7 | 3.86 | 0.57 | 0.71 | 6.29 |
+| 3 | 7 | 5.03 | 0.14 | 0.43 | 5.57 |
+| 4 | 7 | 6.66 | 0.57 | 0.57 | 6.43 |
+| 5 | 5 | 2.37 | 0.40 | 0.80 | 7.00 |
+| 6 | 5 | 1.91 | 0.60 | 0.80 | 6.80 |
+| 7 | 5 | 3.36 | 0.60 | 0.60 | 3.60 |
+| 8 | 5 | 1.75 | 0.80 | 0.80 | 5.40 |
+| **all** | **48** | **3.66** | **0.48** | **0.62** | **5.79** |
+
+Reading: on the tail of the outbreak (weekly counts 0-10), the forecast's CRPS of 3.7 cases
+beats carrying the last count forward (5.8), but its intervals are too narrow: the 90%
+interval covered 62% of the truths (nominal 90%), the 50% interval 48%. That is the
+under-dispersion the method section anticipated for Poisson offspring with a constant `R`;
+the week-29 origin (a late cluster of 9 cases after two zero weeks, `R` ≈ 1.9) then
+over-projects the following zero weeks. Horizons 5-8 look better than 1-4 only because the
+week-29 origin has no truth beyond week 33 and drops out of them.
+
+**Window sensitivity**, reported in full. These were run after the primary and do not change
+it; they say how much the result depends on the one pre-registered choice. Different windows
+also change *which* origins pass the 11-case threshold (hence the different `n`), so the
+rows are not like-for-like:
+
+| window | n | mean CRPS | 50% coverage | 90% coverage | persistence MAE |
+|---|---|---|---|---|---|
+| 1 wk | 8 | 2.49 | 0.38 | 0.88 | 20.50 |
+| 2 wk | 32 | 2.09 | 0.44 | 0.88 | 5.75 |
+| **3 wk (primary)** | **48** | **3.66** | **0.48** | **0.62** | **5.79** |
+| 4 wk | 63 | 2.15 | 0.56 | 0.71 | 4.40 |
+
+Per-horizon sensitivity tables are in the JSON (`sensitivity_window`).
+
+## What this does and does not show
+
+- It is an honest, real-time-by-vintage score of a simple cited method on the tail of one
+  outbreak: 5 distinct origins, 48 scored targets. It is far too small to rank methods or to
+  claim calibration; it is enough to say the intervals are too narrow and to ship the number.
+- It says nothing about forecasting the growth phase, county-level spread, or symptom-onset
+  incidence: the data for those is not held (#1402, #1445).
+- Nothing was tuned: the window, look-back, threshold, prior, serial interval, member count
+  and seed were fixed and committed before this section existed, and the sensitivity rows
+  were not used to change the primary.
+- Next steps that would be legitimate *before* re-scoring: negative-binomial offspring with a
+  dispersion cited from the measles literature; a time-varying `R` over the horizon; the
+  January-March series (#1445). Each would be pre-registered the same way.

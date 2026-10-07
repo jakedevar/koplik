@@ -52,7 +52,7 @@
       "format": "html_narrative_only",
       "outbreak_total": 223,
       "county_detail": false,
-      "confirmed_basis": "synthetic: labelled confirmed",
+      "confirmed_basis": null,
       "county_rows": 0,
       "data_as_of": null,
       "first_seen_at": "2025-03-12T19:05:52Z",

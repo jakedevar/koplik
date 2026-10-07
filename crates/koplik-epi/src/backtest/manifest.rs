@@ -39,8 +39,8 @@ struct Entry {
     outbreak_total: u32,
     first_seen_at: DateTime<Utc>,
     first_snapshot: Snapshot,
-    /// The manifest's statement of how the version labels its count; the backtest only
-    /// accepts versions the ingest crate marked as confirmed cases.
+    /// The manifest's statement of how the version labels its count; absent when the
+    /// ingest crate found no labelling.
     #[serde(default)]
     confirmed_basis: Option<String>,
 }
@@ -54,8 +54,10 @@ struct Snapshot {
     licence_id: String,
 }
 
-/// Parse a manifest into outbreak-total vintages in `first_seen_at` order. An entry
-/// without a `confirmed_basis` is refused: the backtest counts confirmed cases only.
+/// Parse a manifest into outbreak-total vintages in `first_seen_at` order. An entry with a
+/// `confirmed_basis` counts confirmed cases; one without keeps its place as a report
+/// version but its total is unlabelled (`case_definition: None`), so the weeks it bounds
+/// are `missing:ambiguous` rather than confirmed counts.
 pub fn outbreak_total_vintages(json: &str) -> Result<Vec<ReportVintage>, ManifestError> {
     let manifest: Manifest = serde_json::from_str(json)?;
     if manifest.manifest_version != 1 {
@@ -63,14 +65,11 @@ pub fn outbreak_total_vintages(json: &str) -> Result<Vec<ReportVintage>, Manifes
     }
     let mut out = Vec::with_capacity(manifest.entries.len());
     for e in manifest.entries {
-        if e.confirmed_basis.as_deref().unwrap_or("").is_empty() {
-            return Err(ManifestError::Entry {
-                report_date: e.report_date,
-                problem:
-                    "no confirmed_basis: the version does not label its total as confirmed cases"
-                        .into(),
-            });
-        }
+        let case_definition = e
+            .confirmed_basis
+            .as_deref()
+            .filter(|b| !b.is_empty())
+            .map(|_| CaseDefinition::Confirmed);
         let sha256 =
             Sha256Hex::new(e.first_snapshot.sha256).map_err(|err| ManifestError::Entry {
                 report_date: e.report_date,
@@ -80,7 +79,7 @@ pub fn outbreak_total_vintages(json: &str) -> Result<Vec<ReportVintage>, Manifes
             report_date: e.report_date,
             first_seen_at: e.first_seen_at,
             cumulative: e.outbreak_total,
-            case_definition: CaseDefinition::Confirmed,
+            case_definition,
             provenance: Provenance {
                 source_id: e.first_snapshot.source_id,
                 url: e.first_snapshot.url,
