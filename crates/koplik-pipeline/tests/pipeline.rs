@@ -504,6 +504,38 @@ fn live_ingest_refuses_a_blank_contact_and_touches_nothing() {
     }
 }
 
+/// Live ingest resolves its identity through `PoliteConfig::live_from_env` (#1427): a blank
+/// Census contact refuses before any request even when the general contact is set. Proxies point
+/// at an unroutable TEST-NET address and the working directory has no `.env.local`, so a
+/// regression could not reach any real host.
+#[test]
+fn live_ingest_refuses_a_blank_census_contact_and_touches_nothing() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = dir.path().join("snapshots");
+    let work = dir.path().join("work");
+    let out = cli()
+        .current_dir(dir.path())
+        .args(["ingest", "--store"])
+        .arg(&store)
+        .arg("--work")
+        .arg(&work)
+        .env("KOPLIK_CONTACT", "pipeline-test@example.invalid")
+        .env("KOPLIK_CENSUS_CONTACT", " ")
+        .env("HTTP_PROXY", "http://203.0.113.1:9")
+        .env("HTTPS_PROXY", "http://203.0.113.1:9")
+        .env("ALL_PROXY", "http://203.0.113.1:9")
+        .env("NO_PROXY", "")
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert!(err.contains("Census contact"), "{err}");
+    assert!(
+        !store.exists() && !work.exists(),
+        "nothing may be created before the contact check"
+    );
+}
+
 #[test]
 fn cli_runs_every_stage_from_fixtures_offline() {
     let dir = tempfile::tempdir().unwrap();

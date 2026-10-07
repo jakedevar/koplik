@@ -38,7 +38,7 @@ use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
 use koplik_ingest::error::IngestError;
 use koplik_ingest::http::UreqClient;
-use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
+use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
 use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, Retrieval, RetrievalMeta, SnapshotStore, sha256_of};
 use koplik_ingest::{
@@ -424,9 +424,11 @@ fn ingest(config: &Config) -> Result<Manifest> {
 }
 
 fn ingest_live(config: &Config) -> Result<Manifest> {
-    // Identify the client before anything else (KOPLIK_CONTACT, or the operator's default
-    // contact when unset; blank opts out): no contact, no request, no store, no work dir.
-    let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+    // Identify the client before anything else, through the one live entry point (#1427):
+    // KOPLIK_CONTACT (or the default) for every host, and for Census hosts KOPLIK_CENSUS_CONTACT,
+    // else the gitignored .env.local, else the general contact with a notice. A blank or
+    // non-UTF-8 value refuses: no contact, no request, no store, no work dir.
+    let cfg = PoliteConfig::live_from_env()?;
     let last_year = u16::try_from(Utc::now().year()).unwrap_or(cdc::FIRST_YEAR);
     let specs = source_specs(last_year.max(cdc::FIRST_YEAR))?;
     let store = SnapshotStore::open(&config.store)?;
