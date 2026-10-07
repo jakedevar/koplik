@@ -27,7 +27,8 @@ export const caseScales: Record<CaseDefinition, [number, string][]> = {
   confirmed_or_unknown_status: [[0, '#edf4ed'], [1, '#c5ddc3'], [50, '#68a58d'], [100, '#286e66'], [500, '#123f3b']],
   confirmed: [[0, '#eef1f8'], [1, '#c9d3ec'], [50, '#8196cf'], [100, '#46569b'], [500, '#1d2557']],
 };
-const coverageScale: [number, string][] = [[0, '#f3d9a6'], [80, '#ead38a'], [90, '#8db896'], [95, '#357c68'], [100, '#123f3b']];
+/** Low coverage is a light warm tone and high coverage a dark green, ordered by lightness: the first two stops were nearly the same lightness and indistinguishable to tritanopes (palette.test.ts). */
+export const coverageScale: [number, string][] = [[0, '#f7e6bf'], [80, '#e9c97a'], [90, '#8db896'], [95, '#357c68'], [100, '#123f3b']];
 /** The fill expression for the map: coverage has its own scale; each case definition has its own. */
 export function fillColor(metric: Metric, level: 'state' | 'county', definition?: CaseDefinition) {
   const stops = metric === 'coverage' && level === 'state' ? coverageScale : caseScales[definition ?? 'confirmed_or_unknown_status'];

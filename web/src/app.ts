@@ -6,7 +6,7 @@ import { explorerSummary } from './summary';
 import { summarySection } from './summary-view';
 import { footerSources } from './attribution';
 import { mountRouter, pageEvent, pageHash, pageIds, pageTitles, type PageId } from './router';
-import { caseScales, type MapView } from './map-scales';
+import { caseScales, coverageScale, type MapView } from './map-scales';
 import { createLazyMap } from './map-lazy';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
@@ -318,7 +318,11 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const showDefinition = !isCoverage && definitions.length > 0;
     definitionLabel.hidden = definitionSelect.hidden = !showDefinition;
     definitionSelect.disabled = definitions.length < 2;
-    if (isCoverage) legend.append(element('span', 'MMR coverage · 0–100%', 'legend-scale'));
+    if (isCoverage) {
+      const block = element('span', 'MMR coverage · 0–100%', 'legend-scale');
+      block.style.setProperty('--scale', `linear-gradient(90deg, ${coverageScale.map(([, colour]) => colour).join(', ')})`);
+      legend.append(block);
+    }
     else if (definition) {
       const block = element('span', `Reported ${caseDefinitionLabels[definition]} · 0 → 500+`, 'legend-scale');
       block.dataset.caseDefinition = definition;
