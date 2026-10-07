@@ -1,90 +1,53 @@
-import type { Provenance } from './generated/Provenance';
-import { gaines, type Scenario } from './scenario';
+import provenanceSchema from '../../crates/koplik-contracts/schema/v4/ScenarioProvenance.schema.json';
+import type { ScenarioProvenance } from './generated/v4/ScenarioProvenance';
+import { ajv, gaines, type Scenario } from './scenario';
+
+export type { ScenarioProvenance };
 
 /**
- * Companion to the what-if scenario (`data/scenarios/gaines-2025.provenance.json`, #1400):
- * the source of the initial seeding and the citation of every model parameter. It is a
- * pipeline artifact, not a shared data contract; this file is its documented web shape
- * (see web/README.md and `ScenarioProvenance` in crates/koplik-pipeline/src/scenario.rs).
+ * The companion of the what-if scenario (`data/scenarios/gaines-2025.provenance.json`, contract
+ * v4, #1400): the seeding stated as an assumption and the citation of every model parameter.
+ * Its shape is the committed v4 JSON Schema; the cross-checks against the scenario below mirror
+ * `ScenarioProvenance::check_against` in koplik-contracts.
  */
-export interface ScenarioProvenance {
-  artifact_version: 1;
-  scenario: string;
-  statement: string;
-  seed: string;
-  run_count: number;
-  seeding: {
-    rule: string;
-    report_date: string;
-    report_first_seen_at: string;
-    county_name_as_printed: string;
-    cell_as_printed: string;
-    confirmed_basis: string;
-    recorded_confirmed_count: number;
-    reporting_multiplier: number;
-    exposed_per_infectious: number;
-    initial_infectious: number;
-    initial_exposed: number;
-    start_week: { year: number; week: number };
-    provenance: Provenance[];
-    skipped_vintages: { report_date: string; reason: string }[];
-    limitation: string;
-  };
-  parameters: { parameter: string; value: unknown; source: string; url: string | null; note: string }[];
-  nodes: { geography: string; name: string; population: number; population_basis: string; centroid_basis: string; coverage_school_year: string; coverage_basis: string }[];
-  excluded_nodes: { geography: string; name: string; reason: string }[];
-  neighbourhood_note: string;
-}
+const validate = ajv.compile(provenanceSchema);
 
 const fail = (message: string): never => { throw new Error(`Invalid scenario provenance: ${message}`); };
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
-const text = (value: unknown, name: string): string => (typeof value === 'string' && value.trim() ? value : fail(`${name} must be non-empty text`));
-const count = (value: unknown, name: string): number => (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : fail(`${name} must be a whole number`));
 // Compare as data, not as text: JSON object key order carries no meaning.
 const canonical = (value: unknown): string => JSON.stringify(value, (_key, v: unknown) => (isObject(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : v));
 const same = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);
+const blank = (value: string) => !value.trim();
 
 /** Parse the companion and check it describes `scenario`: a mismatched pair is refused, not shown. */
 export function parseScenarioProvenance(raw: string, scenario: Scenario): ScenarioProvenance {
   const value: unknown = JSON.parse(raw);
-  if (!isObject(value)) return fail('not an object');
-  if (value.artifact_version !== 1) fail('artifact_version must be 1');
-  text(value.statement, 'statement');
-  if (value.seed !== scenario.seed) fail('seed does not match the scenario');
-  if (value.run_count !== scenario.run_count) fail('run_count does not match the scenario');
-  const seeding = value.seeding;
-  if (!isObject(seeding)) return fail('seeding missing');
-  for (const name of ['rule', 'report_date', 'report_first_seen_at', 'county_name_as_printed', 'cell_as_printed', 'confirmed_basis', 'limitation'] as const) text(seeding[name], `seeding.${name}`);
-  count(seeding.recorded_confirmed_count, 'seeding.recorded_confirmed_count');
-  const node = scenario.nodes.find((n) => n.id === gaines)!;
-  if (seeding.initial_infectious !== node.initial_infectious || seeding.initial_exposed !== node.initial_exposed) fail('seeding does not match the scenario');
-  if (!same(seeding.start_week, scenario.start_week)) fail('start week does not match the scenario');
-  if (typeof seeding.reporting_multiplier !== 'number' || typeof seeding.exposed_per_infectious !== 'number') fail('seeding multipliers must be numbers');
-  const records = seeding.provenance;
-  if (!Array.isArray(records) || !records.length) fail('seeding needs at least one source record');
-  for (const record of records as unknown[]) {
-    if (!isObject(record)) return fail('source record is not an object');
-    for (const name of ['source_id', 'url', 'retrieved_at', 'sha256', 'licence_id']) text(record[name], `source record ${name}`);
+  if (!validate(value)) return fail(ajv.errorsText(validate.errors));
+  const provenance = value as unknown as ScenarioProvenance;
+  if (provenance.contract_version !== 4) fail('contract_version must be 4');
+  for (const [name, text] of [['statement', provenance.statement], ['neighbourhood_note', provenance.neighbourhood_note], ['seeding.assumption', provenance.seeding.assumption], ['seeding.start_week_basis', provenance.seeding.start_week_basis], ['seeding.limitation', provenance.seeding.limitation]] as const) {
+    if (blank(text)) fail(`${name} must not be empty`);
   }
-  if (!Array.isArray(seeding.skipped_vintages)) fail('skipped_vintages must be a list');
-  for (const skipped of seeding.skipped_vintages as unknown[]) { if (!isObject(skipped)) fail('skipped vintage is not an object'); text((skipped as Record<string, unknown>).report_date, 'skipped vintage date'); text((skipped as Record<string, unknown>).reason, 'skipped vintage reason'); }
-  const parameters = value.parameters;
-  if (!Array.isArray(parameters)) return fail('parameters missing');
+  if (provenance.seed !== scenario.seed) fail('seed does not match the scenario');
+  if (provenance.run_count !== scenario.run_count) fail('run_count does not match the scenario');
+  if (!same(provenance.seeding.start_week, scenario.start_week)) fail('start week does not match the scenario');
+  const seeded = scenario.nodes.find((n) => n.id === provenance.seeding.geography);
+  if (!seeded) fail('the seeded geography is not a node of the scenario');
+  if (seeded!.initial_infectious !== provenance.seeding.initial_infectious || seeded!.initial_exposed !== provenance.seeding.initial_exposed) fail('seeding does not match the scenario');
+  if (scenario.nodes.some((n) => n.id !== provenance.seeding.geography && (n.initial_infectious > 0 || n.initial_exposed > 0))) fail('another node is seeded');
+  if (provenance.nodes.length !== scenario.nodes.length || provenance.nodes.some((n, i) => n.geography !== scenario.nodes[i].id || n.population !== scenario.nodes[i].population)) fail('nodes do not match the scenario');
+  if (provenance.seeding.geography !== gaines) fail('the panel needs the introduction in Gaines County');
   const stated = scenario.parameters as unknown as Record<string, unknown>;
   const cited = new Set<string>();
-  for (const parameter of parameters as unknown[]) {
-    if (!isObject(parameter)) return fail('parameter is not an object');
-    const name = text(parameter.parameter, 'parameter name');
-    if (!(name in stated)) fail(`${name} is not a scenario parameter`);
-    if (!same(parameter.value, stated[name])) fail(`${name} does not match the scenario`);
-    text(parameter.source, `${name} source`); text(parameter.note, `${name} note`);
-    if (parameter.url !== null && typeof parameter.url !== 'string') fail(`${name} url must be text or null`);
-    cited.add(name);
+  for (const parameter of provenance.parameters) {
+    if (!(parameter.parameter in stated)) fail(`${parameter.parameter} is not a scenario parameter`);
+    if (!same(parameter.value, stated[parameter.parameter])) fail(`${parameter.parameter} does not match the scenario`);
+    if (blank(parameter.source) || blank(parameter.note)) fail(`${parameter.parameter} needs a source and a note`);
+    if (cited.has(parameter.parameter)) fail(`${parameter.parameter} is cited twice`);
+    cited.add(parameter.parameter);
   }
   for (const name of Object.keys(stated)) if (!cited.has(name)) fail(`${name} has no citation`);
-  if (!Array.isArray(value.nodes) || !Array.isArray(value.excluded_nodes)) fail('nodes and excluded_nodes must be lists');
-  text(value.neighbourhood_note, 'neighbourhood_note');
-  return value as unknown as ScenarioProvenance;
+  return provenance;
 }
 
 export async function loadScenarioProvenance(base: string, scenario: Scenario, synthetic = false, read: typeof fetch = fetch): Promise<ScenarioProvenance | null> {

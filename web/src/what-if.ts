@@ -31,10 +31,12 @@ interface Options {
 
 export function mountWhatIf(main: HTMLElement, options: Options): () => void {
   const panel = element('section', undefined, 'panel what-if');
-  panel.setAttribute('aria-label', 'Gaines County 2025 what-if');
-  panel.append(element('h2', 'What if? · Gaines County, Texas · 2025'),
+  panel.setAttribute('aria-label', 'Gaines County hypothetical introduction what-if');
+  // Replaced by the scenario's own statement once its provenance companion has loaded.
+  const hypothetical = element('p', 'Hypothetical: a stated introduction into Gaines County, given its population and kindergarten MMR coverage. This is not a reconstruction or forecast of the 2025 outbreak.', 'notice hypothetical');
+  panel.append(element('h2', 'What if? · Gaines County, Texas · hypothetical introduction'),
     element('p', 'illustrative model scenario, not a prediction', 'notice'),
-    element('p', 'A what-if tool, not a fitted model: it starts from a reported case count and published parameters, and was never adjusted to match how the outbreak actually unfolded.', 'notice'));
+    hypothetical);
   if (options.synthetic) panel.append(element('p', 'SYNTHETIC MODEL INPUTS · Artificial seven-county fixture for development only; coverage, population and seeding are invented.', 'synthetic notice'));
   const status = element('p', 'Loading scenario data…', 'what-if-status');
   status.setAttribute('role', 'status');
@@ -78,7 +80,7 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
       label: 'Gaines County simulated cumulative infections · 1,000-run ensemble', synthetic: options.synthetic,
       records: uniqueProvenance(replayInput.nodes.flatMap((node) => [...node.provenance,
         ...(node.baseline_coverage.status === 'reported' ? node.baseline_coverage.provenance : [])])),
-      note: 'Derived from the exact replay scenario, across all its counties. These are all source records linked to node population, centroids and baseline coverage. The initial seeding is sourced in the scenario provenance companion (the DSHS report it came from) and each parameter is cited there to its published source; neither is an observation of what happens next in this county. Coverage overrides are your own what-if choices. The seed, seeding and parameters appear on the panel.',
+      note: 'Derived from the exact replay scenario, across all its counties. These are all source records linked to node population, centroids and baseline coverage. The initial seeding is a stated assumption of the hypothetical (one introduced infectious person), not data, and each parameter is cited to its published source in the scenario provenance companion; none is an observation of this county. Coverage overrides are your own what-if choices. The seed, seeding and parameters appear on the panel.',
     };
     const fingerprint = element('code', result.fingerprint);
     fingerprint.className = 'engine-fingerprint';
@@ -196,20 +198,20 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     for (const record of measured.status === 'reported' ? measured.provenance : node.provenance) sources.append(sourceLine(record));
 
     const seeding = provenance.seeding;
+    hypothetical.textContent = provenance.statement;
     const seedingInfo: ProvenanceInfo = {
-      label: `Initial seeding · ${seeding.initial_infectious} infectious`, records: seeding.provenance, synthetic: options.synthetic,
-      note: `${options.synthetic ? 'Synthetic fixture seeding. ' : ''}DSHS report dated ${seeding.report_date} recorded "${seeding.cell_as_printed}" for ${seeding.county_name_as_printed}. ${seeding.confirmed_basis}. Reporting multiplier ${seeding.reporting_multiplier}${seeding.reporting_multiplier === 1 ? ' (no correction for under-reporting)' : ''}. ${seeding.limitation}`,
+      label: `Introduced into the scenario · ${seeding.initial_infectious} infectious`, records: [], synthetic: options.synthetic,
+      note: `${options.synthetic ? 'Synthetic fixture seeding. ' : ''}A stated assumption, not data. ${seeding.assumption} ${seeding.limitation}`,
+      citations: [{ source: 'Stated assumption of the hypothetical, not a source observation', note: seeding.assumption }],
     };
-    const seedingLine = element('p', 'Seeded with ');
-    seedingLine.append(provenanceNumber(`${seeding.initial_infectious} infectious`, seedingInfo), document.createTextNode(` and ${seeding.initial_exposed} exposed in Gaines County from the report DSHS dated ${seeding.report_date}, which recorded ${seeding.recorded_confirmed_count} confirmed cases${seeding.reporting_multiplier === 1 ? ' (taken as recorded, no correction for under-reporting)' : ` (multiplied by ${seeding.reporting_multiplier})`}. `));
-    seedingLine.append(element('span', seeding.limitation));
+    const seedingLine = element('p', 'Introduced at the start: ');
+    seedingLine.append(provenanceNumber(`${seeding.initial_infectious} infectious`, seedingInfo),
+      document.createTextNode(` and ${seeding.initial_exposed} exposed in Gaines County (a stated assumption, not data). `), element('span', seeding.limitation));
     const seedingDetails = element('details');
-    seedingDetails.append(element('summary', 'How the scenario is seeded, and its sources'), element('p', provenance.statement), element('p', `Rule: ${seeding.rule}`),
-      element('p', `The report's own labelling that makes these counts confirmed cases: ${seeding.confirmed_basis}. First seen ${seeding.report_first_seen_at}.`));
-    for (const skipped of seeding.skipped_vintages) seedingDetails.append(element('p', `Earlier report ${skipped.report_date} was not used: ${skipped.reason}.`));
-    seedingDetails.append(element('p', provenance.neighbourhood_note));
+    seedingDetails.append(element('summary', 'How the scenario is seeded, and what it leaves out'), element('p', provenance.statement), element('p', `Assumption: ${seeding.assumption}`),
+      element('p', `Start week MMWR ${seeding.start_week.year} W${seeding.start_week.week}: ${seeding.start_week_basis}`), element('p', `Limits: ${seeding.limitation}`), element('p', provenance.neighbourhood_note));
     for (const excluded of provenance.excluded_nodes) seedingDetails.append(element('p', `${excluded.name} (${excluded.geography}) is not simulated: ${excluded.reason}.`));
-    for (const record of seeding.provenance) seedingDetails.append(sourceLine(record));
+    for (const input of provenance.nodes) seedingDetails.append(element('p', `${input.name} (${input.geography}): population ${input.population}, ${input.population_basis}. Centroid: ${input.centroid_basis}. Coverage ${input.coverage_school_year}: ${input.coverage_basis}.`));
 
     const parameters = element('details');
     const parameterJson = element('pre', JSON.stringify(loaded.parameters, null, 2));

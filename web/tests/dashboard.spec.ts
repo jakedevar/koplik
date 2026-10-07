@@ -76,8 +76,8 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
 
   // The panel says what it is, shows how it was seeded, and cites every parameter.
   const panel = page.locator('.what-if');
-  await expect(panel).toContainText('A what-if tool, not a fitted model');
-  await expect(panel.locator('.what-if-metadata')).toContainText('Seeded with 5 infectious and 5 exposed in Gaines County');
+  await expect(panel.locator('.hypothetical')).toContainText('This is not a reconstruction or forecast of the 2025 outbreak');
+  await expect(panel.locator('.what-if-metadata')).toContainText('Introduced at the start: 5 infectious and 5 exposed in Gaines County (a stated assumption, not data)');
   await panel.getByText('Model parameters and their sources', { exact: true }).click();
   await expect(panel.locator('.parameter-citations tbody tr')).toHaveCount(8);
   await panel.locator('.parameter-citations tbody tr').first().getByRole('button').click();

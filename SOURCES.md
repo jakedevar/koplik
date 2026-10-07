@@ -482,19 +482,25 @@ Statewide Texas population is **31,709,821**. No population or coordinate is imp
 
 ## What-if scenario inputs (`scenarios/gaines-2025.json`, #1455)
 
-`koplik-pipeline validate` builds the Gaines County 2025 what-if scenario (a v1 `ScenarioInput`)
-and its companion `scenarios/gaines-2025.provenance.json` (#1400) from store snapshots only, by a
-rule committed before it was first run (`crates/koplik-pipeline/src/scenario.rs`). Nothing is fitted
-to the outbreak; the panel says so in plain words.
+`koplik-pipeline validate` builds the Gaines County what-if scenario (a v1 `ScenarioInput`) and
+its companion `scenarios/gaines-2025.provenance.json` (contract v4, #1400) from store snapshots
+only, by a rule committed before it was first built (`crates/koplik-pipeline/src/scenario.rs`).
+The scenario is a **hypothetical introduction**: what could happen if one infectious person
+arrived in Gaines County. It is not a reconstruction or forecast of the 2025 outbreak, not
+fitted to it, and no DSHS report is an input (a cumulative confirmed count is not current
+infectious prevalence, and the retained vintages are 21 days apart or more, so a data-derived
+seeding of the historical outbreak is not possible from what is held).
 
 | Scenario input | Source and rule |
 | --- | --- |
-| Population | `census-county-population-2025`: `POPESTIMATE2025`, July 1, 2025 (a few months after the start; not back-cast). |
+| Population | `census-county-population-2025`: `POPESTIMATE2025`, July 1, 2025. |
 | Centroid | `census-county-gazetteer-2025`: county internal point, a representative point (also attached to `Geography.centroid`). |
 | Baseline coverage | `texas-dshs-kindergarten-2023`: 2023-24 Texas DSHS kindergarten MMR coverage, as published; a county without a reported row is excluded, never imputed. |
-| Start week, initial infectious | The earliest retained DSHS report vintage that has a confirmed-case county table with a Gaines row (2025-03-04, MMWR 2025-W10, 107 confirmed cases in the fixtures), taken as recorded; reporting multiplier `1.0` (no under-reporting correction), initial exposed `0`. Names map to FIPS through `census-county-codes-2020-wayback`. DSHS counts are cumulative, so seeding them as currently infectious overstates current prevalence; the model is not corrected for it. |
+| Initial infectious, initial exposed | **1 and 0, a stated assumption** (configurable in the pipeline); no source is claimed for them. |
+| Start week | A neutral reference week, also an assumption: the MMWR week containing July 1 of the population estimate's year (2025-W27). The engine has no seasonality, so it only labels day 0. |
 | Parameters | `koplik_epi::default_parameters()` unchanged, each cited in the companion from `koplik_epi::parameter_citations()` (Guerra et al. 2017; CDC Pink Book ch. 13; CDC vaccine considerations; the spec for numerical choices). |
 | Nodes | Gaines County alone: the cited defaults carry no gravity coupling, so a neighbour would be an inert node. A coupled neighbourhood is a configuration (`ScenarioConfig::neighbourhood`) that needs explicit gravity coefficients, none of which has a Texas citation. |
 | Seed, runs | Seed `20250304` (arbitrary, fixed, recorded), 1,000 runs. |
 
-The measured replay against DSHS counts is `thoughts/shared/notes/gaines-2025-scenario-replay.md`.
+The withdrawn replay (rule v1) and its correction are in
+`thoughts/shared/notes/gaines-2025-scenario-replay.md`.

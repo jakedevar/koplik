@@ -121,3 +121,54 @@ scenario was rebuilt or run under it; the full text is the module documentation 
 | Seed, runs | Seed 20250304 (unchanged, arbitrary, recorded), 1,000 runs. |
 | Nodes | Gaines County alone (the cited defaults have no gravity coupling). |
 | DSHS report vintages | Not an input. |
+
+**Housekeeping.** The `scenario_replay` example that produced the rule v1 table above is removed:
+it compared simulated infections with confirmed counts, which the panel no longer does. Rule v1's
+output can be reproduced from commit `4e57c19` (`cargo run --release -p koplik-pipeline --example
+scenario_replay` there). The new `scenario_report` example prints the new scenario's ensemble and
+compares it with nothing.
+
+### Measured output of the hypothetical introduction (rule v2)
+
+Measured once on the fixture-built scenario, after the rule above was committed
+(`wip(#1455): pre-registered hypothetical-introduction seeding (rule v2)`); no input, parameter or
+seed changed afterwards. Reproduce: `make pipeline-fixtures`, then
+`cargo run --release -p koplik-pipeline --example scenario_report`.
+
+What was run: Gaines County alone (FIPS 48165; population 23,956, Census Vintage 2025), baseline
+kindergarten MMR coverage 81.97% (Texas DSHS 2023-24), one infectious person introduced and nobody
+exposed (stated assumptions), reference week 2025-W27 (day 0 = 2025-06-29), `koplik_epi::default_parameters()`
+unchanged (R0 uniform 12 to 18, latent 10 d, infectious 8 d, MMR 97% for two doses, no gravity),
+seed 20250304, 1,000 runs, 180-day horizon.
+
+```text
+scenario: 1 node(s), reference week MMWR 2025-W27 (day 0 = 2025-06-29), seed 20250304, 1000 runs, 1 infectious and 0 exposed introduced into 48165, population 23956
+engine fingerprint (member 0): a319fe2d5fe7619077056606e7027de8a4ff097572e07e60f7a23e3323aa2b5f
+
+simulated cumulative infections in 48165, median [50% band] [90% band]
+ day       date   median                    50%                    90%
+   0 2025-06-29        1          1-1                    1-1          
+  14 2025-07-13        5          2-9                    1-16         
+  28 2025-07-27       14          2-30                   1-67         
+  42 2025-08-10       36          3-100                  1-238        
+  56 2025-08-24      108          3-309                  1-716        
+  70 2025-09-07      304          3-847                  1-1900       
+  84 2025-09-21      784          3-1983                 1-3386       
+  98 2025-10-05     1792          3-3381                 1-4298       
+ 112 2025-10-19     3060          3-4225                 1-4629       
+ 126 2025-11-02     3928          3-4550                 1-4730       
+ 140 2025-11-16     4332          3-4661                 1-4766       
+ 154 2025-11-30     4506          3-4706                 1-4779       
+ 168 2025-12-14     4578          3-4721                 1-4784       
+ 180 2025-12-26     4604          3-4729                 1-4787       
+
+at day 180: 266 of 1000 runs ended with fewer than 10 infections beyond the introduced people; smallest 1, largest 4827, median 4604
+```
+
+Reading it, as measured and nothing more: the introduction fizzles out in 266 of the 1,000 runs
+(fewer than 10 infections beyond the introduced person). In the others it grows to the
+coverage-derived susceptible pool of about 4,800 people (about 20% of the county), which is why
+the median at day 180 (4,604) sits near the top of the range while the 50% band's lower end stays
+at 3. The scenario starts from one assumed person, mixes the county homogeneously and treats
+kindergarten coverage as every resident's immunity; it says what this simple model does under those
+assumptions. It is not compared with reported cases, is not a forecast, and is not a fit.

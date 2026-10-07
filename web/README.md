@@ -149,35 +149,41 @@ Vitest also checks these trees and exercises rejection with contaminated outputs
 If upgrading a sandbox that ran the old generator, remove its generated
 `public/data/synthetic-v1/` and `dist/data/synthetic-v1/` before building.
 
-## Gaines County 2025 what-if panel
+## Gaines County hypothetical-introduction what-if panel
+
+The panel is a **hypothetical introduction**: what could happen if one infectious
+person arrived in Gaines County, given its population and kindergarten MMR coverage.
+It is **not a reconstruction or forecast of the 2025 outbreak** and not a fitted
+model, and nothing in it is compared with reported cases. (The artifact keeps the
+name `gaines-2025` for the 2025 population and coverage vintages it uses.) A
+historical replay was withdrawn because a cumulative DSHS count is not current
+infectious prevalence and the retained report vintages are too far apart to repair
+that; see `thoughts/shared/notes/gaines-2025-scenario-replay.md`.
 
 The pipeline writes `web/public/data/scenarios/gaines-2025.json`: one
-unwrapped **v1 ScenarioInput**, with Gaines FIPS `48165`, a 2025 start week,
-measured (`reported`, `imputed: false`) baseline coverage and its provenance,
-plus population, centroids, initial exposed/infectious counts and all model
+unwrapped **v1 ScenarioInput**, with Gaines FIPS `48165`, a 2025 reference start
+week, measured (`reported`, `imputed: false`) baseline coverage and its provenance,
+plus population, centroid, the introduced infectious/exposed counts (1 and 0 by
+default: a stated assumption, configurable in the pipeline) and all model
 parameters. It is built by a rule committed before its first run
-(`crates/koplik-pipeline/src/scenario.rs`): Gaines alone, seeded with the confirmed
-count of the earliest retained DSHS report that gives one, nothing fitted to the
-outbreak. This artifact is independent of the map artifacts;
-the panel can load even when surveillance reports are unavailable. Missing or
-invalid scenario data leaves a visible unavailable state; there is no production
-fixture fallback.
+(`crates/koplik-pipeline/src/scenario.rs`). This artifact is independent of the
+map artifacts; the panel can load even when surveillance reports are unavailable.
+Missing or invalid scenario data leaves a visible unavailable state; there is no
+production fixture fallback.
 
-Beside it, `gaines-2025.provenance.json` (not a shared data contract; produced and
-checked by the pipeline, parsed by `src/scenario-provenance.ts`) records where the
-seeding came from and cites every parameter (#1400):
-`{ artifact_version: 1, scenario, statement, seed (decimal text), run_count,
-seeding: { rule, report_date, report_first_seen_at, county_name_as_printed,
-cell_as_printed, confirmed_basis, recorded_confirmed_count, reporting_multiplier,
-exposed_per_infectious, initial_infectious, initial_exposed, start_week, provenance[],
-skipped_vintages[], limitation }, parameters: [{ parameter, value, source, url, note }],
-nodes[], excluded_nodes[], neighbourhood_note }`. The panel refuses a scenario whose
-companion is absent or does not describe it (same seed, run count, start week, seeding
-and parameter values), and shows the plain-words statement that this is a what-if
-tool, not a fitted model, the seeding with its source records (click the seeded
-number), and a table citing each parameter (click a value). Parameters are
-literature citations, shown in the provenance drawer as published sources rather than
-snapshot records.
+Beside it, `gaines-2025.provenance.json` (**contract v4** `ScenarioProvenance`,
+schema `crates/koplik-contracts/schema/v4/ScenarioProvenance.schema.json`, types
+generated into `src/generated/v4/`, validated by `src/scenario-provenance.ts`) states
+the seeding as an assumption and cites every parameter (#1400): `{ contract_version: 4,
+scenario, statement, seed (decimal text), run_count, seeding: { geography,
+initial_infectious, initial_exposed, start_week, assumption, start_week_basis,
+limitation }, parameters: [{ parameter, value, source, url, note }], nodes[],
+excluded_nodes[], neighbourhood_note }`. The panel refuses a scenario whose companion
+is absent or does not describe it (same seed, run count, start week, node set,
+seeding and parameter values), shows the companion's statement as its plain-words
+notice, the introduced people marked as a stated assumption (click the number), and a
+table citing each parameter (click a value). Parameters are literature citations,
+shown in the provenance drawer as published sources rather than snapshot records.
 
 The panel starts at Gaines' measured coverage, removes any pre-existing Gaines
 override, and always requests 1,000 runs. Changing the native keyboard-accessible

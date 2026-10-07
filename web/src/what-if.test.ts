@@ -141,25 +141,26 @@ describe('what-if panel', () => {
     expect(dialog.querySelectorAll('.provenance-record')).toHaveLength(0);
     mounted.cleanup(); closeDrawer();
   });
-  it('says in plain words that it is a what-if tool and shows the seeding with its sources and limits', async () => {
+  it('says in plain words that it is a hypothetical introduction and shows the seeding as an assumption', async () => {
     const { main, respond, cleanup } = mount(); await flush(); respond(1);
-    expect(main.textContent).toContain('A what-if tool, not a fitted model');
-    expect(main.textContent).toContain('never adjusted to match how the outbreak actually unfolded');
-    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(`Seeded with ${companion.seeding.initial_infectious} infectious and ${companion.seeding.initial_exposed} exposed in Gaines County`);
+    expect(main.querySelector('.hypothetical')?.textContent).toBe(companion.statement);
+    expect(main.querySelector('h2')?.textContent).toBe('What if? · Gaines County, Texas · hypothetical introduction');
+    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(`Introduced at the start: ${companion.seeding.initial_infectious} infectious and ${companion.seeding.initial_exposed} exposed in Gaines County (a stated assumption, not data).`);
     expect(main.querySelector('.what-if-metadata')?.textContent).toContain(companion.seeding.limitation);
-    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(companion.seeding.rule);
-    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(companion.seeding.provenance[0].sha256);
+    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(companion.seeding.assumption);
+    expect(main.querySelector('.what-if-metadata')?.textContent).toContain(companion.seeding.start_week_basis);
     cleanup();
   });
-  it('opens the seeding number onto its source records and each parameter onto its published citation', async () => {
+  it('opens the seeded number onto its stated assumption and each parameter onto its published citation', async () => {
     const mounted = mount();
     const closeDrawer = mountProvenanceDrawer(mounted.main);
     await flush();
     const dialog = mounted.main.querySelector('dialog')!;
     const seeding = [...mounted.main.querySelectorAll<HTMLButtonElement>('.what-if-metadata .provenance-number')].find((b) => b.textContent === `${companion.seeding.initial_infectious} infectious`)!;
     seeding.click();
-    expect(dialog.querySelectorAll('.provenance-record')).toHaveLength(companion.seeding.provenance.length);
-    expect(dialog.textContent).toContain(companion.seeding.provenance[0].sha256);
+    expect(dialog.querySelectorAll('.provenance-record')).toHaveLength(0);
+    expect(dialog.querySelectorAll('.provenance-citation')).toHaveLength(1);
+    expect(dialog.textContent).toContain('A stated assumption, not data.');
     expect(dialog.textContent).toContain(companion.seeding.limitation);
     dialog.querySelector<HTMLButtonElement>('button')!.click();
     const rows = [...mounted.main.querySelectorAll('.parameter-citations tbody tr')];

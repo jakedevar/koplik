@@ -9,7 +9,7 @@ const scenario = parseScenario(read('../data/fixtures/seir/synthetic-scenario.js
 const raw = read('../data/fixtures/seir/synthetic-scenario.provenance.json');
 const mutate = (change: (value: Record<string, any>) => void) => { const value = JSON.parse(raw); change(value); return JSON.stringify(value); };
 
-describe('scenario provenance companion', () => {
+describe('scenario provenance companion (contract v4)', () => {
   it('accepts a companion that describes the scenario and cites every parameter', () => {
     const provenance = parseScenarioProvenance(raw, scenario);
     expect(provenance.parameters.map((p) => p.parameter)).toEqual(Object.keys(scenario.parameters));
@@ -20,11 +20,19 @@ describe('scenario provenance companion', () => {
     expect(() => parseScenarioProvenance(mutate((v) => { v.seed = '1'; }), scenario)).toThrow('seed does not match');
     expect(() => parseScenarioProvenance(mutate((v) => { v.seeding.initial_infectious += 1; }), scenario)).toThrow('seeding does not match');
     expect(() => parseScenarioProvenance(mutate((v) => { v.seeding.start_week.week += 1; }), scenario)).toThrow('start week does not match');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.seeding.geography = '48003'; }), scenario)).toThrow('seeding does not match');
     expect(() => parseScenarioProvenance(mutate((v) => { v.parameters[0].value = { kind: 'fixed', value: 15 }; }), scenario)).toThrow('does not match the scenario');
     expect(() => parseScenarioProvenance(mutate((v) => { v.parameters.pop(); }), scenario)).toThrow('has no citation');
-    expect(() => parseScenarioProvenance(mutate((v) => { v.parameters[1].source = ''; }), scenario)).toThrow('source must be non-empty text');
-    expect(() => parseScenarioProvenance(mutate((v) => { v.seeding.provenance = []; }), scenario)).toThrow('at least one source record');
-    expect(() => parseScenarioProvenance(mutate((v) => { v.artifact_version = 2; }), scenario)).toThrow('artifact_version must be 1');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.parameters[1].source = ' '; }), scenario)).toThrow('needs a source and a note');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.nodes.pop(); }), scenario)).toThrow('nodes do not match');
+  });
+
+  it('refuses a companion that breaks the committed v4 schema', () => {
+    expect(() => parseScenarioProvenance(mutate((v) => { v.contract_version = 3; }), scenario)).toThrow('Invalid scenario provenance');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.seed = '01353'; }), scenario)).toThrow('Invalid scenario provenance');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.extra = true; }), scenario)).toThrow('Invalid scenario provenance');
+    expect(() => parseScenarioProvenance(mutate((v) => { delete v.seeding.assumption; }), scenario)).toThrow('Invalid scenario provenance');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.statement = '  '; }), scenario)).toThrow('statement must not be empty');
   });
 
   it('loads from the scenarios folder, treats a missing file as absent and rejects server errors', async () => {
@@ -44,8 +52,8 @@ describe('scenario provenance companion', () => {
     const real = parseScenario(readFileSync(published, 'utf8'));
     const provenance = parseScenarioProvenance(readFileSync(published.replace('.json', '.provenance.json'), 'utf8'), real);
     expect(real.nodes.map((n) => n.id)).toEqual(['48165']);
-    expect(provenance.seeding.report_date).toBe('2025-03-04');
-    expect(provenance.seeding.initial_infectious).toBe(107);
-    expect(provenance.statement).toContain('what-if tool, not a fitted model');
+    expect(provenance.seeding.initial_infectious).toBe(1);
+    expect(provenance.seeding.initial_exposed).toBe(0);
+    expect(provenance.statement).toBe('Hypothetical: what could happen if one infectious person arrived in Gaines County, given its population and kindergarten MMR coverage. This is not a reconstruction or forecast of the 2025 outbreak.');
   });
 });
