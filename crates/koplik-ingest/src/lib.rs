@@ -9,9 +9,13 @@
 
 pub mod cdc;
 pub mod census_boundaries;
+pub mod census_counties;
 pub mod census_files;
 pub mod coverage;
 pub mod census_population;
+pub mod dshs;
+pub mod dshs_series;
+pub mod dshs_sources;
 pub mod error;
 pub mod http;
 pub mod jurisdictions;
