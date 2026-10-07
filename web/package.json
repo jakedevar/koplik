@@ -11,7 +11,8 @@
     "dev:synthetic": "npm run fixtures && VITE_SYNTHETIC_FIXTURES=1 vite",
     "build": "npm run check:types && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test": "npm run check:types && vitest run"
+    "test": "npm run check:types && vitest run && npm run test:smoke",
+    "test:smoke": "playwright test"
   },
   "dependencies": {
     "ajv": "^8.17.1",
@@ -19,6 +20,7 @@
     "maplibre-gl": "^5.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/geojson": "^7946.0.16",
     "@types/node": "^22.0.0",
     "jsdom": "^26.0.0",

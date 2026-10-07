@@ -79,7 +79,7 @@ describe('what-if panel', () => {
   });
   it('restores exact starting coverage and terminates the worker on cleanup', async () => {
     const { main, slider, request, respond, cleanup, worker } = mount(); await flush(); respond(1);
-    slider.value = '95'; main.querySelector<HTMLButtonElement>('button')!.click();
+    slider.value = '95'; main.querySelector<HTMLButtonElement>('.what-if-controls button')!.click();
     expect(slider.value).toBe('70');
     expect(JSON.parse(request(1).scenarioJson).coverage_overrides).toEqual(scenario.coverage_overrides);
     cleanup(); expect(worker.terminate).toHaveBeenCalledOnce();
@@ -96,7 +96,7 @@ describe('what-if panel', () => {
     const { main, worker, input, respond, cleanup } = mount(); await flush();
     worker.onmessage!({ data: { id: 1, error: 'missing baseline coverage' } } as MessageEvent<SimulationResponse>);
     expect(main.textContent).toContain('Simulation unavailable. missing baseline coverage');
-    main.querySelector<HTMLButtonElement>('button')!.click(); respond(2);
+    main.querySelector<HTMLButtonElement>('.what-if-controls button')!.click(); respond(2);
     expect(main.querySelector('.engine-fingerprint')?.textContent).toBe(result.fingerprint);
     input('95'); worker.onerror!({} as ErrorEvent);
     expect(main.textContent).toContain('Adjust coverage to retry');

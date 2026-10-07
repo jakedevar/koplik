@@ -7,7 +7,7 @@ describe('accessible SVG reports', () => {
     const rows = fixtureDataset().cases.filter((r) => r.geography === '35');
     const svg = caseChart(rows, 2025);
     expect([...svg.querySelectorAll('.case-bar')].map((bar) => bar.getAttribute('data-week'))).toEqual(['1', '3']);
-    expect(svg.getAttribute('role')).toBe('img');
+    expect(svg.getAttribute('role')).toBe('button');
     expect(svg.querySelector('title')?.textContent).toContain('MMWR 2025');
     const zero = caseChart(fixtureDataset().cases.filter((r) => r.geography === '40'), 2025);
     expect(zero.querySelector('.case-zero title')?.textContent).toContain('0 confirmed cases');

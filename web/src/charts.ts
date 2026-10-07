@@ -1,6 +1,7 @@
 import type { WeeklyCaseCount } from './generated/WeeklyCaseCount';
 import type { RtEstimate } from './generated/RtEstimate';
 import { compareWeeks } from './data';
+import { bindProvenance } from './provenance';
 
 const NS = 'http://www.w3.org/2000/svg';
 let chartId = 0;
@@ -33,10 +34,12 @@ function chart(title: string, maximum: number, unit: string): SVGSVGElement {
 const x = (week: number) => 45 + (week - 1) * 10.7;
 const y = (value: number, maximum: number) => 170 - value / maximum * 145;
 
-export function caseChart(rows: WeeklyCaseCount[], year: number): SVGSVGElement {
+export function caseChart(rows: WeeklyCaseCount[], year: number, synthetic = false): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
   const max = Math.max(1, ...selected.map((r) => r.confirmed.status === 'reported' ? r.confirmed.count : 0));
   const svg = chart(`Weekly confirmed cases, MMWR ${year}. Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, 'Confirmed cases');
+  bindProvenance(svg, { label: `Weekly confirmed cases chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
+    note: 'Sources attached to the plotted weekly reports. Axis ticks are display guides.' });
   for (const row of selected) {
     if (row.confirmed.status !== 'reported') continue;
     const bar = row.confirmed.count === 0 ?
@@ -45,6 +48,7 @@ export function caseChart(rows: WeeklyCaseCount[], year: number): SVGSVGElement 
         height: 170 - y(row.confirmed.count, max), class: 'case-bar', 'data-week': row.week.week });
     const title = svgElement('title', {});
     title.textContent = `Week ${row.week.week}: ${row.confirmed.count} confirmed cases`;
+    bindProvenance(bar as SVGElement, { label: title.textContent, records: row.provenance, synthetic });
     bar.append(title);
     svg.append(bar);
   }
@@ -59,11 +63,13 @@ export function rtLabel(row: RtEstimate): string {
 }
 
 /** Never connect over gaps or publish a provisional/insufficient row as an estimate. */
-export function rtChart(rows: RtEstimate[], year: number): SVGSVGElement {
+export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
   const drawable = selected.filter((r) => !r.provisional && r.status === 'ok');
   const maximum = Math.max(2, ...drawable.map((r) => Math.max(r.upper!, r.mean!)));
   const svg = chart(`Effective reproduction number, MMWR ${year}. Mean and credible interval; provisional and insufficient data are withheld.`, maximum, 'R_t');
+  bindProvenance(svg, { label: `Effective reproduction number chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
+    note: 'Derived R_t estimates: all source records attached to the chart rows. Axis ticks and R_t = 1 are display references, not source observations.' });
   svg.setAttribute('viewBox', '0 0 640 240');
   const hatchId = `rt-insufficient-hatch-${++chartId}`;
   const withheld = selected.filter((r) => r.provisional || r.status === 'insufficient_data');
@@ -84,6 +90,7 @@ export function rtChart(rows: RtEstimate[], year: number): SVGSVGElement {
     const title = svgElement('title', {});
     title.textContent = label;
     marker.append(title);
+    bindProvenance(marker as SVGElement, { label, records: row.provenance, synthetic });
     if (row.status === 'insufficient_data') marker.append(svgElement('rect', {
       x: x(row.week.week) - 4, y: 25, width: 8, height: 145, fill: `url(#${hatchId})`, class: 'rt-insufficient-band',
     }));
@@ -125,15 +132,21 @@ export function rtChart(rows: RtEstimate[], year: number): SVGSVGElement {
     const ribbon = svgElement('polygon', { points, class: 'rt-ribbon', 'data-interval-level': level });
     const title = svgElement('title', {});
     title.textContent = `${level * 100}% credible interval · weeks ${group[0].week.week}–${group.at(-1)!.week.week}`;
+    const groupInfo = { label: title.textContent, records: group.flatMap((r) => r.provenance), synthetic };
+    bindProvenance(ribbon as SVGElement, groupInfo);
     ribbon.append(title);
     svg.append(ribbon);
-    svg.append(svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${y(r.mean!, maximum)}`).join(' '), class: 'rt-mean', 'data-interval-level': level }));
+    const mean = svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${y(r.mean!, maximum)}`).join(' '), class: 'rt-mean', 'data-interval-level': level });
+    bindProvenance(mean as SVGElement, groupInfo); svg.append(mean);
     for (const row of group) {
-      svg.append(svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: y(row.lower!, maximum), y2: y(row.upper!, maximum), class: 'rt-interval', 'data-week': row.week.week, 'data-interval-level': level }));
+      const interval = svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: y(row.lower!, maximum), y2: y(row.upper!, maximum), class: 'rt-interval', 'data-week': row.week.week, 'data-interval-level': level });
+      const rowInfo = { label: `Week ${row.week.week}: ${rtLabel(row)}`, records: row.provenance, synthetic };
+      bindProvenance(interval as SVGElement, rowInfo); svg.append(interval);
       const point = svgElement('circle', { cx: x(row.week.week), cy: y(row.mean!, maximum), r: 3, class: 'rt-point', 'data-week': row.week.week, 'data-interval-level': level });
       const title = svgElement('title', {});
       title.textContent = `Week ${row.week.week}: ${rtLabel(row)}`;
       point.append(title);
+      bindProvenance(point as SVGElement, rowInfo);
       svg.append(point);
     }
   }

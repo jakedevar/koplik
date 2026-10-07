@@ -43,6 +43,7 @@ function bounds(source: Boundaries, id?: string): [[number, number], [number, nu
 }
 
 export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void): MapView {
+  container.dataset.mapState = 'loading';
   const map = new maplibregl.Map({
     container,
     style: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#f4f7f6' } }] },
@@ -53,7 +54,10 @@ export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: 
   let current: ['state' | 'county', Metric, string] = ['state', 'cases-2025', '48'];
   let ready = false;
   let previousLevel = 'state';
-  map.on('error', onError);
+  map.on('error', () => { container.dataset.mapState = 'error'; onError(); });
+  map.on('idle', () => {
+    if (ready && map.isSourceLoaded('regions')) container.dataset.mapState = 'ready';
+  });
   map.on('load', () => {
     // Local hatch image: no sprites, glyph services, tile servers or external requests.
     const pixels = new Uint8Array(8 * 8 * 4);
