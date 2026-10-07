@@ -2,12 +2,17 @@
 use koplik_contracts::v1::{Centroid, Geography, Population};
 use koplik_ingest::{
     census_population as census,
-    polite::{
-        PoliteConfig, PoliteFetcher,
-        fakes::{FakeClient, FakeTime},
-    },
+    polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper},
     store::{PutOutcome, Retrieval, RetrievalMeta, SnapshotStore, sha256_of},
 };
+// The reviewed transport's unit-test helpers are private. This injected client proves a
+// cached pin performs no HTTP operation: any attempted request fails the test immediately.
+struct NoRequests;
+impl koplik_ingest::http::HttpClient for NoRequests {
+    fn get(&self, _: &str, _: &str) -> koplik_ingest::Result<koplik_ingest::http::HttpResponse> {
+        panic!("a verified cached Census file must not request the network");
+    }
+}
 use std::{collections::BTreeSet, path::PathBuf, process::Command};
 fn fixture(source: &str) -> (Vec<u8>, Retrieval) {
     let spec = census::source_spec(source).unwrap();
@@ -154,10 +159,9 @@ fn source_pin_and_byte_mismatches_cannot_publish_rows() {
 fn cached_named_files_and_offline_cli_need_no_network() {
     let tmp = tempfile::tempdir().unwrap();
     let store = SnapshotStore::open(tmp.path().join("store")).unwrap();
-    let client = FakeClient::default();
     let mut fetcher = PoliteFetcher::new(
-        client.clone(),
-        FakeTime::default(),
+        NoRequests,
+        SystemTimekeeper::new(),
         PoliteConfig::live(Some("https://github.com/jakedevar")).unwrap(),
     );
     for source in census::SOURCES {
@@ -195,7 +199,6 @@ fn cached_named_files_and_offline_cli_need_no_network() {
             );
         }
     }
-    assert!(client.calls.borrow().is_empty());
 }
 #[test]
 fn live_population_fetch_requires_contact_before_store_or_request() {
