@@ -110,7 +110,11 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     phase = 'qa'; console.log(`Refresh ${runId}: full QA`);
     const gates = ['check', 'test', 'web-test', 'determinism'];
     if (qa) await qa({ work, env: runtime, gates });
-    else for (const gate of gates) await execute('make', [gate], work, runtime);
+    else for (const gate of gates) {
+      phase = `qa-${gate}`;
+      console.log(`Refresh ${runId}: ${phase}`);
+      await execute('make', [gate], work, runtime);
+    }
     phase = 'reproducibility';
     const hashes = async (out) => Promise.all((await files(out)).map(async (path) => [path, digest(await readFile(join(out, path)))]));
     const builds = [];
