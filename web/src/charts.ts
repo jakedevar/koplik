@@ -110,9 +110,9 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
     svg.append(marker);
   }
   const legendHeight = drawLegend(svg, [
-    { kind: 'swatch', className: 'rt-insufficient-key', fill: `url(#${hatchId})`, label: 'I: Insufficient data' },
-    { kind: 'swatch', className: 'rt-provisional-band', label: 'P: Provisional (withheld)' },
-    { kind: 'swatch', className: 'rt-blank-key', label: 'Blank: no row' },
+    { kind: 'swatch', className: 'key-insufficient', fill: `url(#${hatchId})`, label: 'I: Insufficient data' },
+    { kind: 'swatch', className: 'key-provisional-outline', label: 'P: Provisional (withheld)' },
+    { kind: 'swatch', className: 'key-blank', label: 'Blank: no row' },
   ], plot.base + 64, 'rt-status-legend', 'I: Insufficient data; P: Provisional, estimate withheld; blank: no row. IP means both statuses.');
   svg.setAttribute('viewBox', `0 0 ${plot.width} ${plot.base + 64 + legendHeight - 12}`);
   svg.append(svgElement('line', { x1: plot.left, x2: plot.right, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));

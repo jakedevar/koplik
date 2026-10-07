@@ -96,11 +96,11 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
     svg.append(bar);
   }
   drawLegend(svg, [
-    { kind: 'swatch', className: 'case-bar', label: 'Reported' },
-    { kind: 'swatch', className: 'forecast-provisional-bar', label: 'Provisional, not used' },
-    { kind: 'swatch', className: 'forecast-band-50', label: '50% band' },
-    { kind: 'swatch', className: 'forecast-band-90', label: '90% band' },
-    { kind: 'line', className: 'forecast-median', label: 'Forecast median' },
+    { kind: 'swatch', className: 'key-bar', label: 'Reported' },
+    { kind: 'swatch', className: 'key-provisional', label: 'Provisional, not used' },
+    { kind: 'swatch', className: 'key-band-50', label: '50% band' },
+    { kind: 'swatch', className: 'key-band-90', label: '90% band' },
+    { kind: 'line', className: 'key-median', label: 'Forecast median' },
   ], plot.base + 46, 'forecast-legend');
   return svg;
 }

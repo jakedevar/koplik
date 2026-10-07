@@ -19,9 +19,9 @@ export function ensembleChart(result: EnsembleResult): SVGSVGElement {
   }
   svg.append(node('polyline', { points: rows.map((r) => `${x(r.day)},${y(r.cumulative_infections.median)}`).join(' '), class: 'ensemble-median' }));
   drawLegend(svg, [
-    { kind: 'line', className: 'ensemble-median', label: 'Median' },
-    { kind: 'swatch', className: 'ensemble-band-50', label: '50% band' },
-    { kind: 'swatch', className: 'ensemble-band-90', label: '90% band' },
+    { kind: 'line', className: 'key-median', label: 'Median' },
+    { kind: 'swatch', className: 'key-band-50', label: '50% band' },
+    { kind: 'swatch', className: 'key-band-90', label: '90% band' },
   ], plot.base + 46, 'ensemble-legend');
   return svg;
 }

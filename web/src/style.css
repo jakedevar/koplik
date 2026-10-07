@@ -132,25 +132,25 @@ select:disabled { cursor: default; opacity: 0.7; }
 .chart-note { font-size: var(--text-xs); line-height: var(--leading-body); color: var(--ink-muted); margin: var(--space-1) 0 0; max-width: 760px; }
 svg [data-provenance]:hover { opacity: 0.75; }
 /* Reported values */
-.case-bar { fill: var(--chart-bar); }
+.case-bar, .key-bar { fill: var(--chart-bar); }
 .case-zero { stroke: var(--chart-bar); stroke-width: 3; }
 .cumulative-point, .key-point { fill: var(--chart-bar); stroke: var(--surface); stroke-width: 1; }
 /* Missing, insufficient and provisional marks mean the same thing on every chart: a dashed or hatched outline, never a value. */
 .cumulative-missing, .key-missing { fill: none; stroke: var(--chart-missing); stroke-width: 2; stroke-linecap: round; }
-.rt-provisional-band { fill: none; stroke: var(--chart-provisional); stroke-width: 1.5; stroke-dasharray: 3 2; }
-.forecast-provisional-bar { fill: var(--surface); stroke: var(--chart-bar); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.rt-provisional-band, .key-provisional-outline { fill: none; stroke: var(--chart-provisional); stroke-width: 1.5; stroke-dasharray: 3 2; }
+.forecast-provisional-bar, .key-provisional { fill: var(--surface); stroke: var(--chart-bar); stroke-width: 1.5; stroke-dasharray: 3 2; }
 .forecast-provisional-zero { stroke: var(--chart-bar); stroke-width: 3; stroke-dasharray: 2 2; }
-.rt-blank-key { fill: var(--surface); stroke: var(--chart-grid); stroke-width: 1; }
+.key-blank { fill: var(--surface); stroke: var(--chart-reference); stroke-width: 1; }
+.key-insufficient { stroke: var(--chart-hatch); stroke-width: 1; }
 /* Estimates */
 .rt-ribbon { fill: var(--chart-ribbon); fill-opacity: 0.65; }
-.rt-mean, .forecast-median, .ensemble-median { fill: none; stroke: var(--chart-line); stroke-width: 2.5; }
+.rt-mean, .forecast-median, .ensemble-median, .key-median { fill: none; stroke: var(--chart-line); stroke-width: 2.5; }
 .rt-mean { stroke-width: 2; }
 .rt-interval { stroke: var(--chart-interval); stroke-width: 1; }
 .rt-point { fill: var(--chart-line); }
 .rt-reference, .forecast-origin { stroke: var(--chart-reference); stroke-width: 1; stroke-dasharray: 5 4; }
-.forecast-band-90, .ensemble-band-90 { fill: var(--band-90); }
-.forecast-band-50, .ensemble-band-50 { fill: var(--band-50); }
-.chart-legend .forecast-median, .chart-legend .ensemble-median { stroke-width: 2.5; }
+.forecast-band-90, .ensemble-band-90, .key-band-90 { fill: var(--band-90); }
+.forecast-band-50, .ensemble-band-50, .key-band-50 { fill: var(--band-50); }
 
 .notice { margin: var(--space-3) 0; padding: var(--space-3) var(--space-4); background: var(--notice-info-bg); border-left: 3px solid var(--notice-info-rule); color: var(--notice-info-ink); font-size: var(--text-sm); line-height: var(--leading-body); }
 .synthetic { background: var(--notice-synthetic-bg); border-color: var(--notice-synthetic-rule); color: var(--notice-synthetic-ink); font-weight: 650; margin-bottom: var(--space-5); }
