@@ -145,8 +145,8 @@ number). `m1` ("current week") is not used.
 
 Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` identifies the client with the contact described under "Client identification" above (default `https://github.com/jakedevar/koplik`, override `KOPLIK_CONTACT`; a blank value refuses). Commands:
 `koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
-`koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), unmapped names,
-parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
+`koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), the
+cumulative-by-report-date series (`cumulative-cases.json`, contracts v7 rows), unmapped names, parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
 
 **Three formats, found by reading the archived pages** (the manifest `data/dshs/vintage-manifest.json` lists every
 version held):
@@ -220,7 +220,19 @@ take part.
    matching total in the confirmed table is the only evidence that the counted population is confirmed cases, so
    re-check with DSHS before the UI says so for March. The PDF footnote's 182 unclassifiable Gaines County reports are
    not in any count.
-5. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
+5. *Cumulative by report date* (contracts **v7**, `CumulativeCaseReport`, #1439; published as
+   `v7/cumulative-cases.json` and charted per county as "Cumulative confirmed cases as reported by Texas DSHS").
+   The printed cumulative counts themselves, one row per county and report date, `case_definition: confirmed`,
+   each citing the report's snapshot and the Census county file that keyed the name. Nothing is derived from them:
+   no weekly or interval counts, no interpolation between reports, no value carried forward. Every report date held
+   gets a row for each county named in some confirmed county table, so a gap is a stated reason: a confirmed county
+   table gives the printed count (`reported 0` only when the table adds up to its printed Total, else `missing:
+   not_listed`; an unreadable or duplicated cell is `missing: ambiguous`); a county-table version whose labelling
+   does not establish confirmed cases (no `confirmed_basis`) gives `missing: not_labelled_confirmed` and none of its
+   numbers; a version with no county table (the dashboard period; with the fixtures 2025-03-28, 04-22, 05-30 and
+   08-12) gives `missing: no_county_table`. With the fixtures that is 38 counties x 9 report dates = 342 rows (190
+   printed, 152 missing).
+6. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
    Texas's cases, so it lives in the manifest (`outbreak_total` per version) for the backtest.
 
 **Caveats not resolved here.** DSHS's classification ("confirmed") and revisions: counts were revised (a Lubbock vaccine
