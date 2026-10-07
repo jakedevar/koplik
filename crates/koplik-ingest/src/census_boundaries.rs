@@ -14,10 +14,11 @@ use serde_json::{Value, json};
 use shapefile::dbase::{FieldValue, Record};
 use shapefile::{PolygonRing, ShapeReader};
 
+use crate::census_files::{self, NamedFileAllowlist};
 use crate::error::{IngestError, Result};
 use crate::http::HttpClient;
 use crate::polite::{PoliteFetcher, Timekeeper};
-use crate::source::{SourceSpec, fetch_to_store};
+use crate::source::SourceSpec;
 use crate::store::{Retrieval, SnapshotStore, sha256_of};
 
 pub const VINTAGE: u16 = 2024;
@@ -73,11 +74,18 @@ pub fn fetch<C: HttpClient, T: Timekeeper>(
     fetcher: &mut PoliteFetcher<C, T>,
     store: &SnapshotStore,
 ) -> Result<Vec<Retrieval>> {
+    let manifest = manifest()?;
     let mut retrieved = Vec::new();
     for kind in [BoundaryKind::States, BoundaryKind::TexasCounties] {
-        retrieved.push(fetch_to_store(fetcher, store, &kind.source_spec())?.0);
+        retrieved
+            .push(census_files::fetch_to_store(fetcher, store, &kind.source_spec(), &manifest)?.0);
     }
     Ok(retrieved)
+}
+
+/// The reviewed, exact-file pins shared by live capture and offline conversion.
+pub fn manifest() -> Result<NamedFileAllowlist> {
+    NamedFileAllowlist::from_json(include_bytes!("../manifests/census-boundaries-2024.json"))
 }
 
 fn parse_error(e: impl std::fmt::Display) -> IngestError {
@@ -220,6 +228,17 @@ pub fn convert(bytes: &[u8], retrieval: &Retrieval, kind: BoundaryKind) -> Resul
             "retrieval does not identify the expected source",
         ));
     }
+    let manifest = manifest()?;
+    let pin = manifest
+        .pin(&spec.url)
+        .ok_or_else(|| parse_error("missing boundary source pin"))?;
+    if retrieval.sha256 != *pin {
+        return Err(IngestError::PinMismatch {
+            url: spec.url,
+            expected: pin.to_string(),
+            actual: retrieval.sha256.to_string(),
+        });
+    }
     let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(parse_error)?;
     let stem = kind.stem();
     let prj = String::from_utf8(member(&mut zip, &format!("{stem}.prj"))?).map_err(parse_error)?;
@@ -326,7 +345,11 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let store = SnapshotStore::open(temp.path()).unwrap();
         assert!(matches!(
-            fetch(&mut fetcher, &store),
+            crate::source::fetch_to_store(
+                &mut fetcher,
+                &store,
+                &BoundaryKind::States.source_spec()
+            ),
             Err(IngestError::RobotsDisallowed { .. })
         ));
         assert_eq!(client.calls.borrow().len(), 1);

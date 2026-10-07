@@ -41,7 +41,8 @@ impl NamedFileAllowlist {
                         "Census manifest requires exact https://www2.census.gov/ URL: {url}"
                     ))
                 })?;
-            let supported = path.starts_with("geo/tiger/GENZ")
+            let supported = (path.starts_with("geo/tiger/GENZ")
+                || path.starts_with("geo/tiger/TIGER"))
                 || path.starts_with("geo/docs/maps-data/data/gazetteer/")
                 || path.starts_with("programs-surveys/popest/datasets/");
             let file = path.ends_with(".zip") || path.ends_with(".csv") || path.ends_with(".txt");

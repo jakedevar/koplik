@@ -1,5 +1,6 @@
 //! Polite fetching: identifying User-Agent, robots.txt honoured, at least one second between
 //! requests to one host (more if robots.txt asks), bounded retries with exponential backoff,
+//! with the explicit pinned Census named-file exception in `fetch_census_file`,
 //! manual redirect following (each hop re-checked), and no credentials of any kind.
 
 use std::collections::{BTreeSet, HashMap};
@@ -222,11 +223,19 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
     /// not crawling. Exact validated manifest pins alone bypass robots; every other URL
     /// still uses `fetch`. Preserve pacing/identity, make only one attempt per URL per
     /// fetcher/run, follow no redirects, and reject changed bytes before storing them.
-    pub fn fetch_census_file(&mut self, url: &str, manifest: &NamedFileAllowlist) -> Result<Fetched> {
-        let Some(pin) = manifest.pin(url) else { return self.fetch(url); };
+    pub fn fetch_census_file(
+        &mut self,
+        url: &str,
+        manifest: &NamedFileAllowlist,
+    ) -> Result<Fetched> {
+        let Some(pin) = manifest.pin(url) else {
+            return self.fetch(url);
+        };
         let target = split_url(url)?;
         if target.host != "www2.census.gov" || target.scheme != "https" {
-            return Err(IngestError::Invalid(format!("not an approved Census host: {url}")));
+            return Err(IngestError::Invalid(format!(
+                "not an approved Census host: {url}"
+            )));
         }
         if !self.census_attempted.insert(url.to_owned()) {
             return Err(IngestError::NamedFileAlreadyRequested(url.to_owned()));
@@ -236,14 +245,27 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         // No request() retry loop and no redirect following: at most one GET per file/run.
         let response = self.client.get(url, &self.cfg.user_agent)?;
         if !(200..=299).contains(&response.status) {
-            return Err(IngestError::BadStatus { status: response.status, url: url.to_owned() });
+            return Err(IngestError::BadStatus {
+                status: response.status,
+                url: url.to_owned(),
+            });
         }
         let actual = sha256_of(&response.body);
         if actual != *pin {
-            return Err(IngestError::PinMismatch { url: url.to_owned(), expected: pin.to_string(), actual: actual.to_string() });
+            return Err(IngestError::PinMismatch {
+                url: url.to_owned(),
+                expected: pin.to_string(),
+                actual: actual.to_string(),
+            });
         }
-        Ok(Fetched { url: url.to_owned(), final_url: url.to_owned(), status: response.status,
-            content_type: response.content_type, body: response.body, retrieved_at: self.time.utc_now() })
+        Ok(Fetched {
+            url: url.to_owned(),
+            final_url: url.to_owned(),
+            status: response.status,
+            content_type: response.content_type,
+            body: response.body,
+            retrieved_at: self.time.utc_now(),
+        })
     }
 
     pub fn user_agent(&self) -> &str {

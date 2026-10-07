@@ -1,0 +1,10 @@
+[
+  {
+    "url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip",
+    "sha256": "7bc773d83c01b6df69b8aada9c2b5983d97f22f4551947cc5c00b87c663223ef"
+  },
+  {
+    "url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_20m.zip",
+    "sha256": "c9a54fd95422436b8822e0b070a45a9bc3de08eb13f943cdba66e7a9c2a135ff"
+  }
+]
