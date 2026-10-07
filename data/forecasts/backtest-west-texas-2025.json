@@ -1,0 +1,7173 @@
+{
+  "manifest_sha256": "00ce05dd4730969da533bf1de684f07db8ae9485785912d28a9007f4f2b90a25",
+  "protocol": "real-time by report vintage: at each forecast date only versions with first_seen_at <= the date are used; truth is the final series from every version",
+  "scope": "Texas DSHS outbreak total (all outbreak-associated confirmed cases, every county combined), weekly by report date; no county-level backtest (county breakdowns are unavailable for 2025-03-28..2025-08-12, Issue #1402)",
+  "primary": {
+    "geography": "48",
+    "seed": 20250101,
+    "window_weeks": 3,
+    "max_lag_weeks": 3,
+    "min_cases": 11,
+    "horizon_weeks": 8,
+    "run_count": 1000,
+    "versions": 40,
+    "truth": [
+      [
+        {
+          "year": 2025,
+          "week": 10
+        },
+        null
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 11
+        },
+        61
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 12
+        },
+        50
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 13
+        },
+        null
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 14
+        },
+        null
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 15
+        },
+        null
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 16
+        },
+        56
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 17
+        },
+        49
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 18
+        },
+        37
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 19
+        },
+        26
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 20
+        },
+        9
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 21
+        },
+        10
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 22
+        },
+        10
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 23
+        },
+        4
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 24
+        },
+        2
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 25
+        },
+        6
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 26
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 27
+        },
+        3
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 28
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 29
+        },
+        9
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 30
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 31
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 32
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 33
+        },
+        0
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 48
+        },
+        null
+      ],
+      [
+        {
+          "year": 2025,
+          "week": 52
+        },
+        null
+      ]
+    ],
+    "origins": [
+      {
+        "forecast_date": "2025-03-12T00:00:00Z",
+        "known_versions": 2,
+        "origin_week": {
+          "year": 2025,
+          "week": 9
+        },
+        "status": "insufficient_data",
+        "reason": "no complete week",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-03-19T00:00:00Z",
+        "known_versions": 4,
+        "origin_week": {
+          "year": 2025,
+          "week": 10
+        },
+        "status": "insufficient_data",
+        "reason": "IncompleteWindow",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-03-26T00:00:00Z",
+        "known_versions": 6,
+        "origin_week": {
+          "year": 2025,
+          "week": 11
+        },
+        "status": "insufficient_data",
+        "reason": "IncompleteWindow",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 61,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-04-02T00:00:00Z",
+        "known_versions": 8,
+        "origin_week": {
+          "year": 2025,
+          "week": 12
+        },
+        "status": "insufficient_data",
+        "reason": "IncompleteWindow",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 50,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-04-09T00:00:00Z",
+        "known_versions": 11,
+        "origin_week": {
+          "year": 2025,
+          "week": 14
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-04-16T00:00:00Z",
+        "known_versions": 13,
+        "origin_week": {
+          "year": 2025,
+          "week": 15
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-04-23T00:00:00Z",
+        "known_versions": 15,
+        "origin_week": {
+          "year": 2025,
+          "week": 16
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 56,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-04-30T00:00:00Z",
+        "known_versions": 17,
+        "origin_week": {
+          "year": 2025,
+          "week": 17
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 49,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-05-07T00:00:00Z",
+        "known_versions": 18,
+        "origin_week": {
+          "year": 2025,
+          "week": 17
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 49,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-05-14T00:00:00Z",
+        "known_versions": 20,
+        "origin_week": {
+          "year": 2025,
+          "week": 18
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": 142,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 37,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-05-21T00:00:00Z",
+        "known_versions": 21,
+        "origin_week": {
+          "year": 2025,
+          "week": 19
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": 112,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 26,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-05-28T00:00:00Z",
+        "known_versions": 24,
+        "origin_week": {
+          "year": 2025,
+          "week": 21
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 45,
+        "r_mean": 0.4662241526122972,
+        "r_lower_90": 0.35920326666114505,
+        "r_upper_90": 0.5847555100744329,
+        "origin_count": 10,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 22
+            },
+            "observed": 10,
+            "median": 5.0,
+            "lower_50": 3.0,
+            "upper_50": 6.0,
+            "lower_90": 2.0,
+            "upper_90": 9.0,
+            "crps": 4.043297,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 0.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 23
+            },
+            "observed": 4,
+            "median": 3.0,
+            "lower_50": 2.0,
+            "upper_50": 5.0,
+            "lower_90": 1.0,
+            "upper_90": 7.0,
+            "crps": 0.5076619999999998,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 6.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 24
+            },
+            "observed": 2,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 3.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0,
+            "crps": 0.39306600000000014,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 8.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 25
+            },
+            "observed": 6,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 3.8406399999999996,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 26
+            },
+            "observed": 0,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 0.373826,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 27
+            },
+            "observed": 3,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 1.9239849999999998,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 7.0
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 28
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 0.08785199999999999,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 29
+            },
+            "observed": 9,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 0.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 8.451887,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 1.0
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-06-04T00:00:00Z",
+        "known_versions": 26,
+        "origin_week": {
+          "year": 2025,
+          "week": 22
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 29,
+        "r_mean": 0.4668652347583235,
+        "r_lower_90": 0.3360492727059109,
+        "r_upper_90": 0.6153435096410693,
+        "origin_count": 10,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 23
+            },
+            "observed": 4,
+            "median": 4.0,
+            "lower_50": 3.0,
+            "upper_50": 6.0,
+            "lower_90": 1.0,
+            "upper_90": 8.0,
+            "crps": 0.5132650000000001,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 6.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 24
+            },
+            "observed": 2,
+            "median": 3.0,
+            "lower_50": 2.0,
+            "upper_50": 5.0,
+            "lower_90": 1.0,
+            "upper_90": 8.0,
+            "crps": 0.857839,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 8.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 25
+            },
+            "observed": 6,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 3.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0499999999999545,
+            "crps": 2.949599,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 26
+            },
+            "observed": 0,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 0.700862,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 27
+            },
+            "observed": 3,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 1.5683469999999997,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 7.0
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 28
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 0.18898500000000001,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 29
+            },
+            "observed": 9,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 8.200217,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 1.0
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 0.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 0.04776399999999997,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-06-11T00:00:00Z",
+        "known_versions": 27,
+        "origin_week": {
+          "year": 2025,
+          "week": 22
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 29,
+        "r_mean": 0.4668652347583235,
+        "r_lower_90": 0.3360492727059109,
+        "r_upper_90": 0.6153435096410693,
+        "origin_count": 10,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 23
+            },
+            "observed": 4,
+            "median": 4.0,
+            "lower_50": 3.0,
+            "upper_50": 6.0,
+            "lower_90": 1.0,
+            "upper_90": 8.0,
+            "crps": 0.5132650000000001,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 6.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 24
+            },
+            "observed": 2,
+            "median": 3.0,
+            "lower_50": 2.0,
+            "upper_50": 5.0,
+            "lower_90": 1.0,
+            "upper_90": 8.0,
+            "crps": 0.857839,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 8.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 25
+            },
+            "observed": 6,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 3.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0499999999999545,
+            "crps": 2.949599,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 26
+            },
+            "observed": 0,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 0.700862,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 27
+            },
+            "observed": 3,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 1.5683469999999997,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 7.0
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 28
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 0.18898500000000001,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 29
+            },
+            "observed": 9,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 8.200217,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 1.0
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 0.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 0.04776399999999997,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 10.0
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-06-18T00:00:00Z",
+        "known_versions": 28,
+        "origin_week": {
+          "year": 2025,
+          "week": 23
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 24,
+        "r_mean": 0.6143530394155857,
+        "r_lower_90": 0.4271504736953536,
+        "r_upper_90": 0.8294356615774352,
+        "origin_count": 4,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 24
+            },
+            "observed": 2,
+            "median": 4.0,
+            "lower_50": 3.0,
+            "upper_50": 6.0,
+            "lower_90": 1.0,
+            "upper_90": 9.0,
+            "crps": 1.535249,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 25
+            },
+            "observed": 6,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 4.0,
+            "lower_90": 0.0,
+            "upper_90": 6.0,
+            "crps": 2.2898259999999997,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 26
+            },
+            "observed": 0,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 4.0,
+            "lower_90": 0.0,
+            "upper_90": 6.0,
+            "crps": 1.3191570000000001,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 27
+            },
+            "observed": 3,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 3.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0,
+            "crps": 0.9614659999999999,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 1.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 28
+            },
+            "observed": 0,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0,
+            "crps": 0.5181530000000001,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 29
+            },
+            "observed": 9,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 7.1357729999999995,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 5.0
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 0.25529499999999994,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 31
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 0.16055700000000006,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 4.0
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-06-25T00:00:00Z",
+        "known_versions": 29,
+        "origin_week": {
+          "year": 2025,
+          "week": 24
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 16,
+        "r_mean": 0.6017907999497305,
+        "r_lower_90": 0.38345190648065236,
+        "r_upper_90": 0.8602487511004303,
+        "origin_count": 2,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 25
+            },
+            "observed": 6,
+            "median": 2.0,
+            "lower_50": 1.0,
+            "upper_50": 3.0,
+            "lower_90": 0.0,
+            "upper_90": 5.0,
+            "crps": 3.118486,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 4.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 26
+            },
+            "observed": 0,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 0.621755,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 27
+            },
+            "observed": 3,
+            "median": 1.0,
+            "lower_50": 0.0,
+            "upper_50": 2.0,
+            "lower_90": 0.0,
+            "upper_90": 4.0,
+            "crps": 1.444285,
+            "in_50": false,
+            "in_90": true,
+            "persistence_abs_error": 1.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 28
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 0.21313400000000005,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 29
+            },
+            "observed": 9,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 7.824021999999999,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 7.0
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 1.0,
+            "lower_90": 0.0,
+            "upper_90": 3.0,
+            "crps": 0.10146800000000006,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 31
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 0.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 0.06241600000000003,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 32
+            },
+            "observed": 0,
+            "median": 0.0,
+            "lower_50": 0.0,
+            "upper_50": 0.0,
+            "lower_90": 0.0,
+            "upper_90": 2.0,
+            "crps": 0.03975700000000004,
+            "in_50": true,
+            "in_90": true,
+            "persistence_abs_error": 2.0
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-07-02T00:00:00Z",
+        "known_versions": 31,
+        "origin_week": {
+          "year": 2025,
+          "week": 26
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 8 }",
+        "cases_in_window": 8,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-07-09T00:00:00Z",
+        "known_versions": 31,
+        "origin_week": {
+          "year": 2025,
+          "week": 26
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 8 }",
+        "cases_in_window": 8,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-07-16T00:00:00Z",
+        "known_versions": 32,
+        "origin_week": {
+          "year": 2025,
+          "week": 27
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 9 }",
+        "cases_in_window": 9,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 3,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-07-23T00:00:00Z",
+        "known_versions": 34,
+        "origin_week": {
+          "year": 2025,
+          "week": 29
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 12,
+        "r_mean": 1.9013907010882165,
+        "r_lower_90": 1.1246840506920577,
+        "r_upper_90": 2.8436861945510272,
+        "origin_count": 9,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 6.0,
+            "lower_50": 5.0,
+            "upper_50": 9.0,
+            "lower_90": 2.0,
+            "upper_90": 12.0,
+            "crps": 5.04697,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 31
+            },
+            "observed": 0,
+            "median": 14.0,
+            "lower_50": 10.0,
+            "upper_50": 18.0,
+            "lower_90": 5.950000000000003,
+            "upper_90": 27.0,
+            "crps": 10.932444,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 32
+            },
+            "observed": 0,
+            "median": 17.0,
+            "lower_50": 10.0,
+            "upper_50": 27.0,
+            "lower_90": 5.0,
+            "upper_90": 48.0,
+            "crps": 13.064206000000002,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 33
+            },
+            "observed": 0,
+            "median": 27.0,
+            "lower_50": 15.0,
+            "upper_50": 44.0,
+            "lower_90": 6.0,
+            "upper_90": 94.04999999999995,
+            "crps": 20.085448999999997,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 34
+            },
+            "observed": null,
+            "median": 39.0,
+            "lower_50": 18.0,
+            "upper_50": 71.0,
+            "lower_90": 6.0,
+            "upper_90": 177.0999999999999,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 35
+            },
+            "observed": null,
+            "median": 56.0,
+            "lower_50": 25.0,
+            "upper_50": 116.0,
+            "lower_90": 7.0,
+            "upper_90": 345.0,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 36
+            },
+            "observed": null,
+            "median": 81.0,
+            "lower_50": 30.75,
+            "upper_50": 187.0,
+            "lower_90": 8.0,
+            "upper_90": 647.1999999999998,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 37
+            },
+            "observed": null,
+            "median": 121.0,
+            "lower_50": 41.0,
+            "upper_50": 305.5,
+            "lower_90": 7.0,
+            "upper_90": 1283.1999999999998,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-07-30T00:00:00Z",
+        "known_versions": 34,
+        "origin_week": {
+          "year": 2025,
+          "week": 29
+        },
+        "status": "ok",
+        "reason": null,
+        "cases_in_window": 12,
+        "r_mean": 1.9013907010882165,
+        "r_lower_90": 1.1246840506920577,
+        "r_upper_90": 2.8436861945510272,
+        "origin_count": 9,
+        "scores": [
+          {
+            "horizon": 1,
+            "target_week": {
+              "year": 2025,
+              "week": 30
+            },
+            "observed": 0,
+            "median": 6.0,
+            "lower_50": 5.0,
+            "upper_50": 9.0,
+            "lower_90": 2.0,
+            "upper_90": 12.0,
+            "crps": 5.04697,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 2,
+            "target_week": {
+              "year": 2025,
+              "week": 31
+            },
+            "observed": 0,
+            "median": 14.0,
+            "lower_50": 10.0,
+            "upper_50": 18.0,
+            "lower_90": 5.950000000000003,
+            "upper_90": 27.0,
+            "crps": 10.932444,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 3,
+            "target_week": {
+              "year": 2025,
+              "week": 32
+            },
+            "observed": 0,
+            "median": 17.0,
+            "lower_50": 10.0,
+            "upper_50": 27.0,
+            "lower_90": 5.0,
+            "upper_90": 48.0,
+            "crps": 13.064206000000002,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 4,
+            "target_week": {
+              "year": 2025,
+              "week": 33
+            },
+            "observed": 0,
+            "median": 27.0,
+            "lower_50": 15.0,
+            "upper_50": 44.0,
+            "lower_90": 6.0,
+            "upper_90": 94.04999999999995,
+            "crps": 20.085448999999997,
+            "in_50": false,
+            "in_90": false,
+            "persistence_abs_error": 9.0
+          },
+          {
+            "horizon": 5,
+            "target_week": {
+              "year": 2025,
+              "week": 34
+            },
+            "observed": null,
+            "median": 39.0,
+            "lower_50": 18.0,
+            "upper_50": 71.0,
+            "lower_90": 6.0,
+            "upper_90": 177.0999999999999,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 6,
+            "target_week": {
+              "year": 2025,
+              "week": 35
+            },
+            "observed": null,
+            "median": 56.0,
+            "lower_50": 25.0,
+            "upper_50": 116.0,
+            "lower_90": 7.0,
+            "upper_90": 345.0,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 7,
+            "target_week": {
+              "year": 2025,
+              "week": 36
+            },
+            "observed": null,
+            "median": 81.0,
+            "lower_50": 30.75,
+            "upper_50": 187.0,
+            "lower_90": 8.0,
+            "upper_90": 647.1999999999998,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          },
+          {
+            "horizon": 8,
+            "target_week": {
+              "year": 2025,
+              "week": 37
+            },
+            "observed": null,
+            "median": 121.0,
+            "lower_50": 41.0,
+            "upper_50": 305.5,
+            "lower_90": 7.0,
+            "upper_90": 1283.1999999999998,
+            "crps": null,
+            "in_50": null,
+            "in_90": null,
+            "persistence_abs_error": null
+          }
+        ]
+      },
+      {
+        "forecast_date": "2025-08-06T00:00:00Z",
+        "known_versions": 35,
+        "origin_week": {
+          "year": 2025,
+          "week": 30
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 9 }",
+        "cases_in_window": 9,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-08-13T00:00:00Z",
+        "known_versions": 36,
+        "origin_week": {
+          "year": 2025,
+          "week": 31
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 9 }",
+        "cases_in_window": 9,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-08-20T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-08-27T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-09-03T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-09-10T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-09-17T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-09-24T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-10-01T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-10-08T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-10-15T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-10-22T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-10-29T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-11-05T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-11-12T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-11-19T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-11-26T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-12-03T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-12-10T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-12-17T00:00:00Z",
+        "known_versions": 37,
+        "origin_week": {
+          "year": 2025,
+          "week": 32
+        },
+        "status": "insufficient_data",
+        "reason": "BelowThreshold { cases: 0 }",
+        "cases_in_window": 0,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": 0,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-12-24T00:00:00Z",
+        "known_versions": 38,
+        "origin_week": {
+          "year": 2025,
+          "week": 47
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2025-12-31T00:00:00Z",
+        "known_versions": 38,
+        "origin_week": {
+          "year": 2025,
+          "week": 47
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2026-01-07T00:00:00Z",
+        "known_versions": 38,
+        "origin_week": {
+          "year": 2025,
+          "week": 47
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2026-01-14T00:00:00Z",
+        "known_versions": 39,
+        "origin_week": {
+          "year": 2025,
+          "week": 51
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2026-01-21T00:00:00Z",
+        "known_versions": 39,
+        "origin_week": {
+          "year": 2025,
+          "week": 51
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2026-01-28T00:00:00Z",
+        "known_versions": 39,
+        "origin_week": {
+          "year": 2025,
+          "week": 51
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      },
+      {
+        "forecast_date": "2026-02-04T00:00:00Z",
+        "known_versions": 39,
+        "origin_week": {
+          "year": 2025,
+          "week": 51
+        },
+        "status": "insufficient_data",
+        "reason": "MissingCount",
+        "cases_in_window": null,
+        "r_mean": null,
+        "r_lower_90": null,
+        "r_upper_90": null,
+        "origin_count": null,
+        "scores": []
+      }
+    ],
+    "by_horizon": [
+      {
+        "horizon": 1,
+        "n": 7,
+        "mean_crps": 2.8310717142857142,
+        "coverage_50": 0.2857142857142857,
+        "coverage_90": 0.42857142857142855,
+        "mean_persistence_abs_error": 5.142857142857143
+      },
+      {
+        "horizon": 2,
+        "n": 7,
+        "mean_crps": 3.857115571428572,
+        "coverage_50": 0.5714285714285714,
+        "coverage_90": 0.7142857142857143,
+        "mean_persistence_abs_error": 6.285714285714286
+      },
+      {
+        "horizon": 3,
+        "n": 7,
+        "mean_crps": 5.026302571428572,
+        "coverage_50": 0.14285714285714285,
+        "coverage_90": 0.42857142857142855,
+        "mean_persistence_abs_error": 5.571428571428571
+      },
+      {
+        "horizon": 4,
+        "n": 7,
+        "mean_crps": 6.655408857142857,
+        "coverage_50": 0.5714285714285714,
+        "coverage_90": 0.5714285714285714,
+        "mean_persistence_abs_error": 6.428571428571429
+      },
+      {
+        "horizon": 5,
+        "n": 5,
+        "mean_crps": 2.370539,
+        "coverage_50": 0.4,
+        "coverage_90": 0.8,
+        "mean_persistence_abs_error": 7.0
+      },
+      {
+        "horizon": 6,
+        "n": 5,
+        "mean_crps": 1.9078392000000002,
+        "coverage_50": 0.6,
+        "coverage_90": 0.8,
+        "mean_persistence_abs_error": 6.8
+      },
+      {
+        "horizon": 7,
+        "n": 5,
+        "mean_crps": 3.3611994000000003,
+        "coverage_50": 0.6,
+        "coverage_90": 0.6,
+        "mean_persistence_abs_error": 3.6
+      },
+      {
+        "horizon": 8,
+        "n": 5,
+        "mean_crps": 1.7495458000000004,
+        "coverage_50": 0.8,
+        "coverage_90": 0.8,
+        "mean_persistence_abs_error": 5.4
+      }
+    ],
+    "pooled": {
+      "horizon": 0,
+      "n": 48,
+      "mean_crps": 3.6569772499999993,
+      "coverage_50": 0.4791666666666667,
+      "coverage_90": 0.625,
+      "mean_persistence_abs_error": 5.791666666666667
+    }
+  },
+  "sensitivity_window": [
+    {
+      "geography": "48",
+      "seed": 20250101,
+      "window_weeks": 1,
+      "max_lag_weeks": 3,
+      "min_cases": 11,
+      "horizon_weeks": 8,
+      "run_count": 1000,
+      "versions": 40,
+      "truth": [
+        [
+          {
+            "year": 2025,
+            "week": 10
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 11
+          },
+          61
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 12
+          },
+          50
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 13
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 14
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 15
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 16
+          },
+          56
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 17
+          },
+          49
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 18
+          },
+          37
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 19
+          },
+          26
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 20
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 21
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 22
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 23
+          },
+          4
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 24
+          },
+          2
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 25
+          },
+          6
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 26
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 27
+          },
+          3
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 28
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 29
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 30
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 31
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 32
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 33
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 48
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 52
+          },
+          null
+        ]
+      ],
+      "origins": [
+        {
+          "forecast_date": "2025-03-12T00:00:00Z",
+          "known_versions": 2,
+          "origin_week": {
+            "year": 2025,
+            "week": 9
+          },
+          "status": "insufficient_data",
+          "reason": "no complete week",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-19T00:00:00Z",
+          "known_versions": 4,
+          "origin_week": {
+            "year": 2025,
+            "week": 10
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-26T00:00:00Z",
+          "known_versions": 6,
+          "origin_week": {
+            "year": 2025,
+            "week": 11
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 61,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 61,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-02T00:00:00Z",
+          "known_versions": 8,
+          "origin_week": {
+            "year": 2025,
+            "week": 12
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 50,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 50,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-09T00:00:00Z",
+          "known_versions": 11,
+          "origin_week": {
+            "year": 2025,
+            "week": 14
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-16T00:00:00Z",
+          "known_versions": 13,
+          "origin_week": {
+            "year": 2025,
+            "week": 15
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-23T00:00:00Z",
+          "known_versions": 15,
+          "origin_week": {
+            "year": 2025,
+            "week": 16
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 56,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 56,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-30T00:00:00Z",
+          "known_versions": 17,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 49,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-07T00:00:00Z",
+          "known_versions": 18,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 49,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-14T00:00:00Z",
+          "known_versions": 20,
+          "origin_week": {
+            "year": 2025,
+            "week": 18
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 37,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 37,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-21T00:00:00Z",
+          "known_versions": 21,
+          "origin_week": {
+            "year": 2025,
+            "week": 19
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 26,
+          "r_mean": 0.5997529882828934,
+          "r_lower_90": 0.4233391793521185,
+          "r_upper_90": 0.8013723520443272,
+          "origin_count": 26,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 20
+              },
+              "observed": 9,
+              "median": 20.0,
+              "lower_50": 16.0,
+              "upper_50": 24.0,
+              "lower_90": 11.0,
+              "upper_90": 30.0,
+              "crps": 7.774519999999999,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 17.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 21
+              },
+              "observed": 10,
+              "median": 14.0,
+              "lower_50": 11.0,
+              "upper_50": 18.0,
+              "lower_90": 7.0,
+              "upper_90": 24.0,
+              "crps": 2.484031,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 16.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 22
+              },
+              "observed": 10,
+              "median": 10.0,
+              "lower_50": 7.0,
+              "upper_50": 14.0,
+              "lower_90": 3.950000000000003,
+              "upper_90": 22.0,
+              "crps": 1.2610979999999996,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 16.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 7.0,
+              "lower_50": 5.0,
+              "upper_50": 11.0,
+              "lower_90": 2.0,
+              "upper_90": 19.0,
+              "crps": 2.194178,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 22.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 6.0,
+              "lower_50": 3.0,
+              "upper_50": 9.0,
+              "lower_90": 1.0,
+              "upper_90": 16.0,
+              "crps": 2.254101,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 24.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 7.0,
+              "lower_90": 0.0,
+              "upper_90": 14.049999999999955,
+              "crps": 1.299185,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 20.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 3.0,
+              "lower_50": 1.0,
+              "upper_50": 6.0,
+              "lower_90": 0.0,
+              "upper_90": 12.0,
+              "crps": 1.841787,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 26.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 0.807094,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 23.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-05-28T00:00:00Z",
+          "known_versions": 24,
+          "origin_week": {
+            "year": 2025,
+            "week": 21
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 10 }",
+          "cases_in_window": 10,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 10,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-06-04T00:00:00Z",
+          "known_versions": 26,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 10 }",
+          "cases_in_window": 10,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 10,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-06-11T00:00:00Z",
+          "known_versions": 27,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 10 }",
+          "cases_in_window": 10,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 10,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-06-18T00:00:00Z",
+          "known_versions": 28,
+          "origin_week": {
+            "year": 2025,
+            "week": 23
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 4 }",
+          "cases_in_window": 4,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 4,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-06-25T00:00:00Z",
+          "known_versions": 29,
+          "origin_week": {
+            "year": 2025,
+            "week": 24
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 2 }",
+          "cases_in_window": 2,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 2,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-02T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-09T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-16T00:00:00Z",
+          "known_versions": 32,
+          "origin_week": {
+            "year": 2025,
+            "week": 27
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 3 }",
+          "cases_in_window": 3,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 3,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-23T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 9,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-30T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 9,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-06T00:00:00Z",
+          "known_versions": 35,
+          "origin_week": {
+            "year": 2025,
+            "week": 30
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-13T00:00:00Z",
+          "known_versions": 36,
+          "origin_week": {
+            "year": 2025,
+            "week": 31
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-20T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-27T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-24T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-01T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-08T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-15T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-22T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-29T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-05T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-12T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-19T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-26T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-24T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-31T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-07T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-14T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-21T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-28T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-02-04T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        }
+      ],
+      "by_horizon": [
+        {
+          "horizon": 1,
+          "n": 1,
+          "mean_crps": 7.774519999999999,
+          "coverage_50": 0.0,
+          "coverage_90": 0.0,
+          "mean_persistence_abs_error": 17.0
+        },
+        {
+          "horizon": 2,
+          "n": 1,
+          "mean_crps": 2.484031,
+          "coverage_50": 0.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 16.0
+        },
+        {
+          "horizon": 3,
+          "n": 1,
+          "mean_crps": 1.2610979999999996,
+          "coverage_50": 1.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 16.0
+        },
+        {
+          "horizon": 4,
+          "n": 1,
+          "mean_crps": 2.194178,
+          "coverage_50": 0.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 22.0
+        },
+        {
+          "horizon": 5,
+          "n": 1,
+          "mean_crps": 2.254101,
+          "coverage_50": 0.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 24.0
+        },
+        {
+          "horizon": 6,
+          "n": 1,
+          "mean_crps": 1.299185,
+          "coverage_50": 1.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 20.0
+        },
+        {
+          "horizon": 7,
+          "n": 1,
+          "mean_crps": 1.841787,
+          "coverage_50": 0.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 26.0
+        },
+        {
+          "horizon": 8,
+          "n": 1,
+          "mean_crps": 0.807094,
+          "coverage_50": 1.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 23.0
+        }
+      ],
+      "pooled": {
+        "horizon": 0,
+        "n": 8,
+        "mean_crps": 2.4894992499999997,
+        "coverage_50": 0.375,
+        "coverage_90": 0.875,
+        "mean_persistence_abs_error": 20.5
+      }
+    },
+    {
+      "geography": "48",
+      "seed": 20250101,
+      "window_weeks": 2,
+      "max_lag_weeks": 3,
+      "min_cases": 11,
+      "horizon_weeks": 8,
+      "run_count": 1000,
+      "versions": 40,
+      "truth": [
+        [
+          {
+            "year": 2025,
+            "week": 10
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 11
+          },
+          61
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 12
+          },
+          50
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 13
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 14
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 15
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 16
+          },
+          56
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 17
+          },
+          49
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 18
+          },
+          37
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 19
+          },
+          26
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 20
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 21
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 22
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 23
+          },
+          4
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 24
+          },
+          2
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 25
+          },
+          6
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 26
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 27
+          },
+          3
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 28
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 29
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 30
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 31
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 32
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 33
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 48
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 52
+          },
+          null
+        ]
+      ],
+      "origins": [
+        {
+          "forecast_date": "2025-03-12T00:00:00Z",
+          "known_versions": 2,
+          "origin_week": {
+            "year": 2025,
+            "week": 9
+          },
+          "status": "insufficient_data",
+          "reason": "no complete week",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-19T00:00:00Z",
+          "known_versions": 4,
+          "origin_week": {
+            "year": 2025,
+            "week": 10
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-26T00:00:00Z",
+          "known_versions": 6,
+          "origin_week": {
+            "year": 2025,
+            "week": 11
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 61,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-02T00:00:00Z",
+          "known_versions": 8,
+          "origin_week": {
+            "year": 2025,
+            "week": 12
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 111,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 50,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-09T00:00:00Z",
+          "known_versions": 11,
+          "origin_week": {
+            "year": 2025,
+            "week": 14
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-16T00:00:00Z",
+          "known_versions": 13,
+          "origin_week": {
+            "year": 2025,
+            "week": 15
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-23T00:00:00Z",
+          "known_versions": 15,
+          "origin_week": {
+            "year": 2025,
+            "week": 16
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 56,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-30T00:00:00Z",
+          "known_versions": 17,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 105,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-07T00:00:00Z",
+          "known_versions": 18,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 105,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-14T00:00:00Z",
+          "known_versions": 20,
+          "origin_week": {
+            "year": 2025,
+            "week": 18
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 86,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 37,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-21T00:00:00Z",
+          "known_versions": 21,
+          "origin_week": {
+            "year": 2025,
+            "week": 19
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 63,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 26,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-28T00:00:00Z",
+          "known_versions": 24,
+          "origin_week": {
+            "year": 2025,
+            "week": 21
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 19,
+          "r_mean": 0.37142650385815446,
+          "r_lower_90": 0.24615644515158805,
+          "r_upper_90": 0.5177544254751087,
+          "origin_count": 10,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 22
+              },
+              "observed": 10,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 1.0,
+              "upper_90": 7.0,
+              "crps": 5.1257399999999995,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 6.0,
+              "crps": 0.8896439999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 0.514258,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 8.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 4.485418,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.12536600000000003,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 2.434346,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.017753999999999992,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 8.729189,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 1.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-04T00:00:00Z",
+          "known_versions": 26,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 20,
+          "r_mean": 0.6828447593092738,
+          "r_lower_90": 0.4575718262988225,
+          "r_upper_90": 0.944992726673226,
+          "origin_count": 10,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 6.0,
+              "lower_50": 5.0,
+              "upper_50": 8.0,
+              "lower_90": 2.0,
+              "upper_90": 11.0,
+              "crps": 1.458127,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 5.0,
+              "lower_50": 4.0,
+              "upper_50": 8.0,
+              "lower_90": 1.0,
+              "upper_90": 11.0,
+              "crps": 2.283039,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 8.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 6.0,
+              "lower_90": 1.0,
+              "upper_90": 11.0,
+              "crps": 1.199418,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 3.0,
+              "lower_50": 1.0,
+              "upper_50": 6.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 2.1566340000000004,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 5.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 0.6828980000000002,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 1.223503,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 5.475616,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 0.7032440000000002,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-11T00:00:00Z",
+          "known_versions": 27,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 20,
+          "r_mean": 0.6828447593092738,
+          "r_lower_90": 0.4575718262988225,
+          "r_upper_90": 0.944992726673226,
+          "origin_count": 10,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 6.0,
+              "lower_50": 5.0,
+              "upper_50": 8.0,
+              "lower_90": 2.0,
+              "upper_90": 11.0,
+              "crps": 1.458127,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 5.0,
+              "lower_50": 4.0,
+              "upper_50": 8.0,
+              "lower_90": 1.0,
+              "upper_90": 11.0,
+              "crps": 2.283039,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 8.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 6.0,
+              "lower_90": 1.0,
+              "upper_90": 11.0,
+              "crps": 1.199418,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 3.0,
+              "lower_50": 1.0,
+              "upper_50": 6.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 2.1566340000000004,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 5.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 0.6828980000000002,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 1.223503,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 5.475616,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 0.7032440000000002,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-18T00:00:00Z",
+          "known_versions": 28,
+          "origin_week": {
+            "year": 2025,
+            "week": 23
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 14,
+          "r_mean": 0.7298759600871219,
+          "r_lower_90": 0.4499116229589645,
+          "r_upper_90": 1.0649613279060042,
+          "origin_count": 4,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 5.0,
+              "lower_50": 4.0,
+              "upper_50": 7.0,
+              "lower_90": 2.0,
+              "upper_90": 10.0,
+              "crps": 2.135841,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 3.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 0.0,
+              "upper_90": 8.0,
+              "crps": 1.6097500000000002,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 3.0,
+              "lower_50": 1.0,
+              "upper_50": 5.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 1.960248,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 0.6987840000000001,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 2.0,
+              "lower_50": 0.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 1.1410919999999998,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 5.466029000000001,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 5.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 10.0,
+              "crps": 0.7115370000000001,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 0.5832349999999997,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-25T00:00:00Z",
+          "known_versions": 29,
+          "origin_week": {
+            "year": 2025,
+            "week": 24
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 6 }",
+          "cases_in_window": 6,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 2,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-02T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 6 }",
+          "cases_in_window": 6,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-09T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 6 }",
+          "cases_in_window": 6,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-16T00:00:00Z",
+          "known_versions": 32,
+          "origin_week": {
+            "year": 2025,
+            "week": 27
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 3 }",
+          "cases_in_window": 3,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 3,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-23T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 9,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-07-30T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 9,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-06T00:00:00Z",
+          "known_versions": 35,
+          "origin_week": {
+            "year": 2025,
+            "week": 30
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-13T00:00:00Z",
+          "known_versions": 36,
+          "origin_week": {
+            "year": 2025,
+            "week": 31
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-20T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-27T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-24T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-01T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-08T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-15T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-22T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-29T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-05T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-12T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-19T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-26T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 0 }",
+          "cases_in_window": 0,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-24T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-31T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-07T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-14T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-21T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-28T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-02-04T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        }
+      ],
+      "by_horizon": [
+        {
+          "horizon": 1,
+          "n": 4,
+          "mean_crps": 2.5444587499999995,
+          "coverage_50": 0.0,
+          "coverage_90": 0.75,
+          "mean_persistence_abs_error": 3.5
+        },
+        {
+          "horizon": 2,
+          "n": 4,
+          "mean_crps": 1.766368,
+          "coverage_50": 0.25,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 6.0
+        },
+        {
+          "horizon": 3,
+          "n": 4,
+          "mean_crps": 1.2183355,
+          "coverage_50": 0.75,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 5.0
+        },
+        {
+          "horizon": 4,
+          "n": 4,
+          "mean_crps": 2.3743675,
+          "coverage_50": 0.25,
+          "coverage_90": 0.75,
+          "mean_persistence_abs_error": 6.25
+        },
+        {
+          "horizon": 5,
+          "n": 4,
+          "mean_crps": 0.6580635000000001,
+          "coverage_50": 1.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 7.0
+        },
+        {
+          "horizon": 6,
+          "n": 4,
+          "mean_crps": 2.58684525,
+          "coverage_50": 0.0,
+          "coverage_90": 0.75,
+          "mean_persistence_abs_error": 8.0
+        },
+        {
+          "horizon": 7,
+          "n": 4,
+          "mean_crps": 2.9201307499999998,
+          "coverage_50": 0.5,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 4.0
+        },
+        {
+          "horizon": 8,
+          "n": 4,
+          "mean_crps": 2.679728,
+          "coverage_50": 0.75,
+          "coverage_90": 0.75,
+          "mean_persistence_abs_error": 6.25
+        }
+      ],
+      "pooled": {
+        "horizon": 0,
+        "n": 32,
+        "mean_crps": 2.0935371562500005,
+        "coverage_50": 0.4375,
+        "coverage_90": 0.875,
+        "mean_persistence_abs_error": 5.75
+      }
+    },
+    {
+      "geography": "48",
+      "seed": 20250101,
+      "window_weeks": 4,
+      "max_lag_weeks": 3,
+      "min_cases": 11,
+      "horizon_weeks": 8,
+      "run_count": 1000,
+      "versions": 40,
+      "truth": [
+        [
+          {
+            "year": 2025,
+            "week": 10
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 11
+          },
+          61
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 12
+          },
+          50
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 13
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 14
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 15
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 16
+          },
+          56
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 17
+          },
+          49
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 18
+          },
+          37
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 19
+          },
+          26
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 20
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 21
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 22
+          },
+          10
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 23
+          },
+          4
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 24
+          },
+          2
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 25
+          },
+          6
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 26
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 27
+          },
+          3
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 28
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 29
+          },
+          9
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 30
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 31
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 32
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 33
+          },
+          0
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 48
+          },
+          null
+        ],
+        [
+          {
+            "year": 2025,
+            "week": 52
+          },
+          null
+        ]
+      ],
+      "origins": [
+        {
+          "forecast_date": "2025-03-12T00:00:00Z",
+          "known_versions": 2,
+          "origin_week": {
+            "year": 2025,
+            "week": 9
+          },
+          "status": "insufficient_data",
+          "reason": "no complete week",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-19T00:00:00Z",
+          "known_versions": 4,
+          "origin_week": {
+            "year": 2025,
+            "week": 10
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-03-26T00:00:00Z",
+          "known_versions": 6,
+          "origin_week": {
+            "year": 2025,
+            "week": 11
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 61,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-02T00:00:00Z",
+          "known_versions": 8,
+          "origin_week": {
+            "year": 2025,
+            "week": 12
+          },
+          "status": "insufficient_data",
+          "reason": "IncompleteWindow",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 50,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-09T00:00:00Z",
+          "known_versions": 11,
+          "origin_week": {
+            "year": 2025,
+            "week": 14
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-16T00:00:00Z",
+          "known_versions": 13,
+          "origin_week": {
+            "year": 2025,
+            "week": 15
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-23T00:00:00Z",
+          "known_versions": 15,
+          "origin_week": {
+            "year": 2025,
+            "week": 16
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 56,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-04-30T00:00:00Z",
+          "known_versions": 17,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-07T00:00:00Z",
+          "known_versions": 18,
+          "origin_week": {
+            "year": 2025,
+            "week": 17
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 49,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-14T00:00:00Z",
+          "known_versions": 20,
+          "origin_week": {
+            "year": 2025,
+            "week": 18
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 37,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-21T00:00:00Z",
+          "known_versions": 21,
+          "origin_week": {
+            "year": 2025,
+            "week": 19
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 168,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 26,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-05-28T00:00:00Z",
+          "known_versions": 24,
+          "origin_week": {
+            "year": 2025,
+            "week": 21
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": 82,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 10,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-06-04T00:00:00Z",
+          "known_versions": 26,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 55,
+          "r_mean": 0.5133992357106589,
+          "r_lower_90": 0.40599970159735005,
+          "r_upper_90": 0.6312127348544049,
+          "origin_count": 10,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 5.0,
+              "lower_50": 3.0,
+              "upper_50": 6.0,
+              "lower_90": 2.0,
+              "upper_90": 9.0,
+              "crps": 0.627664,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 1.0,
+              "upper_90": 8.0,
+              "crps": 1.1317879999999998,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 8.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 6.0,
+              "crps": 2.580818,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.75,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 5.0,
+              "crps": 0.9100940000000001,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 1.3019350000000003,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.28656400000000004,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 7.93665,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.08650599999999997,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-11T00:00:00Z",
+          "known_versions": 27,
+          "origin_week": {
+            "year": 2025,
+            "week": 22
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 55,
+          "r_mean": 0.5133992357106589,
+          "r_lower_90": 0.40599970159735005,
+          "r_upper_90": 0.6312127348544049,
+          "origin_count": 10,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 23
+              },
+              "observed": 4,
+              "median": 5.0,
+              "lower_50": 3.0,
+              "upper_50": 6.0,
+              "lower_90": 2.0,
+              "upper_90": 9.0,
+              "crps": 0.627664,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 4.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 1.0,
+              "upper_90": 8.0,
+              "crps": 1.1317879999999998,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 8.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 4.0,
+              "lower_90": 0.0,
+              "upper_90": 6.0,
+              "crps": 2.580818,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.75,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 5.0,
+              "crps": 0.9100940000000001,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 1.3019350000000003,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.28656400000000004,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 7.93665,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.08650599999999997,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 10.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-18T00:00:00Z",
+          "known_versions": 28,
+          "origin_week": {
+            "year": 2025,
+            "week": 23
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 33,
+          "r_mean": 0.45823404970018305,
+          "r_lower_90": 0.33707314780971714,
+          "r_upper_90": 0.594694562202093,
+          "origin_count": 4,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 24
+              },
+              "observed": 2,
+              "median": 3.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 1.0,
+              "upper_90": 7.0,
+              "crps": 0.7299230000000001,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 5.0,
+              "crps": 3.3736320000000006,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 0.6467940000000001,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 1.646968,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.15110499999999993,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 8.333938999999999,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 5.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.031132999999999994,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.017070000000000002,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 4.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-06-25T00:00:00Z",
+          "known_versions": 29,
+          "origin_week": {
+            "year": 2025,
+            "week": 24
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 26,
+          "r_mean": 0.5579573362730563,
+          "r_lower_90": 0.39383747220266624,
+          "r_upper_90": 0.7455262277053005,
+          "origin_count": 2,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 25
+              },
+              "observed": 6,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 5.0,
+              "crps": 3.294142,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 4.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 26
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.5444330000000001,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 1.629495,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 1.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.16236999999999996,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0499999999999545,
+              "crps": 8.080717,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 7.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.06120399999999998,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.03138800000000003,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.015412000000000009,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 2.0
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-07-02T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 12,
+          "r_mean": 0.5181672641982853,
+          "r_lower_90": 0.30649905740099176,
+          "r_upper_90": 0.7749617660513499,
+          "origin_count": 0,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 0.8511949999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.141679,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 7.8947709999999995,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.062423000000000006,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.044576000000000005,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.02419099999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.011021000000000003,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-07-09T00:00:00Z",
+          "known_versions": 31,
+          "origin_week": {
+            "year": 2025,
+            "week": 26
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 12,
+          "r_mean": 0.5181672641982853,
+          "r_lower_90": 0.30649905740099176,
+          "r_upper_90": 0.7749617660513499,
+          "origin_count": 0,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 27
+              },
+              "observed": 3,
+              "median": 2.0,
+              "lower_50": 1.0,
+              "upper_50": 3.0,
+              "lower_90": 0.0,
+              "upper_90": 4.0,
+              "crps": 0.8511949999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.141679,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 7.8947709999999995,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.062423000000000006,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 2.0,
+              "crps": 0.044576000000000005,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.02419099999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": 0.011021000000000003,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 1.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-07-16T00:00:00Z",
+          "known_versions": 32,
+          "origin_week": {
+            "year": 2025,
+            "week": 27
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 11,
+          "r_mean": 0.6450030845991974,
+          "r_lower_90": 0.37217820247356304,
+          "r_upper_90": 0.9786585712263918,
+          "origin_count": 3,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 28
+              },
+              "observed": 0,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.4349219999999999,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 29
+              },
+              "observed": 9,
+              "median": 1.0,
+              "lower_50": 0.0,
+              "upper_50": 2.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 7.125126,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 6.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.27349100000000004,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.20792,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.12587799999999993,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 1.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": 0.10065300000000005,
+              "in_50": true,
+              "in_90": true,
+              "persistence_abs_error": 3.0
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 35
+              },
+              "observed": null,
+              "median": 0.0,
+              "lower_50": 0.0,
+              "upper_50": 0.0,
+              "lower_90": 0.0,
+              "upper_90": 3.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-07-23T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 12,
+          "r_mean": 1.2389201583495775,
+          "r_lower_90": 0.7328287349775993,
+          "r_upper_90": 1.8529070056108412,
+          "origin_count": 9,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 4.0,
+              "lower_50": 3.0,
+              "upper_50": 6.0,
+              "lower_90": 1.0,
+              "upper_90": 9.0,
+              "crps": 3.092832,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 8.0,
+              "lower_50": 5.0,
+              "upper_50": 11.0,
+              "lower_90": 2.0,
+              "upper_90": 16.0,
+              "crps": 5.886608,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 7.0,
+              "lower_50": 4.0,
+              "upper_50": 11.0,
+              "lower_90": 1.0,
+              "upper_90": 19.0,
+              "crps": 4.9338169999999995,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 9.0,
+              "lower_50": 4.0,
+              "upper_50": 15.0,
+              "lower_90": 1.0,
+              "upper_90": 29.049999999999955,
+              "crps": 6.284273,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 9.0,
+              "lower_50": 4.0,
+              "upper_50": 17.0,
+              "lower_90": 1.0,
+              "upper_90": 40.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 35
+              },
+              "observed": null,
+              "median": 10.0,
+              "lower_50": 4.0,
+              "upper_50": 22.0,
+              "lower_90": 1.0,
+              "upper_90": 59.049999999999955,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 36
+              },
+              "observed": null,
+              "median": 11.0,
+              "lower_50": 4.0,
+              "upper_50": 26.0,
+              "lower_90": 0.0,
+              "upper_90": 83.09999999999991,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 37
+              },
+              "observed": null,
+              "median": 13.0,
+              "lower_50": 4.0,
+              "upper_50": 32.0,
+              "lower_90": 0.0,
+              "upper_90": 123.04999999999995,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-07-30T00:00:00Z",
+          "known_versions": 34,
+          "origin_week": {
+            "year": 2025,
+            "week": 29
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 12,
+          "r_mean": 1.2389201583495775,
+          "r_lower_90": 0.7328287349775993,
+          "r_upper_90": 1.8529070056108412,
+          "origin_count": 9,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 30
+              },
+              "observed": 0,
+              "median": 4.0,
+              "lower_50": 3.0,
+              "upper_50": 6.0,
+              "lower_90": 1.0,
+              "upper_90": 9.0,
+              "crps": 3.092832,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 8.0,
+              "lower_50": 5.0,
+              "upper_50": 11.0,
+              "lower_90": 2.0,
+              "upper_90": 16.0,
+              "crps": 5.886608,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 7.0,
+              "lower_50": 4.0,
+              "upper_50": 11.0,
+              "lower_90": 1.0,
+              "upper_90": 19.0,
+              "crps": 4.9338169999999995,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 9.0,
+              "lower_50": 4.0,
+              "upper_50": 15.0,
+              "lower_90": 1.0,
+              "upper_90": 29.049999999999955,
+              "crps": 6.284273,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 9.0
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 9.0,
+              "lower_50": 4.0,
+              "upper_50": 17.0,
+              "lower_90": 1.0,
+              "upper_90": 40.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 35
+              },
+              "observed": null,
+              "median": 10.0,
+              "lower_50": 4.0,
+              "upper_50": 22.0,
+              "lower_90": 1.0,
+              "upper_90": 59.049999999999955,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 36
+              },
+              "observed": null,
+              "median": 11.0,
+              "lower_50": 4.0,
+              "upper_50": 26.0,
+              "lower_90": 0.0,
+              "upper_90": 83.09999999999991,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 37
+              },
+              "observed": null,
+              "median": 13.0,
+              "lower_50": 4.0,
+              "upper_50": 32.0,
+              "lower_90": 0.0,
+              "upper_90": 123.04999999999995,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-08-06T00:00:00Z",
+          "known_versions": 35,
+          "origin_week": {
+            "year": 2025,
+            "week": 30
+          },
+          "status": "ok",
+          "reason": null,
+          "cases_in_window": 12,
+          "r_mean": 1.2413853189959507,
+          "r_lower_90": 0.7342868923461943,
+          "r_upper_90": 1.8565938561321098,
+          "origin_count": 0,
+          "scores": [
+            {
+              "horizon": 1,
+              "target_week": {
+                "year": 2025,
+                "week": 31
+              },
+              "observed": 0,
+              "median": 6.0,
+              "lower_50": 4.0,
+              "upper_50": 8.0,
+              "lower_90": 2.0,
+              "upper_90": 11.0,
+              "crps": 4.483969,
+              "in_50": false,
+              "in_90": false,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 2,
+              "target_week": {
+                "year": 2025,
+                "week": 32
+              },
+              "observed": 0,
+              "median": 3.0,
+              "lower_50": 2.0,
+              "upper_50": 5.0,
+              "lower_90": 0.0,
+              "upper_90": 9.0,
+              "crps": 2.143751,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 3,
+              "target_week": {
+                "year": 2025,
+                "week": 33
+              },
+              "observed": 0,
+              "median": 5.0,
+              "lower_50": 3.0,
+              "upper_50": 9.0,
+              "lower_90": 0.0,
+              "upper_90": 17.0,
+              "crps": 3.556296,
+              "in_50": false,
+              "in_90": true,
+              "persistence_abs_error": 0.0
+            },
+            {
+              "horizon": 4,
+              "target_week": {
+                "year": 2025,
+                "week": 34
+              },
+              "observed": null,
+              "median": 5.0,
+              "lower_50": 2.0,
+              "upper_50": 9.0,
+              "lower_90": 0.0,
+              "upper_90": 20.049999999999955,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 5,
+              "target_week": {
+                "year": 2025,
+                "week": 35
+              },
+              "observed": null,
+              "median": 6.0,
+              "lower_50": 2.0,
+              "upper_50": 12.0,
+              "lower_90": 0.0,
+              "upper_90": 31.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 6,
+              "target_week": {
+                "year": 2025,
+                "week": 36
+              },
+              "observed": null,
+              "median": 6.0,
+              "lower_50": 2.0,
+              "upper_50": 15.0,
+              "lower_90": 0.0,
+              "upper_90": 42.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 7,
+              "target_week": {
+                "year": 2025,
+                "week": 37
+              },
+              "observed": null,
+              "median": 7.0,
+              "lower_50": 2.0,
+              "upper_50": 17.0,
+              "lower_90": 0.0,
+              "upper_90": 60.0,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            },
+            {
+              "horizon": 8,
+              "target_week": {
+                "year": 2025,
+                "week": 38
+              },
+              "observed": null,
+              "median": 7.0,
+              "lower_50": 2.0,
+              "upper_50": 22.0,
+              "lower_90": 0.0,
+              "upper_90": 90.04999999999995,
+              "crps": null,
+              "in_50": null,
+              "in_90": null,
+              "persistence_abs_error": null
+            }
+          ]
+        },
+        {
+          "forecast_date": "2025-08-13T00:00:00Z",
+          "known_versions": 36,
+          "origin_week": {
+            "year": 2025,
+            "week": 31
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-20T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-08-27T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-09-24T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-01T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-08T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-15T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-22T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-10-29T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-05T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-12T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-19T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-11-26T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-03T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-10T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-17T00:00:00Z",
+          "known_versions": 37,
+          "origin_week": {
+            "year": 2025,
+            "week": 32
+          },
+          "status": "insufficient_data",
+          "reason": "BelowThreshold { cases: 9 }",
+          "cases_in_window": 9,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": 0,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-24T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2025-12-31T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-07T00:00:00Z",
+          "known_versions": 38,
+          "origin_week": {
+            "year": 2025,
+            "week": 47
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-14T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-21T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-01-28T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        },
+        {
+          "forecast_date": "2026-02-04T00:00:00Z",
+          "known_versions": 39,
+          "origin_week": {
+            "year": 2025,
+            "week": 51
+          },
+          "status": "insufficient_data",
+          "reason": "MissingCount",
+          "cases_in_window": null,
+          "r_mean": null,
+          "r_lower_90": null,
+          "r_upper_90": null,
+          "origin_count": null,
+          "scores": []
+        }
+      ],
+      "by_horizon": [
+        {
+          "horizon": 1,
+          "n": 10,
+          "mean_crps": 1.8086337999999997,
+          "coverage_50": 0.6,
+          "coverage_90": 0.6,
+          "mean_persistence_abs_error": 4.5
+        },
+        {
+          "horizon": 2,
+          "n": 10,
+          "mean_crps": 2.7507092,
+          "coverage_50": 0.5,
+          "coverage_90": 0.6,
+          "mean_persistence_abs_error": 4.4
+        },
+        {
+          "horizon": 3,
+          "n": 10,
+          "mean_crps": 3.6924887999999996,
+          "coverage_50": 0.2,
+          "coverage_90": 0.6,
+          "mean_persistence_abs_error": 5.2
+        },
+        {
+          "horizon": 4,
+          "n": 9,
+          "mean_crps": 1.8367597777777778,
+          "coverage_50": 0.4444444444444444,
+          "coverage_90": 0.7777777777777778,
+          "mean_persistence_abs_error": 4.888888888888889
+        },
+        {
+          "horizon": 5,
+          "n": 7,
+          "mean_crps": 1.5786745714285713,
+          "coverage_50": 0.5714285714285714,
+          "coverage_90": 0.8571428571428571,
+          "mean_persistence_abs_error": 4.0
+        },
+        {
+          "horizon": 6,
+          "n": 7,
+          "mean_crps": 1.3024722857142856,
+          "coverage_50": 0.8571428571428571,
+          "coverage_90": 0.8571428571428571,
+          "mean_persistence_abs_error": 4.285714285714286
+        },
+        {
+          "horizon": 7,
+          "n": 6,
+          "mean_crps": 2.6596438333333334,
+          "coverage_50": 0.6666666666666666,
+          "coverage_90": 0.6666666666666666,
+          "mean_persistence_abs_error": 1.3333333333333333
+        },
+        {
+          "horizon": 8,
+          "n": 4,
+          "mean_crps": 0.05137349999999999,
+          "coverage_50": 1.0,
+          "coverage_90": 1.0,
+          "mean_persistence_abs_error": 6.5
+        }
+      ],
+      "pooled": {
+        "horizon": 0,
+        "n": 63,
+        "mean_crps": 2.1488974761904767,
+        "coverage_50": 0.5555555555555556,
+        "coverage_90": 0.7142857142857143,
+        "mean_persistence_abs_error": 4.396825396825397
+      }
+    }
+  ]
+}
