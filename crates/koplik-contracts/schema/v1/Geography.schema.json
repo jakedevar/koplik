@@ -25,13 +25,18 @@
     "name": {
       "description": "Display name, e.g. \"Gaines County\" (non-empty).",
       "type": "string"
+    },
+    "provenance": {
+      "description": "Source records for the name and centroid (never empty).",
+      "$ref": "#/$defs/Provenances"
     }
   },
   "additionalProperties": false,
   "required": [
     "id",
     "level",
-    "name"
+    "name",
+    "provenance"
   ],
   "$defs": {
     "Centroid": {
@@ -71,6 +76,53 @@
         "state",
         "county"
       ]
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }

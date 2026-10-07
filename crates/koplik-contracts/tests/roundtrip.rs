@@ -51,25 +51,30 @@ fn fips_round_trip() {
 
 #[test]
 fn geography_round_trip() {
-    let g = Geography::new(gaines(), "Gaines County").unwrap();
+    let g = Geography::new(gaines(), "Gaines County", prov()).unwrap();
     let j = round_trip(&g);
     assert_eq!(j["level"], json!("county"));
     assert_eq!(j["centroid"], serde_json::Value::Null);
     let g = g.with_centroid(Centroid::new(32.74, -102.64).unwrap());
     assert_eq!(round_trip(&g)["centroid"]["latitude"], json!(32.74));
     // Level must agree with the id.
-    let bad = json!({"id": "48", "level": "county", "name": "Texas", "centroid": null});
+    let bad = json!({"id": "48", "level": "county", "name": "Texas", "centroid": null,
+        "provenance": [prov_json()]});
     assert!(serde_json::from_value::<Geography>(bad).is_err());
     // Centroid out of range is rejected.
     for (lat, lon) in [(91.0, 0.0), (-90.5, 0.0), (0.0, 180.5), (0.0, -181.0)] {
         let bad = json!({"id": "48165", "level": "county", "name": "G",
-            "centroid": {"latitude": lat, "longitude": lon}});
+            "centroid": {"latitude": lat, "longitude": lon}, "provenance": [prov_json()]});
         assert!(
             serde_json::from_value::<Geography>(bad).is_err(),
             "{lat} {lon}"
         );
     }
     assert!(Centroid::new(f64::NAN, 0.0).is_err());
+    // Empty provenance is rejected.
+    let bad = json!({"id": "48165", "level": "county", "name": "G", "centroid": null,
+        "provenance": []});
+    assert!(serde_json::from_value::<Geography>(bad).is_err());
 }
 
 #[test]
@@ -192,31 +197,43 @@ fn rt_round_trip() {
     let ok = RtEstimate {
         geography: gaines(),
         week: week(2025, 12),
-        status: RtStatus::Provisional,
+        status: RtStatus::Ok,
+        provisional: true,
         mean: Some(1.4),
         lower: Some(0.9),
         upper: Some(2.1),
         interval_level: 0.9,
         provenance: prov(),
     };
-    round_trip(&ok);
-    let insufficient = RtEstimate {
-        status: RtStatus::InsufficientData,
-        mean: None,
-        lower: None,
-        upper: None,
+    assert_eq!(round_trip(&ok)["provisional"], json!(true));
+    round_trip(&RtEstimate {
+        provisional: false,
         ..ok.clone()
-    };
-    assert_eq!(
-        round_trip(&insufficient)["status"],
-        json!("insufficient_data")
-    );
-    // An estimate under insufficient_data, or a missing one under ok, is rejected.
-    let mut bad = serde_json::to_value(&insufficient).unwrap();
-    bad["mean"] = json!(1.0);
-    assert!(serde_json::from_value::<RtEstimate>(bad).is_err());
+    });
+    // Insufficient data and provisional can hold together; the estimate is null either way.
+    for provisional in [false, true] {
+        let insufficient = RtEstimate {
+            status: RtStatus::InsufficientData,
+            provisional,
+            mean: None,
+            lower: None,
+            upper: None,
+            ..ok.clone()
+        };
+        let j = round_trip(&insufficient);
+        assert_eq!(j["status"], json!("insufficient_data"));
+        assert_eq!(j["provisional"], json!(provisional));
+        // An estimate under insufficient_data is rejected.
+        let mut bad = j.clone();
+        bad["mean"] = json!(1.0);
+        assert!(serde_json::from_value::<RtEstimate>(bad).is_err());
+    }
+    // A missing estimate under ok is rejected; "provisional" is no longer a status.
     let mut bad = serde_json::to_value(&ok).unwrap();
     bad["mean"] = serde_json::Value::Null;
+    assert!(serde_json::from_value::<RtEstimate>(bad).is_err());
+    let mut bad = serde_json::to_value(&ok).unwrap();
+    bad["status"] = json!("provisional");
     assert!(serde_json::from_value::<RtEstimate>(bad).is_err());
     let mut bad = serde_json::to_value(&ok).unwrap();
     bad["lower"] = json!(3.0);
@@ -231,6 +248,7 @@ fn node(code: &str, baseline: BaselineCoverage) -> ScenarioNode {
         centroid: Centroid::new(32.74, -102.64).unwrap(),
         initial_exposed: 2,
         initial_infectious: 3,
+        provenance: prov(),
     }
 }
 
@@ -238,6 +256,7 @@ fn reported(pct: f64) -> BaselineCoverage {
     BaselineCoverage::Reported {
         coverage_pct: pct,
         imputed: false,
+        imputation_method: None,
         provenance: prov(),
     }
 }
@@ -292,6 +311,15 @@ fn scenario_round_trip_keeps_full_u64_seed() {
         reason: MissingReason::NotReported,
     };
     round_trip(&f);
+    // An imputed baseline round trips with its method.
+    let mut imp = scenario();
+    imp.nodes[0].baseline_coverage = BaselineCoverage::Reported {
+        coverage_pct: 88.0,
+        imputed: true,
+        imputation_method: Some("state median".into()),
+        provenance: prov(),
+    };
+    round_trip(&imp);
 }
 
 #[test]
@@ -321,6 +349,15 @@ fn scenario_rejections() {
         j["nodes"][0]["baseline_coverage"] = json!({"status": "missing", "reason": "not_reported"})
     });
     rejects(|j| j["nodes"][0]["baseline_coverage"]["coverage_pct"] = json!(120.0));
+    // Node provenance must not be empty.
+    rejects(|j| j["nodes"][0]["provenance"] = json!([]));
+    // Imputed baseline needs a method, and a method needs the flag.
+    rejects(|j| j["nodes"][0]["baseline_coverage"]["imputed"] = json!(true));
+    rejects(|j| j["nodes"][0]["baseline_coverage"]["imputation_method"] = json!("guess"));
+    rejects(|j| {
+        j["nodes"][0]["baseline_coverage"]["imputed"] = json!(true);
+        j["nodes"][0]["baseline_coverage"]["imputation_method"] = json!("  ");
+    });
 }
 
 #[test]
@@ -383,4 +420,30 @@ fn invalid_keys_rejected_inside_rows() {
     j["geography"] = json!("48165");
     j["provenance"] = json!([]);
     assert!(serde_json::from_value::<Population>(j).is_err());
+}
+
+#[test]
+fn schema_carries_simple_runtime_bounds() {
+    use schemars::schema_for;
+    let v = serde_json::to_value(schema_for!(ScenarioInput)).unwrap();
+    let defs = &v["$defs"];
+    assert_eq!(v["properties"]["run_count"]["minimum"], json!(1));
+    assert_eq!(v["properties"]["nodes"]["minItems"], json!(1));
+    assert_eq!(
+        defs["ScenarioNode"]["properties"]["population"]["minimum"],
+        json!(1)
+    );
+    let p = &defs["SeirParameters"]["properties"];
+    assert_eq!(p["horizon_days"]["minimum"], json!(1));
+    assert_eq!(p["time_step_days"]["exclusiveMinimum"], json!(0));
+    for k in ["mmr_effectiveness_one_dose", "mmr_effectiveness_two_doses"] {
+        assert_eq!((&p[k]["minimum"], &p[k]["maximum"]), (&json!(0), &json!(1)));
+    }
+    let c = &defs["Centroid"]["properties"];
+    assert_eq!(c["latitude"]["minimum"], json!(-90));
+    assert_eq!(c["longitude"]["maximum"], json!(180));
+    assert_eq!(
+        defs["CoverageOverride"]["properties"]["coverage_pct"]["maximum"],
+        json!(100)
+    );
 }

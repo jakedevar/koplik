@@ -11,8 +11,8 @@
       "description": "Credible-interval level in (0, 1), e.g. 0.9 for a 90% interval.",
       "type": "number",
       "format": "double",
-      "maximum": 1,
-      "minimum": 0
+      "exclusiveMaximum": 1,
+      "exclusiveMinimum": 0
     },
     "lower": {
       "description": "Lower credible bound; `null` iff `status` is `insufficient_data`.",
@@ -20,7 +20,8 @@
         "number",
         "null"
       ],
-      "format": "double"
+      "format": "double",
+      "minimum": 0
     },
     "mean": {
       "description": "Posterior mean; `null` iff `status` is `insufficient_data`.",
@@ -28,10 +29,15 @@
         "number",
         "null"
       ],
-      "format": "double"
+      "format": "double",
+      "minimum": 0
     },
     "provenance": {
       "$ref": "#/$defs/Provenances"
+    },
+    "provisional": {
+      "description": "Recent week still subject to reporting delay. Independent of `status`: a row can be\nprovisional with an estimate, or provisional and `insufficient_data` at once.",
+      "type": "boolean"
     },
     "status": {
       "$ref": "#/$defs/RtStatus"
@@ -42,7 +48,8 @@
         "number",
         "null"
       ],
-      "format": "double"
+      "format": "double",
+      "minimum": 0
     },
     "week": {
       "$ref": "#/$defs/MmwrWeek"
@@ -53,6 +60,7 @@
     "geography",
     "week",
     "status",
+    "provisional",
     "interval_level",
     "provenance"
   ],
@@ -133,14 +141,9 @@
       "description": "Quality of an R_t estimate.",
       "oneOf": [
         {
-          "description": "Final estimate.",
+          "description": "An estimate is published.",
           "type": "string",
           "const": "ok"
-        },
-        {
-          "description": "Recent weeks still subject to reporting delay.",
-          "type": "string",
-          "const": "provisional"
         },
         {
           "description": "Below the minimum-count threshold: no estimate is published (mean and bounds are null).",

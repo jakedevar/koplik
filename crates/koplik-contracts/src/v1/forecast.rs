@@ -10,9 +10,10 @@ use super::provenance::Provenances;
 #[serde(deny_unknown_fields)]
 pub struct ForecastQuantile {
     /// Quantile level in (0, 1), e.g. 0.05, 0.5, 0.95.
-    #[schemars(range(min = 0, max = 1))]
+    #[schemars(extend("exclusiveMinimum" = 0, "exclusiveMaximum" = 1))]
     pub level: f64,
     /// Predicted weekly case count at that quantile (non-negative).
+    #[schemars(range(min = 0))]
     pub value: f64,
 }
 
@@ -26,6 +27,7 @@ pub struct Forecast {
     /// Week being predicted; strictly after `origin_week`.
     pub target_week: MmwrWeek,
     /// Quantiles with strictly increasing levels and non-decreasing values; never empty.
+    #[schemars(length(min = 1))]
     pub quantiles: Vec<ForecastQuantile>,
     /// Seed of the stochastic run that produced the ensemble.
     pub seed: u64,

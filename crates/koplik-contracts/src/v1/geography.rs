@@ -3,6 +3,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 
 use super::check_range;
 use super::fips::{GeoId, GeoLevel};
+use super::provenance::Provenances;
 
 /// A point on the WGS84 ellipsoid in decimal degrees (e.g. a county's population or
 /// geometric centroid; the source states which in its provenance).
@@ -53,10 +54,16 @@ pub struct Geography {
     pub name: String,
     /// Centroid in WGS84 decimal degrees, when known (`null` otherwise).
     pub centroid: Option<Centroid>,
+    /// Source records for the name and centroid (never empty).
+    pub provenance: Provenances,
 }
 
 impl Geography {
-    pub fn new(id: GeoId, name: impl Into<String>) -> Result<Self, String> {
+    pub fn new(
+        id: GeoId,
+        name: impl Into<String>,
+        provenance: Provenances,
+    ) -> Result<Self, String> {
         let name = name.into();
         if name.trim().is_empty() {
             return Err("geography display name must not be empty".into());
@@ -66,6 +73,7 @@ impl Geography {
             id,
             name,
             centroid: None,
+            provenance,
         })
     }
 
@@ -84,6 +92,7 @@ impl<'de> Deserialize<'de> for Geography {
             level: GeoLevel,
             name: String,
             centroid: Option<Centroid>,
+            provenance: Provenances,
         }
         let r = Raw::deserialize(d)?;
         if r.level != r.id.level() {
@@ -92,7 +101,7 @@ impl<'de> Deserialize<'de> for Geography {
                 r.level, r.id
             )));
         }
-        let mut g = Geography::new(r.id, r.name).map_err(serde::de::Error::custom)?;
+        let mut g = Geography::new(r.id, r.name, r.provenance).map_err(serde::de::Error::custom)?;
         g.centroid = r.centroid;
         Ok(g)
     }

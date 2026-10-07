@@ -23,9 +23,17 @@ use super::weekly_cases::MissingReason;
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum R0 {
     /// Every member uses this value (`value > 0`).
-    Fixed { value: f64 },
+    Fixed {
+        #[schemars(extend("exclusiveMinimum" = 0))]
+        value: f64,
+    },
     /// Each member draws its own R0 uniformly from `[min, max]` (`0 < min <= max`).
-    UniformPrior { min: f64, max: f64 },
+    UniformPrior {
+        #[schemars(extend("exclusiveMinimum" = 0))]
+        min: f64,
+        #[schemars(extend("exclusiveMinimum" = 0))]
+        max: f64,
+    },
 }
 
 impl R0 {
@@ -66,9 +74,13 @@ impl<'de> Deserialize<'de> for R0 {
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GravityParameters {
+    #[schemars(range(min = 0))]
     pub scale: f64,
+    #[schemars(range(min = 0))]
     pub origin_exponent: f64,
+    #[schemars(range(min = 0))]
     pub destination_exponent: f64,
+    #[schemars(range(min = 0))]
     pub distance_exponent: f64,
 }
 
@@ -79,16 +91,22 @@ pub struct SeirParameters {
     /// Basic reproduction number R0: fixed, or a prior sampled once per ensemble member.
     pub r0: R0,
     /// Mean latent (exposed, not yet infectious) period in days.
+    #[schemars(extend("exclusiveMinimum" = 0))]
     pub latent_period_days: f64,
     /// Mean infectious period in days.
+    #[schemars(extend("exclusiveMinimum" = 0))]
     pub infectious_period_days: f64,
     /// Protection from one MMR dose, in [0, 1].
+    #[schemars(range(min = 0, max = 1))]
     pub mmr_effectiveness_one_dose: f64,
     /// Protection from two MMR doses, in [0, 1]; applied to kindergarten MMR coverage.
+    #[schemars(range(min = 0, max = 1))]
     pub mmr_effectiveness_two_doses: f64,
     /// Tau-leap step length in days.
+    #[schemars(extend("exclusiveMinimum" = 0))]
     pub time_step_days: f64,
     /// Simulated horizon in days.
+    #[schemars(range(min = 1))]
     pub horizon_days: u32,
     /// Coupling between geographies; `null` runs each geography in isolation.
     pub gravity: Option<GravityParameters>,
@@ -165,6 +183,9 @@ pub enum BaselineCoverage {
         coverage_pct: f64,
         /// True when the value was imputed rather than measured.
         imputed: bool,
+        /// Non-empty description of the imputation method exactly when `imputed`; `null`
+        /// otherwise.
+        imputation_method: Option<String>,
         provenance: Provenances,
     },
     Missing {
@@ -180,6 +201,7 @@ impl<'de> Deserialize<'de> for BaselineCoverage {
             Reported {
                 coverage_pct: f64,
                 imputed: bool,
+                imputation_method: Option<String>,
                 provenance: Provenances,
             },
             Missing {
@@ -190,13 +212,24 @@ impl<'de> Deserialize<'de> for BaselineCoverage {
             Raw::Reported {
                 coverage_pct,
                 imputed,
+                imputation_method,
                 provenance,
             } => {
-                check_range("coverage_pct", coverage_pct, 0.0, 100.0)
-                    .map_err(serde::de::Error::custom)?;
+                use serde::de::Error;
+                check_range("coverage_pct", coverage_pct, 0.0, 100.0).map_err(D::Error::custom)?;
+                match (imputed, &imputation_method) {
+                    (true, Some(m)) if !m.trim().is_empty() => {}
+                    (false, None) => {}
+                    _ => {
+                        return Err(D::Error::custom(
+                            "imputation_method must be present and non-empty exactly when imputed is true",
+                        ));
+                    }
+                }
                 BaselineCoverage::Reported {
                     coverage_pct,
                     imputed,
+                    imputation_method,
                     provenance,
                 }
             }
@@ -211,6 +244,7 @@ impl<'de> Deserialize<'de> for BaselineCoverage {
 pub struct ScenarioNode {
     pub id: GeoId,
     /// Resident population (`> 0`).
+    #[schemars(range(min = 1))]
     pub population: u64,
     pub baseline_coverage: BaselineCoverage,
     /// Location used for gravity coupling.
@@ -220,6 +254,9 @@ pub struct ScenarioNode {
     /// Infectious individuals at the start week. Exposed plus infectious must not exceed
     /// the population.
     pub initial_infectious: u32,
+    /// Source records for the node's population and centroid (never empty). The baseline
+    /// coverage carries its own.
+    pub provenance: Provenances,
 }
 
 impl<'de> Deserialize<'de> for ScenarioNode {
@@ -233,6 +270,7 @@ impl<'de> Deserialize<'de> for ScenarioNode {
             centroid: Centroid,
             initial_exposed: u32,
             initial_infectious: u32,
+            provenance: Provenances,
         }
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
@@ -255,6 +293,7 @@ impl<'de> Deserialize<'de> for ScenarioNode {
             centroid: r.centroid,
             initial_exposed: r.initial_exposed,
             initial_infectious: r.initial_infectious,
+            provenance: r.provenance,
         })
     }
 }
@@ -266,6 +305,7 @@ impl<'de> Deserialize<'de> for ScenarioNode {
 pub struct ScenarioInput {
     /// Simulated geographies: non-empty, unique, in canonical order (`GeoId` order: states
     /// by FIPS code, then counties by FIPS code), so output order never depends on input order.
+    #[schemars(length(min = 1))]
     pub nodes: Vec<ScenarioNode>,
     /// Week the simulation starts.
     pub start_week: MmwrWeek,
@@ -275,6 +315,7 @@ pub struct ScenarioInput {
     /// RNG seed. Run `k` derives its own seed from this and `k`.
     pub seed: u64,
     /// Number of ensemble members (at least 1).
+    #[schemars(range(min = 1))]
     pub run_count: u32,
 }
 

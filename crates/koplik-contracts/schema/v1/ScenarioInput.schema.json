@@ -16,7 +16,8 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/ScenarioNode"
-      }
+      },
+      "minItems": 1
     },
     "parameters": {
       "$ref": "#/$defs/SeirParameters"
@@ -25,7 +26,7 @@
       "description": "Number of ensemble members (at least 1).",
       "type": "integer",
       "format": "uint32",
-      "minimum": 0
+      "minimum": 1
     },
     "seed": {
       "description": "RNG seed. Run `k` derives its own seed from this and `k`.",
@@ -60,6 +61,13 @@
               "format": "double",
               "maximum": 100,
               "minimum": 0
+            },
+            "imputation_method": {
+              "description": "Non-empty description of the imputation method exactly when `imputed`; `null`\notherwise.",
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "imputed": {
               "description": "True when the value was imputed rather than measured.",
@@ -157,19 +165,23 @@
       "properties": {
         "destination_exponent": {
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "minimum": 0
         },
         "distance_exponent": {
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "minimum": 0
         },
         "origin_exponent": {
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "minimum": 0
         },
         "scale": {
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "minimum": 0
         }
       },
       "additionalProperties": false,
@@ -280,7 +292,8 @@
             },
             "value": {
               "type": "number",
-              "format": "double"
+              "format": "double",
+              "exclusiveMinimum": 0
             }
           },
           "additionalProperties": false,
@@ -299,11 +312,13 @@
             },
             "max": {
               "type": "number",
-              "format": "double"
+              "format": "double",
+              "exclusiveMinimum": 0
             },
             "min": {
               "type": "number",
-              "format": "double"
+              "format": "double",
+              "exclusiveMinimum": 0
             }
           },
           "additionalProperties": false,
@@ -345,7 +360,11 @@
           "description": "Resident population (`> 0`).",
           "type": "integer",
           "format": "uint64",
-          "minimum": 0
+          "minimum": 1
+        },
+        "provenance": {
+          "description": "Source records for the node's population and centroid (never empty). The baseline\ncoverage carries its own.",
+          "$ref": "#/$defs/Provenances"
         }
       },
       "additionalProperties": false,
@@ -355,7 +374,8 @@
         "baseline_coverage",
         "centroid",
         "initial_exposed",
-        "initial_infectious"
+        "initial_infectious",
+        "provenance"
       ]
     },
     "SeirParameters": {
@@ -377,27 +397,33 @@
           "description": "Simulated horizon in days.",
           "type": "integer",
           "format": "uint32",
-          "minimum": 0
+          "minimum": 1
         },
         "infectious_period_days": {
           "description": "Mean infectious period in days.",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "exclusiveMinimum": 0
         },
         "latent_period_days": {
           "description": "Mean latent (exposed, not yet infectious) period in days.",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "exclusiveMinimum": 0
         },
         "mmr_effectiveness_one_dose": {
           "description": "Protection from one MMR dose, in [0, 1].",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
         },
         "mmr_effectiveness_two_doses": {
           "description": "Protection from two MMR doses, in [0, 1]; applied to kindergarten MMR coverage.",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
         },
         "r0": {
           "description": "Basic reproduction number R0: fixed, or a prior sampled once per ensemble member.",
@@ -406,7 +432,8 @@
         "time_step_days": {
           "description": "Tau-leap step length in days.",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "exclusiveMinimum": 0
         }
       },
       "additionalProperties": false,

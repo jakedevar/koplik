@@ -19,7 +19,8 @@
       "type": "array",
       "items": {
         "$ref": "#/$defs/ForecastQuantile"
-      }
+      },
+      "minItems": 1
     },
     "run_count": {
       "description": "Number of ensemble members behind the quantiles.",
@@ -57,13 +58,14 @@
           "description": "Quantile level in (0, 1), e.g. 0.05, 0.5, 0.95.",
           "type": "number",
           "format": "double",
-          "maximum": 1,
-          "minimum": 0
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0
         },
         "value": {
           "description": "Predicted weekly case count at that quantile (non-negative).",
           "type": "number",
-          "format": "double"
+          "format": "double",
+          "minimum": 0
         }
       },
       "additionalProperties": false,
