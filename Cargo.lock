@@ -791,6 +791,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "koplik-pipeline"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "koplik-contracts",
+ "koplik-epi",
+ "koplik-ingest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "koplik-wasm"
 version = "0.1.0"
 dependencies = [

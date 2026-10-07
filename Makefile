@@ -10,7 +10,7 @@ PUBLISH_REMOTE ?= origin
 PUBLISH_DRY_RUN ?= 0
 export PUBLISH_REMOTE PUBLISH_DRY_RUN
 
-.PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline serve publish
+.PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline pipeline-fixtures serve publish
 
 check:
 	$(CARGO) check --workspace --all-targets
@@ -47,8 +47,16 @@ web-test: wasm web/node_modules/.package-lock.json
 	cd web && npm test
 	node --test tools/publish.test.mjs
 
+# Live pipeline: ingest (network, identified by KOPLIK_CONTACT or the operator's default contact;
+# a blank KOPLIK_CONTACT refuses) then validate, infer, forecast and build into web/public/data.
+# Never falls back to fixtures.
 pipeline:
-	@echo "make pipeline: not implemented yet" >&2; exit 1
+	$(CARGO) run --locked --release -p koplik-pipeline -- all
+
+# Offline pipeline from the committed real-byte fixtures in data/fixtures/ (their recorded
+# provenance and retrieval times), into web/public/data. Used by QA and tests; no network.
+pipeline-fixtures:
+	$(CARGO) run --locked --release -p koplik-pipeline -- all --from-fixtures
 
 serve: wasm web/node_modules/.package-lock.json
 	cd web && KOPLIK_BASE_PATH=/ npm run build && KOPLIK_BASE_PATH=/ npm run preview
