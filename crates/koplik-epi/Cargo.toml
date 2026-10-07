@@ -1,0 +1,24 @@
+[package]
+name = "koplik-epi"
+version = "0.1.0"
+description = "Pure, seeded epidemic models for Koplik"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+koplik-contracts = { path = "../koplik-contracts" }
+libm.workspace = true
+sha2.workspace = true
+hex.workspace = true
+thiserror.workspace = true
+rand_chacha = { version = "0.9", default-features = false }
+rand_core = { version = "0.9", default-features = false }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[[bench]]
+name = "seir_ensemble"
+harness = false
