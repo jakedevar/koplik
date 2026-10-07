@@ -20,6 +20,9 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
   const shared = join(scratch, 'shared');
   const env = { ...process.env, CARGO_NET_OFFLINE: 'true', npm_config_offline: 'true' };
   delete env.RSI_SESSION_TOKEN;
+  // node --test marks its children; inheriting that marker makes another
+  // node --test silently skip discovery instead of running an independent gate.
+  delete env.NODE_TEST_CONTEXT;
   for (const key of Object.keys(env)) if (key.startsWith('GIT_')) delete env[key];
   const git = (cwd, ...args) => command('git', args, cwd, env);
   try {
@@ -84,15 +87,23 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
         await cp(join(project, 'target/tools/bin/wasm-bindgen'), join(work, 'target/tools/bin/wasm-bindgen'));
         for (const gate of gates) {
           console.log(`LIVE candidate QA: make ${gate}`);
-          await new Promise((accept, reject) => {
+          const output = await new Promise((accept, reject) => {
             // These test-only contacts/inputs are public fixtures and dummy
             // config. Keep foreground gate output in the parent test's tee log.
-            const child = spawn('make', [gate], { cwd: work, stdio: 'inherit', env: {
+            const child = spawn('make', [gate], { cwd: work, stdio: ['ignore', 'pipe', 'pipe'], env: {
               ...runtime, CARGO_TARGET_DIR: candidateTarget, CARGO_NET_OFFLINE: 'true',
               npm_config_offline: 'true', TMPDIR: taskTarget } });
+            let stdout = '';
+            child.stdout.on('data', (chunk) => { stdout += chunk; process.stdout.write(chunk); });
+            child.stderr.on('data', (chunk) => process.stderr.write(chunk));
             child.on('error', reject);
-            child.on('close', (code) => code === 0 ? accept() : reject(new Error(`LIVE QA make ${gate} failed (${code})`)));
+            child.on('close', (code) => code === 0 ? accept(stdout) : reject(new Error(`LIVE QA make ${gate} failed (${code})`)));
           });
+          if (gate === 'web-test') {
+            assert.ok(output.includes('offline-prepared live release builds Pages offline'));
+            assert.ok(output.includes('offline fixture-ingested bundles preserve their recorded mode in both modes'));
+            assert.ok(output.includes('Initial seed proof skipped: committed data/release has mode live'));
+          }
           completed.push(gate);
           console.log(`LIVE candidate QA passed: make ${gate}`);
         }
