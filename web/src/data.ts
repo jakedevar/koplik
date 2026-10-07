@@ -1,4 +1,5 @@
 import Ajv from 'ajv/dist/2020';
+import { expandRowArtifact } from './row-artifact';
 import addFormats from 'ajv-formats';
 import geographySchema from '../../crates/koplik-contracts/schema/v1/Geography.schema.json';
 import casesV1Schema from '../../crates/koplik-contracts/schema/v1/WeeklyCaseCount.schema.json';
@@ -72,6 +73,7 @@ export function caseDefinitionWords(rows: WeeklyCaseCount[]): string {
 }
 
 export function parseRows<T extends keyof typeof validators>(kind: T, input: unknown): Dataset[T] {
+  input = expandRowArtifact(kind, input);
   if (!Array.isArray(input)) throw new Error(`${kind}: expected an array of rows`);
   const validate = validators[kind];
   const keys = new Set<string>();
@@ -145,7 +147,7 @@ export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boun
 
 /** Read only static, same-origin artifacts; no external source or tile requests. */
 export async function loadDataset(base: string, synthetic = false, read: typeof fetch = fetch): Promise<Dataset> {
-  const root = `${base.replace(/\/$/, '')}/data/${synthetic ? 'synthetic-v1' : 'v1'}/`;
+  const root = `${base.replace(/\/$/, '')}/data/${synthetic ? 'synthetic-v1' : 'v6'}/`;
   async function json(name: string): Promise<unknown> {
     const response = await read(`${root}${synthetic ? 'synthetic-' : ''}${name}.json`);
     if (!response.ok) throw new Error(`${name}: artifact unavailable (${response.status})`);

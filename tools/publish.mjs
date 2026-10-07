@@ -152,8 +152,8 @@ async function main() {
     });
     const dist = join(web, 'dist');
     if (!existsSync(join(dist, 'data/manifest.json'))
-      || !(await readdir(join(dist, 'data/v1')).catch(() => [])).some((name) => name.endsWith('.json'))) {
-      throw new Error('Built site is missing data/manifest.json or data/v1/*.json; refusing publication');
+      || !(await readdir(join(dist, 'data/v6')).catch(() => [])).some((name) => name.endsWith('.json'))) {
+      throw new Error('Built site is missing data/manifest.json or data/v6/*.json; refusing publication');
     }
     await writeFile(join(dist, '.nojekyll'), '');
     await publishSite({ scratch, dist, target, source, identity, session, dryRun });
