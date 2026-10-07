@@ -19,13 +19,17 @@ wasm:
 determinism:
 	@echo "make determinism: not implemented yet" >&2; exit 1
 
-web-test:
+# Install web dependencies from the lockfile when it changes (works from a clean checkout).
+web/node_modules/.package-lock.json: web/package-lock.json
+	cd web && npm ci --no-audit --no-fund
+
+web-test: web/node_modules/.package-lock.json
 	cd web && npm test
 
 pipeline:
 	@echo "make pipeline: not implemented yet" >&2; exit 1
 
-serve:
+serve: web/node_modules/.package-lock.json
 	cd web && npm run build && npm run preview
 
 publish:
