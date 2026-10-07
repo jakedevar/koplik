@@ -176,6 +176,7 @@ fn cached_named_files_and_offline_cli_need_no_network() {
             .arg("--out")
             .arg(&out)
             .env_remove("KOPLIK_CONTACT")
+            .env("KOPLIK_CENSUS_CONTACT", "census-contact@example.invalid")
             .output()
             .unwrap();
         assert!(
@@ -211,6 +212,7 @@ fn live_population_fetch_requires_contact_before_store_or_request() {
             // Unset now means the committed default contact (#1413), which would fetch live;
             // a blank value is the explicit opt-out that must refuse before any request.
             .env("KOPLIK_CONTACT", "")
+            .env("KOPLIK_CENSUS_CONTACT", "census-contact@example.invalid")
             .output()
             .unwrap();
         assert!(!result.status.success());

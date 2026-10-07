@@ -20,6 +20,7 @@ fn dshs_and_census_fetches_refuse_without_a_contact_and_touch_nothing() {
                 Some(c) => cmd.env("KOPLIK_CONTACT", c),
                 None => cmd.env_remove("KOPLIK_CONTACT"),
             };
+            cmd.env("KOPLIK_CENSUS_CONTACT", "census-contact@example.invalid");
             let out = cmd.output().unwrap();
             assert!(!out.status.success(), "{source} {contact:?}");
             let err = String::from_utf8_lossy(&out.stderr);

@@ -74,12 +74,29 @@ pub const CENSUS_CONTACT_ENV: &str = "KOPLIK_CENSUS_CONTACT";
 /// `.gitignore` covers it). Holds [`CENSUS_CONTACT_ENV`] when it is not in the environment.
 pub const LOCAL_CONFIG_FILE: &str = ".env.local";
 
-/// Whether `host` (lower-case authority, optional port) is a US Census Bureau host:
-/// `census.gov` or any `*.census.gov`. A lookalike such as `notcensus.gov` or `census.gov.evil`
-/// is not one, and archive.org is not one even when it serves a copy of a Census file.
+/// Whether `host` (a bare host name: no port, no userinfo) is a US Census Bureau host:
+/// `census.gov` or any `*.census.gov`, compared case-insensitively with one trailing dot
+/// (the absolute form `www2.census.gov.`) removed. A lookalike such as `evilcensus.gov` or
+/// `census.gov.evil.com` is not one, and archive.org is not one even when it serves a copy of a
+/// Census file.
 pub fn is_census_host(host: &str) -> bool {
-    let name = host.split(':').next().unwrap_or(host);
-    name == "census.gov" || name.ends_with(".census.gov")
+    let lower = host.to_ascii_lowercase();
+    let name = lower.strip_suffix('.').unwrap_or(&lower);
+    name == "census.gov"
+        || name.strip_suffix(".census.gov").is_some_and(|labels| {
+            !labels.is_empty() && !labels.starts_with('.') && !labels.contains("..")
+        })
+}
+
+/// Whether the request URL's host is a Census host. The host comes from the parsed URL, so
+/// ports, userinfo (`https://census.gov@evil.com/` is evil.com) and malformed authorities
+/// (`census.gov:443.evil.com` does not parse) cannot be mistaken for Census. An unparsable
+/// URL is not a Census URL.
+pub fn is_census_url(url: &str) -> bool {
+    url::Url::parse(url)
+        .ok()
+        .and_then(|u| u.host_str().map(is_census_host))
+        .unwrap_or(false)
 }
 
 /// Value of `key` in simple `KEY=VALUE` config text: `#` comment lines and blank lines are
@@ -120,12 +137,22 @@ pub fn repository_root(start: &std::path::Path) -> Option<std::path::PathBuf> {
 
 /// Where the Census contact came from; the stderr notice and the tests name it, the value
 /// itself is never logged.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum CensusContact {
     /// A configured, non-blank contact.
     Configured(String),
     /// Nothing configured: Census requests use the general contact.
     Fallback,
+}
+
+/// Redacted: the contact is operator-private, so no `{:?}` path may print it.
+impl std::fmt::Debug for CensusContact {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Configured(_) => f.write_str("Configured(<redacted>)"),
+            Self::Fallback => f.write_str("Fallback"),
+        }
+    }
 }
 
 /// Pure Census contact resolution. `env` is the raw `KOPLIK_CENSUS_CONTACT` (`None` = unset);
@@ -157,14 +184,17 @@ pub fn resolve_census_contact(
     }
 }
 
-/// Reads the Census contact from the process environment and the repository's local config
-/// (found from the current directory upward).
-fn census_contact_from_env() -> Result<CensusContact> {
-    let env = std::env::var_os(CENSUS_CONTACT_ENV);
-    let local = match std::env::current_dir()
-        .ok()
-        .and_then(|cwd| repository_root(&cwd))
-    {
+/// Reads the Census contact: the environment variable alone when it is set (the file is not
+/// even opened, so an unreadable `.env.local` cannot break a configured run), otherwise the
+/// local config found from `start` upward.
+fn census_contact_from(
+    env: Option<&std::ffi::OsStr>,
+    start: Option<&std::path::Path>,
+) -> Result<CensusContact> {
+    if env.is_some() {
+        return resolve_census_contact(env, None);
+    }
+    let local = match start.and_then(repository_root) {
         Some(root) => {
             let path = root.join(LOCAL_CONFIG_FILE);
             match std::fs::read_to_string(&path) {
@@ -175,7 +205,14 @@ fn census_contact_from_env() -> Result<CensusContact> {
         }
         None => None,
     };
-    resolve_census_contact(env.as_deref(), local.as_deref())
+    resolve_census_contact(None, local.as_deref())
+}
+
+fn census_contact_from_env() -> Result<CensusContact> {
+    census_contact_from(
+        std::env::var_os(CENSUS_CONTACT_ENV).as_deref(),
+        std::env::current_dir().ok().as_deref(),
+    )
 }
 
 /// One line on stderr (no contact value in it) when Census requests use the general contact.
@@ -245,10 +282,10 @@ impl Timekeeper for SystemTimekeeper {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct PoliteConfig {
     pub user_agent: String,
-    /// User-Agent for Census hosts ([`is_census_host`]) when a Census contact is configured;
+    /// User-Agent for Census hosts ([`is_census_url`]) when a Census contact is configured;
     /// `None` sends [`PoliteConfig::user_agent`] to every host.
     pub census_user_agent: Option<String>,
     /// Set by [`PoliteConfig::live_from_env`] when Census requests fall back to the general
@@ -266,6 +303,26 @@ pub struct PoliteConfig {
     pub max_crawl_delay: Duration,
 }
 
+/// Redacted: both User-Agents embed a contact, which may be an operator-private address.
+impl std::fmt::Debug for PoliteConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PoliteConfig")
+            .field("user_agent", &"<redacted>")
+            .field(
+                "census_user_agent",
+                &self.census_user_agent.as_ref().map(|_| "<redacted>"),
+            )
+            .field("census_fallback_notice", &self.census_fallback_notice)
+            .field("min_interval", &self.min_interval)
+            .field("max_attempts", &self.max_attempts)
+            .field("backoff_base", &self.backoff_base)
+            .field("backoff_cap", &self.backoff_cap)
+            .field("max_redirects", &self.max_redirects)
+            .field("max_crawl_delay", &self.max_crawl_delay)
+            .finish()
+    }
+}
+
 impl PoliteConfig {
     /// Configuration for live fetching: identifies the client with `contact` (normally
     /// [`contact_from_env`]) and refuses, before any request, when there is none.
@@ -276,11 +333,11 @@ impl PoliteConfig {
         })
     }
 
-    /// The User-Agent sent to `host` (lower-case authority): the Census one on Census hosts
-    /// when configured, the general one everywhere else.
-    pub fn user_agent_for(&self, host: &str) -> &str {
+    /// The User-Agent sent for a request to `url`: the Census one on Census hosts
+    /// ([`is_census_url`]) when configured, the general one everywhere else.
+    pub fn user_agent_for(&self, url: &str) -> &str {
         match &self.census_user_agent {
-            Some(ua) if is_census_host(host) => ua,
+            Some(ua) if is_census_url(url) => ua,
             _ => &self.user_agent,
         }
     }
@@ -411,8 +468,8 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
 
     /// The fallback notice, once, the first time a Census host is about to be requested with
     /// the general contact. Never carries a contact value.
-    fn take_census_notice(&mut self, host: &str) -> Option<&'static str> {
-        if self.census_notice_pending && is_census_host(host) {
+    fn take_census_notice(&mut self, url: &str) -> Option<&'static str> {
+        if self.census_notice_pending && is_census_url(url) {
             self.census_notice_pending = false;
             Some(CENSUS_FALLBACK_NOTICE)
         } else {
@@ -444,14 +501,12 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             return Err(IngestError::NamedFileAlreadyRequested(url.to_owned()));
         }
         let interval = self.host_interval(&target.host)?;
-        if let Some(notice) = self.take_census_notice(&target.host) {
+        if let Some(notice) = self.take_census_notice(url) {
             eprintln!("{notice}");
         }
         self.throttle(&target.host, interval);
         // No request() retry loop and no redirect following: at most one GET per file/run.
-        let response = self
-            .client
-            .get(url, self.cfg.user_agent_for(&target.host))?;
+        let response = self.client.get(url, self.cfg.user_agent_for(url))?;
         if !(200..=299).contains(&response.status) {
             return Err(IngestError::BadStatus {
                 status: response.status,
@@ -481,9 +536,9 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         &self.cfg.user_agent
     }
 
-    /// The User-Agent this fetcher sends to `host`.
-    pub fn user_agent_for(&self, host: &str) -> &str {
-        self.cfg.user_agent_for(host)
+    /// The User-Agent this fetcher sends for a request to `url`.
+    pub fn user_agent_for(&self, url: &str) -> &str {
+        self.cfg.user_agent_for(url)
     }
 
     /// Wait until the host has had its quiet interval, then stamp it.
@@ -537,11 +592,11 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         let mut attempt = 1;
         loop {
             let interval = self.host_interval(host)?;
-            if let Some(notice) = self.take_census_notice(host) {
+            if let Some(notice) = self.take_census_notice(url) {
                 eprintln!("{notice}");
             }
             self.throttle(host, interval);
-            let outcome = self.client.get(url, self.cfg.user_agent_for(host));
+            let outcome = self.client.get(url, self.cfg.user_agent_for(url));
             let (retryable, retry_after) = match &outcome {
                 Ok(r) if r.status == 429 || r.status >= 500 => (true, r.retry_after_secs),
                 Ok(_) => (false, None),
@@ -564,7 +619,7 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         let robots = match self.request(&t.host, &url) {
             Ok(r) if (200..300).contains(&r.status) => Robots::parse(
                 &String::from_utf8_lossy(&r.body),
-                self.cfg.user_agent_for(&t.host),
+                self.cfg.user_agent_for(&url),
             ),
             // RFC 9309: robots.txt absent (4xx) means no restrictions; forbidden means none allowed.
             Ok(r) if r.status == 401 || r.status == 403 => Robots::disallow_all(),
@@ -902,23 +957,127 @@ mod tests {
     }
 
     #[test]
-    fn census_hosts_are_census_only() {
-        for h in [
-            "www2.census.gov",
-            "census.gov",
-            "geo.census.gov:443",
-            "api.census.gov",
+    fn census_urls_are_classified_from_the_parsed_host() {
+        for u in [
+            "https://www2.census.gov/x",
+            "https://census.gov/x",
+            "https://geo.census.gov:443/x",
+            "https://api.census.gov:8443/x",
+            "https://www2.census.gov./x",
+            "https://WWW2.CENSUS.GOV/x",
+            "http://www2.Census.Gov.:80/x",
+            "https://user:pw@www2.census.gov/x",
         ] {
-            assert!(is_census_host(h), "{h}");
+            assert!(is_census_url(u), "{u}");
         }
-        for h in [
-            "web.archive.org",
-            "notcensus.gov",
-            "census.gov.evil.example",
-            "data.cdc.gov",
+        for u in [
+            "https://web.archive.org/web/2025/https://www2.census.gov/x.zip",
+            "https://census.gov@evil.com/x",
+            "https://www2.census.gov@evil.com/x",
+            "https://census.gov.evil.com/x",
+            "https://evilcensus.gov/x",
+            "https://notcensus.gov/x",
+            "https://census.gov:443.evil.com/x",
+            "https://evil.com/?h=www2.census.gov",
+            "https://evil.com/www2.census.gov/x",
+            "https://data.cdc.gov/x",
+            "https://.census.gov/x",
+            "not a url",
         ] {
-            assert!(!is_census_host(h), "{h}");
+            assert!(!is_census_url(u), "{u}");
         }
+        assert!(is_census_host("Www2.Census.Gov.") && !is_census_host("census.gov.evil.com"));
+    }
+
+    #[test]
+    fn debug_output_never_carries_a_contact() {
+        let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
+        let census = CensusContact::Configured(DUMMY_CENSUS.to_owned());
+        for text in [
+            format!("{cfg:?}"),
+            format!("{cfg:#?}"),
+            format!("{census:?}"),
+        ] {
+            assert!(!text.contains(DUMMY_CENSUS), "{text}");
+            assert!(!text.contains("example.org/general"), "{text}");
+            assert!(text.contains("<redacted>"), "{text}");
+        }
+        assert_eq!(format!("{:?}", CensusContact::Fallback), "Fallback");
+        // Errors name the source of a value, never the value.
+        let e = resolve_census_contact(Some(std::ffi::OsStr::new(" ")), None).unwrap_err();
+        assert!(!e.to_string().contains(DUMMY_CENSUS));
+    }
+
+    #[test]
+    fn a_configured_environment_contact_never_opens_the_local_config() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        // Unreadable as text (a directory) and non-UTF-8: neither may matter when the
+        // environment variable is set.
+        std::fs::create_dir(dir.path().join(LOCAL_CONFIG_FILE)).unwrap();
+        let env = std::ffi::OsStr::new(DUMMY_CENSUS);
+        assert_eq!(
+            census_contact_from(Some(env), Some(dir.path())).unwrap(),
+            CensusContact::Configured(DUMMY_CENSUS.to_owned())
+        );
+        // Only an unset variable needs the file, and then the failure is reported.
+        assert!(matches!(
+            census_contact_from(None, Some(dir.path())),
+            Err(IngestError::Io { .. })
+        ));
+        std::fs::remove_dir(dir.path().join(LOCAL_CONFIG_FILE)).unwrap();
+        std::fs::write(dir.path().join(LOCAL_CONFIG_FILE), b"K=\xff\xfe\n").unwrap();
+        assert!(census_contact_from(None, Some(dir.path())).is_err());
+        assert_eq!(
+            census_contact_from(Some(env), Some(dir.path())).unwrap(),
+            CensusContact::Configured(DUMMY_CENSUS.to_owned())
+        );
+        // A readable file is used when the variable is unset; a missing one means fallback.
+        std::fs::write(
+            dir.path().join(LOCAL_CONFIG_FILE),
+            format!("{CENSUS_CONTACT_ENV}={DUMMY_CENSUS}\n"),
+        )
+        .unwrap();
+        assert_eq!(
+            census_contact_from(None, Some(dir.path())).unwrap(),
+            CensusContact::Configured(DUMMY_CENSUS.to_owned())
+        );
+        std::fs::remove_file(dir.path().join(LOCAL_CONFIG_FILE)).unwrap();
+        assert_eq!(
+            census_contact_from(None, Some(dir.path())).unwrap(),
+            CensusContact::Fallback
+        );
+    }
+
+    #[test]
+    fn absolute_and_uppercase_census_hosts_get_the_census_contact_on_robots_and_content() {
+        let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
+        for url in [
+            "https://www2.census.gov./geo/x.zip",
+            "https://WWW2.CENSUS.GOV/geo/x.zip",
+        ] {
+            let c = FakeClient::default();
+            let origin = &url[..url.find("/geo").unwrap()];
+            // The fetcher lower-cases the host of the robots.txt URL it derives.
+            c.on(
+                &format!("{}/robots.txt", origin.to_ascii_lowercase()),
+                FakeClient::status(404, b""),
+            );
+            c.on(url, FakeClient::ok(b"x"));
+            let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg.clone());
+            f.fetch(url).unwrap();
+            let calls = c.calls.borrow();
+            assert_eq!(calls.len(), 2, "{calls:?}");
+            assert!(
+                calls.iter().all(|(_, a)| *a == ua(DUMMY_CENSUS)),
+                "{calls:?}"
+            );
+        }
+        // A userinfo trick is refused outright by the fetcher and never classified as Census.
+        assert_eq!(
+            cfg.user_agent_for("https://census.gov@evil.com/"),
+            ua("https://example.org/general")
+        );
     }
 
     #[test]
@@ -999,7 +1158,7 @@ mod tests {
     #[test]
     fn census_hosts_send_the_census_contact_and_other_hosts_the_general_one() {
         let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
-        assert_eq!(cfg.user_agent_for("www2.census.gov"), ua(DUMMY_CENSUS));
+        assert_eq!(cfg.user_agent_for(CENSUS_URL), ua(DUMMY_CENSUS));
         let wire = wire_for(cfg, &[CENSUS_URL, ARCHIVE_URL]);
         // robots.txt and the file itself, for both hosts.
         assert_eq!(wire.len(), 4, "{wire:?}");
@@ -1031,12 +1190,12 @@ mod tests {
         c.on(CENSUS_URL, FakeClient::ok(b"x"));
         let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
         // Non-Census hosts never trigger the notice; the first Census host does, once.
-        assert_eq!(f.take_census_notice("data.cdc.gov"), None);
+        assert_eq!(f.take_census_notice("https://data.cdc.gov/x"), None);
         assert_eq!(
-            f.take_census_notice("www2.census.gov"),
+            f.take_census_notice(CENSUS_URL),
             Some(CENSUS_FALLBACK_NOTICE)
         );
-        assert_eq!(f.take_census_notice("www2.census.gov"), None);
+        assert_eq!(f.take_census_notice(CENSUS_URL), None);
         assert!(!CENSUS_FALLBACK_NOTICE.contains('@'));
         f.fetch(CENSUS_URL).unwrap();
         assert!(

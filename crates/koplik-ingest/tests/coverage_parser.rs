@@ -309,6 +309,7 @@ fn offline_cli_writes_v1_rows_and_complete_gaps() {
             .arg("--gaps")
             .arg(&gaps)
             .env_remove("KOPLIK_CONTACT")
+            .env("KOPLIK_CENSUS_CONTACT", "census-contact@example.invalid")
             .output()
             .unwrap();
         assert!(
@@ -341,7 +342,8 @@ fn live_coverage_fetch_requires_contact_before_creating_store() {
             let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_koplik-ingest"));
             cmd.args(["fetch", source, "--store"])
                 .arg(&store)
-                .env_remove("KOPLIK_CONTACT");
+                .env_remove("KOPLIK_CONTACT")
+                .env("KOPLIK_CENSUS_CONTACT", "census-contact@example.invalid");
             if let Some(contact) = contact {
                 cmd.env("KOPLIK_CONTACT", contact);
             }

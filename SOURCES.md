@@ -91,7 +91,10 @@ instruction (#1427). The address is not stored in this repository: it comes from
 `KOPLIK_CENSUS_CONTACT` or from the gitignored `.env.local` at the repository root. Unset in both,
 Census requests use the general contact above and print one notice on stderr; a blank value
 refuses before any request. The same resolver (`PoliteConfig::live_from_env`) serves every live
-path, so the pipeline's Census ingest inherits it.
+path today (the CLI and examples); the pipeline's Census ingest (#1359) is intended to call it too
+and will inherit it once it lands. Which contact a request carries is decided from the parsed
+request URL's host (case-insensitive, one trailing dot removed, exactly `census.gov` or a
+`*.census.gov` name).
 
 **Columns used.** `states` (reporting jurisdiction name), `year` and `week` (MMWR reporting year and
 week of the weekly table), `label` (`Measles, Indigenous` or `Measles, Imported`), `m3` (cumulative
