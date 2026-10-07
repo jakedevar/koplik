@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
 
 use super::{
-    BacktestSkill, CaseDefinition, Forecast, ForecastInput, ForecastStatus, GeoId,
-    InsufficientReason, MmwrWeek, ParameterProvenance, Sha256Hex, SkillByHorizon,
+    BacktestSkill, CaseDefinition, Forecast, ForecastInput, GeoId, MmwrWeek, ParameterProvenance,
+    Sha256Hex, SkillByHorizon,
 };
 
 /// Tag every v7 forecast provenance carries.
@@ -14,6 +14,112 @@ pub const FORECAST_PROVENANCE_VERSION: u32 = 7;
 /// Quantile levels a forecast must publish for the web to draw it and the backtests to have
 /// scored it: the median and the 50% (0.25, 0.75) and 90% (0.05, 0.95) central intervals.
 const BAND_LEVELS: [f64; 5] = [0.05, 0.25, 0.5, 0.75, 0.95];
+
+/// Whether a series was forecast, and if the method made one, whether it is published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ForecastStatus {
+    /// Forecast rows are published for the series: its measured skill meets the publication policy.
+    Forecast,
+    /// The method made a forecast but the publication policy does not admit it: no rows are
+    /// published, and `withheld` says why.
+    Withheld,
+    /// The method made no forecast (its minimum-count rule did not hold, or it refused the
+    /// projection): no number is published, and `reason` says why.
+    InsufficientData,
+}
+
+/// Why the method made no forecast for a series (the renewal estimator's reason at the origin week,
+/// or the method's refusal of a projection that grew past its limit).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InsufficientReason {
+    /// The estimation window would start before the series, or include its first week.
+    IncompleteWindow,
+    /// A count in the estimation window or the serial-interval look-back is missing.
+    MissingCount,
+    /// Fewer cases in the window than the minimum-count threshold.
+    BelowThreshold,
+    /// No cases in the look-back, so the window's cases have no infectors in the data.
+    NoInfectivity,
+    /// A member's projected weekly mean passed the limit the method refuses to publish past (2^40).
+    /// Nothing is clipped: there is no forecast for the series.
+    ProjectionOverflow,
+}
+
+/// Why a forecast the method made is not published.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WithheldReason {
+    /// No backtest scored this series, so nothing is measured about how its forecast does.
+    NotBacktested,
+    /// A backtest ran on this series but scored too little for a measured skill.
+    InsufficientDataForSkill,
+    /// The series has a measured skill, and it does not meet the publication policy.
+    SkillBelowPolicy,
+}
+
+/// The rule that decides whether a forecast is published, fixed before the scores it is applied to
+/// and applied mechanically: a series' forecast is published only if its method has a measured skill
+/// on that series that this policy admits. The thresholds travel with the companion so that the
+/// pipeline, this contract and the web page check the same numbers.
+#[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PublicationPolicy {
+    /// The rule in plain words, with the reasons for its thresholds (non-empty).
+    pub rule: String,
+    /// The measured 90% interval coverage must be at least this.
+    #[schemars(range(min = 0, max = 1))]
+    pub minimum_coverage_90: f64,
+    /// The measured mean CRPS must be at most this multiple of the persistence baseline's mean
+    /// absolute error (1 is "no worse than carrying the latest count forward").
+    #[schemars(range(min = 0))]
+    pub maximum_crps_over_persistence: f64,
+}
+
+impl PublicationPolicy {
+    /// Whether measured scores meet the policy: one definition, shared by the pipeline that decides,
+    /// the contract that re-checks it, and (mirrored) the page.
+    pub fn admits(
+        &self,
+        coverage_90: f64,
+        mean_crps: f64,
+        mean_persistence_abs_error: f64,
+    ) -> bool {
+        coverage_90 >= self.minimum_coverage_90
+            && mean_crps <= self.maximum_crps_over_persistence * mean_persistence_abs_error
+    }
+}
+
+impl<'de> Deserialize<'de> for PublicationPolicy {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Raw {
+            rule: String,
+            minimum_coverage_90: f64,
+            maximum_crps_over_persistence: f64,
+        }
+        use serde::de::Error;
+        let r = Raw::deserialize(d)?;
+        non_empty("publication_policy.rule", &r.rule).map_err(D::Error::custom)?;
+        fraction(
+            "publication_policy.minimum_coverage_90",
+            r.minimum_coverage_90,
+        )
+        .map_err(D::Error::custom)?;
+        non_negative(
+            "publication_policy.maximum_crps_over_persistence",
+            r.maximum_crps_over_persistence,
+        )
+        .map_err(D::Error::custom)?;
+        Ok(Self {
+            rule: r.rule,
+            minimum_coverage_90: r.minimum_coverage_90,
+            maximum_crps_over_persistence: r.maximum_crps_over_persistence,
+        })
+    }
+}
 
 /// Whether a series has a measured skill, and which evaluation says so. A forecast method is only
 /// as good as its tests on the data it is run on: a series no backtest scored has no measured
@@ -48,6 +154,9 @@ pub struct ForecastSeries {
     pub status: ForecastStatus,
     /// Present exactly when `status` is `insufficient_data`.
     pub reason: Option<InsufficientReason>,
+    /// Present exactly when `status` is `withheld`: why the forecast the method made is not
+    /// published.
+    pub withheld: Option<WithheldReason>,
     /// Cases in the estimation window ending at the origin week, when every count in it is
     /// known.
     pub cases_in_window: Option<u32>,
@@ -165,7 +274,8 @@ pub struct SeriesBacktest {
 }
 
 /// Companion of a published set of v1 [`Forecast`] rows. Rows are only published beside a
-/// companion for which [`ForecastProvenance::check_against`] holds.
+/// companion for which [`ForecastProvenance::check_against`] holds, and only for the series whose
+/// status is `forecast`: the series the publication policy admits.
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForecastProvenance {
@@ -198,6 +308,8 @@ pub struct ForecastProvenance {
     /// One entry per configuration value, with the value the forecast ran with and its
     /// citation (non-empty, unique).
     pub parameters: Vec<ParameterProvenance>,
+    /// The rule that decides which forecasts are published, with its thresholds.
+    pub publication_policy: PublicationPolicy,
     /// Every series considered, once each, in geography order.
     pub series: Vec<ForecastSeries>,
     /// The report-vintage backtest (the Texas DSHS 2025 outbreak total), when a committed report
@@ -243,23 +355,35 @@ impl<'de> Deserialize<'de> for ForecastSeries {
             case_definition: CaseDefinition,
             status: ForecastStatus,
             reason: Option<InsufficientReason>,
+            withheld: Option<WithheldReason>,
             cases_in_window: Option<u32>,
             skill: SeriesSkill,
         }
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
-        match (r.status, r.reason) {
-            (ForecastStatus::Forecast, None) | (ForecastStatus::InsufficientData, Some(_)) => {}
-            (ForecastStatus::Forecast, Some(_)) => {
-                return Err(D::Error::custom("a forecast series has no reason"));
+        match (r.status, r.reason, r.withheld) {
+            (ForecastStatus::Forecast, None, None)
+            | (ForecastStatus::Withheld, None, Some(_))
+            | (ForecastStatus::InsufficientData, Some(_), None) => {}
+            (ForecastStatus::Forecast, ..) => {
+                return Err(D::Error::custom(
+                    "a forecast series has no reason and is not withheld",
+                ));
             }
-            (ForecastStatus::InsufficientData, None) => {
-                return Err(D::Error::custom("insufficient data needs a reason"));
+            (ForecastStatus::Withheld, ..) => {
+                return Err(D::Error::custom(
+                    "a withheld series states why it is withheld and has no insufficient-data reason",
+                ));
+            }
+            (ForecastStatus::InsufficientData, ..) => {
+                return Err(D::Error::custom(
+                    "insufficient data needs a reason and is not withheld",
+                ));
             }
         }
-        if r.status == ForecastStatus::Forecast && r.cases_in_window.is_none() {
+        if r.status != ForecastStatus::InsufficientData && r.cases_in_window.is_none() {
             return Err(D::Error::custom(
-                "a forecast series states the cases in its window",
+                "a forecast or withheld series states the cases in its window",
             ));
         }
         Ok(Self {
@@ -267,6 +391,7 @@ impl<'de> Deserialize<'de> for ForecastSeries {
             case_definition: r.case_definition,
             status: r.status,
             reason: r.reason,
+            withheld: r.withheld,
             cases_in_window: r.cases_in_window,
             skill: r.skill,
         })
@@ -542,6 +667,7 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
             levels: Vec<f64>,
             input: ForecastInput,
             parameters: Vec<ParameterProvenance>,
+            publication_policy: PublicationPolicy,
             series: Vec<ForecastSeries>,
             backtest: Option<BacktestSkill>,
             series_backtest: Option<SeriesBacktest>,
@@ -653,6 +779,57 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
                     ));
                 }
             }
+            // The publication policy, applied to every series the method forecast: published exactly
+            // when its own measured scores meet it, withheld for the stated reason otherwise.
+            let scores_of = |s: &ForecastSeries| -> Option<(f64, f64, f64)> {
+                match s.skill {
+                    SeriesSkill::Backtested => r
+                        .backtest
+                        .as_ref()
+                        .map(|b| (b.coverage_90, b.mean_crps, b.mean_persistence_abs_error)),
+                    SeriesSkill::Measured => entries
+                        .get(&s.geography)
+                        .and_then(|e| e.measured.as_ref())
+                        .map(|m| (m.coverage_90, m.mean_crps, m.mean_persistence_abs_error)),
+                    SeriesSkill::InsufficientData | SeriesSkill::NotBacktested => None,
+                }
+            };
+            for s in &r.series {
+                let admitted = scores_of(s)
+                    .is_some_and(|(c, crps, p)| r.publication_policy.admits(c, crps, p));
+                match (s.status, s.withheld) {
+                    (ForecastStatus::Forecast, _) if !admitted => {
+                        return Err(format!(
+                            "series {} is published but its measured skill does not meet the publication policy",
+                            s.geography
+                        ));
+                    }
+                    (ForecastStatus::Withheld, Some(why)) => {
+                        let expected = match s.skill {
+                            SeriesSkill::NotBacktested => WithheldReason::NotBacktested,
+                            SeriesSkill::InsufficientData => {
+                                WithheldReason::InsufficientDataForSkill
+                            }
+                            SeriesSkill::Measured | SeriesSkill::Backtested => {
+                                WithheldReason::SkillBelowPolicy
+                            }
+                        };
+                        if why != expected {
+                            return Err(format!(
+                                "series {} is withheld for the wrong reason: its skill says {expected:?}",
+                                s.geography
+                            ));
+                        }
+                        if admitted {
+                            return Err(format!(
+                                "series {} meets the publication policy but is withheld",
+                                s.geography
+                            ));
+                        }
+                    }
+                    _ => {}
+                }
+            }
             Ok(())
         };
         checked().map_err(D::Error::custom)?;
@@ -670,6 +847,7 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
             levels: r.levels,
             input: r.input,
             parameters: r.parameters,
+            publication_policy: r.publication_policy,
             series: r.series,
             backtest: r.backtest,
             series_backtest: r.series_backtest,

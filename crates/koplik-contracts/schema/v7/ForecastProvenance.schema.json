@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ForecastProvenance",
-  "description": "Companion of a published set of v1 [`Forecast`] rows. Rows are only published beside a\ncompanion for which [`ForecastProvenance::check_against`] holds.",
+  "description": "Companion of a published set of v1 [`Forecast`] rows. Rows are only published beside a\ncompanion for which [`ForecastProvenance::check_against`] holds, and only for the series whose\nstatus is `forecast`: the series the publication policy admits.",
   "type": "object",
   "properties": {
     "artifact": {
@@ -65,6 +65,10 @@
         "$ref": "#/$defs/ParameterProvenance"
       }
     },
+    "publication_policy": {
+      "description": "The rule that decides which forecasts are published, with its thresholds.",
+      "$ref": "#/$defs/PublicationPolicy"
+    },
     "run_count": {
       "description": "Ensemble members behind every row's quantiles.",
       "type": "integer",
@@ -119,6 +123,7 @@
     "levels",
     "input",
     "parameters",
+    "publication_policy",
     "series",
     "scope_note"
   ],
@@ -323,6 +328,17 @@
         },
         "status": {
           "$ref": "#/$defs/ForecastStatus"
+        },
+        "withheld": {
+          "description": "Present exactly when `status` is `withheld`: why the forecast the method made is not\npublished.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WithheldReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -334,15 +350,20 @@
       ]
     },
     "ForecastStatus": {
-      "description": "Whether a series was forecast.",
+      "description": "Whether a series was forecast, and if the method made one, whether it is published.",
       "oneOf": [
         {
-          "description": "Forecast rows exist for the series.",
+          "description": "Forecast rows are published for the series: its measured skill meets the publication policy.",
           "type": "string",
           "const": "forecast"
         },
         {
-          "description": "The method's own minimum-count rule did not hold: no number is published.",
+          "description": "The method made a forecast but the publication policy does not admit it: no rows are\npublished, and `withheld` says why.",
+          "type": "string",
+          "const": "withheld"
+        },
+        {
+          "description": "The method made no forecast (its minimum-count rule did not hold, or it refused the\nprojection): no number is published, and `reason` says why.",
           "type": "string",
           "const": "insufficient_data"
         }
@@ -369,7 +390,7 @@
       ]
     },
     "InsufficientReason": {
-      "description": "Why a series could not be forecast (the renewal estimator's reason at the origin week).",
+      "description": "Why the method made no forecast for a series (the renewal estimator's reason at the origin week,\nor the method's refusal of a projection that grew past its limit).",
       "oneOf": [
         {
           "description": "The estimation window would start before the series, or include its first week.",
@@ -390,6 +411,11 @@
           "description": "No cases in the look-back, so the window's cases have no infectors in the data.",
           "type": "string",
           "const": "no_infectivity"
+        },
+        {
+          "description": "A member's projected weekly mean passed the limit the method refuses to publish past (2^40).\nNothing is clipped: there is no forecast for the series.",
+          "type": "string",
+          "const": "projection_overflow"
         }
       ]
     },
@@ -532,6 +558,35 @@
         "forecasts",
         "series",
         "scores"
+      ]
+    },
+    "PublicationPolicy": {
+      "description": "The rule that decides whether a forecast is published, fixed before the scores it is applied to\nand applied mechanically: a series' forecast is published only if its method has a measured skill\non that series that this policy admits. The thresholds travel with the companion so that the\npipeline, this contract and the web page check the same numbers.",
+      "type": "object",
+      "properties": {
+        "maximum_crps_over_persistence": {
+          "description": "The measured mean CRPS must be at most this multiple of the persistence baseline's mean\nabsolute error (1 is \"no worse than carrying the latest count forward\").",
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "minimum_coverage_90": {
+          "description": "The measured 90% interval coverage must be at least this.",
+          "type": "number",
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "rule": {
+          "description": "The rule in plain words, with the reasons for its thresholds (non-empty).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "rule",
+        "minimum_coverage_90",
+        "maximum_crps_over_persistence"
       ]
     },
     "SeriesBacktest": {
@@ -758,6 +813,26 @@
       "required": [
         "horizon",
         "n"
+      ]
+    },
+    "WithheldReason": {
+      "description": "Why a forecast the method made is not published.",
+      "oneOf": [
+        {
+          "description": "No backtest scored this series, so nothing is measured about how its forecast does.",
+          "type": "string",
+          "const": "not_backtested"
+        },
+        {
+          "description": "A backtest ran on this series but scored too little for a measured skill.",
+          "type": "string",
+          "const": "insufficient_data_for_skill"
+        },
+        {
+          "description": "The series has a measured skill, and it does not meet the publication policy.",
+          "type": "string",
+          "const": "skill_below_policy"
+        }
       ]
     }
   }

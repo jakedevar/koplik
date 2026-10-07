@@ -82,8 +82,14 @@ fn series_backtest() -> Value {
     })
 }
 
-/// A valid companion for [`rows`]`(&["12", "48"])`: "12" has a measured skill, "48" has
-/// insufficient data for one, "01" was not forecast, "48001" is a county series nobody scored.
+fn policy() -> Value {
+    json!({"rule": "published only where the measured skill meets the criterion",
+           "minimum_coverage_90": 0.75, "maximum_crps_over_persistence": 1.0})
+}
+
+/// A valid companion for [`rows`]`(&["12"])`: "12" has a measured skill the policy admits, so it is
+/// published; "48" has insufficient data for one, so its forecast is withheld; "01" was not
+/// forecast; "48001" is a county series nobody scored.
 fn companion() -> Value {
     let mut series_backtest = series_backtest();
     // Pooled: 6 + 3 = 9 targets (horizon n 5,4,0); forecasts 3 + 2 = 5; series 2.
@@ -98,15 +104,16 @@ fn companion() -> Value {
         "parameters": [
             {"parameter": "window_weeks", "value": 3, "source": "a rule", "url": null, "note": "fixed before any score"}
         ],
+        "publication_policy": policy(),
         "series": [
             {"geography": "01", "case_definition": "confirmed_or_unknown_status", "status": "insufficient_data",
-             "reason": "below_threshold", "cases_in_window": 2, "skill": INSUFFICIENT},
+             "reason": "below_threshold", "withheld": null, "cases_in_window": 2, "skill": INSUFFICIENT},
             {"geography": "12", "case_definition": "confirmed_or_unknown_status", "status": "forecast",
-             "reason": null, "cases_in_window": 40, "skill": MEASURED},
-            {"geography": "48", "case_definition": "confirmed_or_unknown_status", "status": "forecast",
-             "reason": null, "cases_in_window": 15, "skill": INSUFFICIENT},
+             "reason": null, "withheld": null, "cases_in_window": 40, "skill": MEASURED},
+            {"geography": "48", "case_definition": "confirmed_or_unknown_status", "status": "withheld",
+             "reason": null, "withheld": "insufficient_data_for_skill", "cases_in_window": 15, "skill": INSUFFICIENT},
             {"geography": "48001", "case_definition": "confirmed", "status": "insufficient_data",
-             "reason": "below_threshold", "cases_in_window": 1, "skill": NOT_TESTED}
+             "reason": "below_threshold", "withheld": null, "cases_in_window": 1, "skill": NOT_TESTED}
         ],
         "backtest": null,
         "series_backtest": series_backtest,
@@ -131,21 +138,28 @@ fn a_valid_companion_round_trips_and_describes_its_rows() {
     assert_eq!(serde_json::to_value(&p).unwrap(), companion());
     assert_eq!(p.contract_version, FORECAST_PROVENANCE_VERSION);
     assert_eq!(FORECAST_PROVENANCE_VERSION, 7);
-    p.check_against(&rows(&["12", "48"])).unwrap();
-    assert!(p.check_against(&rows(&["12"])).is_err());
+    p.check_against(&rows(&["12"])).unwrap();
+    // The withheld series has no rows: a companion that withholds a series does not describe its rows.
+    assert!(p.check_against(&rows(&["12", "48"])).is_err());
+    assert!(p.check_against(&[]).is_err());
     assert_eq!(p.series[1].skill, SeriesSkill::Measured);
     assert_eq!(p.series[2].skill, SeriesSkill::InsufficientData);
     assert_eq!(p.series[3].skill, SeriesSkill::NotBacktested);
 }
 
 #[test]
-fn the_companion_can_have_no_backtest_at_all() {
+fn the_companion_can_have_no_backtest_at_all_and_then_withholds_every_forecast() {
     let mut v = companion();
     v["series_backtest"] = Value::Null;
     for s in v["series"].as_array_mut().unwrap() {
         s["skill"] = json!(NOT_TESTED);
     }
-    assert!(parse(v).is_ok());
+    // Without a measured skill nothing is published: the forecast series is withheld, not shown.
+    v["series"][1]["status"] = json!("withheld");
+    v["series"][1]["withheld"] = json!("not_backtested");
+    v["series"][2]["withheld"] = json!("not_backtested");
+    let p = parse(v).unwrap();
+    p.check_against(&[]).unwrap();
 }
 
 #[test]
@@ -308,4 +322,146 @@ fn the_synthetic_web_fixture_is_a_valid_companion_that_describes_its_rows() {
             ("48".to_owned(), SeriesSkill::Measured),
         ]
     );
+}
+
+fn policy_value() -> PublicationPolicy {
+    serde_json::from_value(policy()).unwrap()
+}
+
+#[test]
+fn the_policy_admits_exactly_what_it_states() {
+    let p = policy_value();
+    assert!(
+        p.admits(0.75, 4.0, 4.0),
+        "the thresholds themselves are admitted"
+    );
+    assert!(p.admits(1.0, 0.0, 0.0));
+    assert!(!p.admits(0.7499, 1.0, 4.0), "coverage below the floor");
+    assert!(!p.admits(0.9, 4.0001, 4.0), "worse than persistence");
+    assert!(
+        !p.admits(0.9, 1.0, 0.0),
+        "any error against a zero baseline is worse"
+    );
+    let lenient = PublicationPolicy {
+        maximum_crps_over_persistence: 2.0,
+        ..p
+    };
+    assert!(lenient.admits(0.8, 8.0, 4.0));
+    assert!(!lenient.admits(0.8, 8.1, 4.0));
+}
+
+#[test]
+fn a_forecast_is_published_only_where_the_policy_admits_the_series_own_skill() {
+    // "12" is published because its measured scores (90% coverage 1.0, CRPS 2.5 against 4.0) meet it.
+    assert_eq!(
+        parse(companion()).unwrap().series[1].status,
+        ForecastStatus::Forecast
+    );
+    // Worse than persistence, or coverage too low: it cannot stay published.
+    rejects(
+        |v| v["series_backtest"]["by_series"][1]["measured"]["mean_crps"] = json!(9.0),
+        "does not meet the publication policy",
+    );
+    rejects(
+        |v| v["series_backtest"]["by_series"][1]["measured"]["coverage_90"] = json!(0.5),
+        "does not meet the publication policy",
+    );
+    // A stricter policy than the scores support withdraws it (CRPS 2.5 is above half of 4.0).
+    rejects(
+        |v| v["publication_policy"]["maximum_crps_over_persistence"] = json!(0.5),
+        "does not meet the publication policy",
+    );
+    // A series that does not claim a measured skill is never published.
+    rejects(
+        |v| v["series"][1]["skill"] = json!(NOT_TESTED),
+        "does not meet the publication policy",
+    );
+}
+
+#[test]
+fn a_withheld_series_says_why_and_the_reason_must_match_its_skill() {
+    // The measured series that meets the policy cannot be withheld...
+    rejects(
+        |v| {
+            v["series"][1]["status"] = json!("withheld");
+            v["series"][1]["withheld"] = json!("skill_below_policy");
+        },
+        "meets the publication policy but is withheld",
+    );
+    // ...and with scores below the policy it is withheld for being below it, not for another reason.
+    let mut below = companion();
+    below["series_backtest"]["by_series"][1]["measured"]["mean_crps"] = json!(9.0);
+    below["series"][1]["status"] = json!("withheld");
+    below["series"][1]["withheld"] = json!("skill_below_policy");
+    parse(below.clone()).unwrap();
+    below["series"][1]["withheld"] = json!("not_backtested");
+    assert!(parse(below).unwrap_err().contains("wrong reason"));
+    rejects(
+        |v| v["series"][2]["withheld"] = json!("skill_below_policy"),
+        "wrong reason",
+    );
+    rejects(
+        |v| v["series"][2]["withheld"] = json!("not_backtested"),
+        "wrong reason",
+    );
+    // The status and its reason fields agree.
+    rejects(
+        |v| v["series"][2]["withheld"] = Value::Null,
+        "states why it is withheld",
+    );
+    rejects(
+        |v| v["series"][1]["withheld"] = json!("not_backtested"),
+        "not withheld",
+    );
+    rejects(
+        |v| v["series"][0]["withheld"] = json!("not_backtested"),
+        "not withheld",
+    );
+    rejects(
+        |v| v["series"][2]["reason"] = json!("below_threshold"),
+        "no insufficient-data reason",
+    );
+    rejects(
+        |v| v["series"][2]["cases_in_window"] = Value::Null,
+        "states the cases in its window",
+    );
+}
+
+#[test]
+fn the_policy_is_carried_and_validated() {
+    rejects(
+        |v| v["publication_policy"]["rule"] = json!(" "),
+        "rule must not be empty",
+    );
+    rejects(
+        |v| v["publication_policy"]["minimum_coverage_90"] = json!(1.5),
+        "share between 0 and 1",
+    );
+    rejects(
+        |v| v["publication_policy"]["maximum_crps_over_persistence"] = json!(-1.0),
+        "finite and not negative",
+    );
+    rejects(
+        |v| v["publication_policy"]["extra"] = json!(1),
+        "unknown field",
+    );
+    rejects(
+        |v| {
+            v.as_object_mut().unwrap().remove("publication_policy");
+        },
+        "publication_policy",
+    );
+}
+
+#[test]
+fn a_refused_projection_is_a_series_with_no_forecast_and_the_rest_go_on() {
+    let mut v = companion();
+    v["series"][0]["reason"] = json!("projection_overflow");
+    let p = parse(v).unwrap();
+    assert_eq!(
+        p.series[0].reason,
+        Some(InsufficientReason::ProjectionOverflow)
+    );
+    assert_eq!(p.series[0].status, ForecastStatus::InsufficientData);
+    p.check_against(&rows(&["12"])).unwrap();
 }
