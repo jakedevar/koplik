@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { homedir, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { buildData } from './refresh/data.mjs';
 
 // Do not let an inherited repository/index override escape the isolated workspace.
 const environment = { ...process.env };
@@ -127,17 +128,10 @@ async function main() {
     const data = join(web, 'public/data');
     // Rebuild even if generated data was committed; only this pipeline's output may ship.
     await rm(data, { recursive: true, force: true, maxRetries: 3 });
-    const governor = join(homedir(), '.rsi/bin/cargo-slot');
-    const pipelineArgs = ['run', '--offline', '--locked', '--release', '-p', 'koplik-pipeline', '--',
-      'all', '--from-fixtures', '--fixtures', join(build, 'data/fixtures'),
-      '--work', join(scratch, 'work'), '--out', data];
-    console.log(`Building offline fixture data from ${source} in the temporary workspace`);
-    await run(existsSync(governor) ? governor : 'cargo',
-      existsSync(governor) ? ['cargo', ...pipelineArgs] : pipelineArgs, build, {
-        stdio: 'inherit', env: { ...environment, KOPLIK_CONTACT: '',
-          CARGO_TARGET_DIR: environment.CARGO_TARGET_DIR
-            ? resolve(root, environment.CARGO_TARGET_DIR) : join(build, 'target') },
-      });
+    const publicationSource = await buildData({ root: build, work: join(scratch, 'work'), out: data,
+      run: (program, args, cwd, env) => run(program, args, cwd, { stdio: 'inherit', env }),
+      env: { ...environment, CARGO_TARGET_DIR: join(build, 'target') } });
+    console.log(`Building offline ${publicationSource} data from ${source} in the temporary workspace`);
     if (!existsSync(join(data, 'manifest.json'))) {
       throw new Error('Offline pipeline produced no web/public/data/manifest.json; refusing publication');
     }
