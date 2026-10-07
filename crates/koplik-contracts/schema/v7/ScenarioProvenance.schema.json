@@ -1,0 +1,249 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScenarioProvenance",
+  "description": "Companion of a what-if [`ScenarioInput`]: where its inputs came from, the seeding stated as\nan assumption, and every parameter's citation. A scenario is only published beside a\ncompanion for which [`ScenarioProvenance::check_against`] holds.",
+  "type": "object",
+  "properties": {
+    "contract_version": {
+      "description": "Always [`SCENARIO_PROVENANCE_VERSION`].",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "excluded_nodes": {
+      "description": "Counties the neighbourhood rule would have simulated but could not.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ExcludedNode"
+      }
+    },
+    "neighbourhood_note": {
+      "description": "Why the node set is what it is (non-empty).",
+      "type": "string"
+    },
+    "nodes": {
+      "description": "The simulated nodes, in the scenario's canonical order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/NodeInputs"
+      }
+    },
+    "parameters": {
+      "description": "One entry per `SeirParameters` field, in field order (non-empty, unique).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ParameterProvenance"
+      }
+    },
+    "run_count": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 1
+    },
+    "scenario": {
+      "description": "Artifact name, e.g. `gaines-2025`.",
+      "type": "string"
+    },
+    "seed": {
+      "description": "The scenario's RNG seed as decimal text (a JavaScript number would round a large u64).",
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,19})$"
+    },
+    "seeding": {
+      "$ref": "#/$defs/SeedingAssumption"
+    },
+    "statement": {
+      "description": "Plain-words statement of what the scenario is and is not (non-empty).",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "scenario",
+    "statement",
+    "seed",
+    "run_count",
+    "seeding",
+    "parameters",
+    "nodes",
+    "excluded_nodes",
+    "neighbourhood_note"
+  ],
+  "$defs": {
+    "ExcludedNode": {
+      "description": "A county the neighbourhood rule would have simulated but could not, and why.",
+      "type": "object",
+      "properties": {
+        "geography": {
+          "$ref": "#/$defs/GeoId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "geography",
+        "name",
+        "reason"
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "MmwrWeek": {
+      "description": "An MMWR year and week number (`week` is `1..=52` or `1..=53`).",
+      "type": "object",
+      "properties": {
+        "week": {
+          "description": "Week of the MMWR year; 1 to 52, or 53 in a 53-week year.",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 53,
+          "minimum": 1
+        },
+        "year": {
+          "description": "MMWR year (not always the calendar year of every day in the week).",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 2200,
+          "minimum": 1900
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "week"
+      ]
+    },
+    "NodeInputs": {
+      "description": "What a node's inputs are, beyond the source records the scenario already carries.",
+      "type": "object",
+      "properties": {
+        "centroid_basis": {
+          "type": "string"
+        },
+        "coverage_basis": {
+          "type": "string"
+        },
+        "coverage_school_year": {
+          "description": "School year of the baseline kindergarten MMR coverage, e.g. `2023-24`.",
+          "type": "string"
+        },
+        "geography": {
+          "$ref": "#/$defs/GeoId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "population": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 1
+        },
+        "population_basis": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "geography",
+        "name",
+        "population",
+        "population_basis",
+        "centroid_basis",
+        "coverage_school_year",
+        "coverage_basis"
+      ]
+    },
+    "ParameterProvenance": {
+      "description": "One model parameter exactly as the scenario ran it, with its citation (#1400).",
+      "type": "object",
+      "properties": {
+        "note": {
+          "description": "What the source supports and what it does not (non-empty).",
+          "type": "string"
+        },
+        "parameter": {
+          "description": "The `SeirParameters` field name.",
+          "type": "string"
+        },
+        "source": {
+          "description": "The published source (non-empty).",
+          "type": "string"
+        },
+        "url": {
+          "description": "Where to read it, when the source is a public page.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "The value the scenario ran with, as it appears in the scenario's `parameters`."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "parameter",
+        "value",
+        "source",
+        "note"
+      ]
+    },
+    "SeedingAssumption": {
+      "description": "How the scenario is seeded: a stated assumption, never data. The scenario is a\nhypothetical introduction, not a reconstruction of an observed outbreak.",
+      "type": "object",
+      "properties": {
+        "assumption": {
+          "description": "The assumption in words (non-empty).",
+          "type": "string"
+        },
+        "geography": {
+          "description": "The geography the infectious people are introduced into; every other node starts\nwith no exposed or infectious people.",
+          "$ref": "#/$defs/GeoId"
+        },
+        "initial_exposed": {
+          "description": "Exposed (latent) people at the start week.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "initial_infectious": {
+          "description": "Infectious people at the start week.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "limitation": {
+          "description": "What the seeding cannot capture, stated to the reader (non-empty).",
+          "type": "string"
+        },
+        "start_week": {
+          "description": "The week the simulation starts, stated as an assumption (not derived from any case\nreport).",
+          "$ref": "#/$defs/MmwrWeek"
+        },
+        "start_week_basis": {
+          "description": "Why this start week, and what it does and does not mean (non-empty).",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "geography",
+        "initial_infectious",
+        "initial_exposed",
+        "start_week",
+        "assumption",
+        "start_week_basis",
+        "limitation"
+      ]
+    }
+  }
+}

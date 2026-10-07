@@ -1,7 +1,8 @@
 import { caseDefinitionLabels, type Dataset } from './data';
 import {
-  backtestReportPath, evaluationScope, insufficientWords, loadForecast, noMeasuredSkill, parameterValue, percent, quantileAt, seriesRows, skillWords, weekLabel, weekOrdinal,
-  type Forecast, type ForecastProvenance, type ForecastSeries, type PublishedForecast, type Week,
+  backtestReportPath, basisLabel, evaluationScope, insufficientSkillStatus, insufficientWords, loadForecast, noMeasuredSkill, noSkillWords, parameterValue, percent, pooledWords, quantileAt,
+  policyWords, seriesBacktestReportPath, seriesEvaluationScope, seriesRows, seriesSkillWords, skillWords, weekLabel, weekOrdinal, withheldNotice, withheldSeriesWords,
+  type BacktestSkill, type Forecast, type ForecastProvenance, type ForecastSeries, type PublishedForecast, type SeriesBacktest, type Week,
 } from './forecast';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import { bindProvenance, provenanceNumber, uniqueProvenance, type ProvenanceInfo } from './provenance';
@@ -127,6 +128,8 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   const panel = element('section', undefined, 'panel forecast');
   panel.setAttribute('aria-label', 'Forecast');
   panel.append(element('h2', 'Where next? · forecast'));
+  // First under the heading, before anything else: when forecasts are withheld, why (filled once the forecast loads).
+  const withheldBox = element('div');
   const status = element('p', 'Loading forecast…', 'forecast-status');
   status.setAttribute('role', 'status');
   const notices = element('div');
@@ -138,7 +141,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   controls.append(label, select);
   controls.hidden = true;
   const result = element('div', undefined, 'forecast-result');
-  panel.append(status, notices, controls, result);
+  panel.append(withheldBox, status, notices, controls, result);
   // The backtest has its own section, after the forecasts and not beside any chart; it fills in once the forecast loads.
   const evaluation = element('section', undefined, 'panel forecast-evaluation');
   evaluation.setAttribute('aria-label', 'How we evaluate forecasts');
@@ -149,6 +152,55 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   let published: PublishedForecast | undefined;
   const names = new Map<string, string>((options.data?.geographies ?? []).map((g) => [g.id, g.name]));
   const nameOf = (id: string) => names.get(id) ?? id;
+
+  /** The notice above a forecast's chart: its own measured skill, or that it has none. Never another series' number. */
+  function skillNotice(series: ForecastSeries, name: string): Element {
+    const { provenance } = published!;
+    const backtest = provenance.series_backtest;
+    const entry = backtest?.by_series.find((e) => e.geography === series.geography);
+    if (series.skill === 'backtested') return element('p', 'This series is the one the backtest scored: see "How we evaluate forecasts" below.', 'notice forecast-backtested');
+    if (series.skill === 'measured' && backtest && entry?.measured) {
+      const words = seriesSkillWords(backtest, entry);
+      const info: ProvenanceInfo = {
+        label: `Measured skill · ${name}`, records: [], synthetic: options.synthetic,
+        note: `Measured by koplik-epi on ${backtest.series}, for this series alone. Read exactly from the committed report ${backtest.report_path} (sha256 ${backtest.report_sha256}), run on the source snapshot sha256 ${backtest.input_sha256}. ${backtest.protocol} A measurement of the method on this series' past, not of the forecast shown here.`,
+        citations: citationsOf(provenance),
+      };
+      const box = element('div', undefined, 'notice forecast-measured');
+      const headline = element('p', undefined, 'forecast-series-headline');
+      headline.append(provenanceNumber(words.headline, info));
+      box.append(element('p', 'Measured skill for this series.'), headline, element('p', words.detail));
+      if (words.narrow) box.append(element('p', words.narrow, 'forecast-series-narrow'));
+      if (words.against) box.append(element('p', words.against));
+      box.append(element('p', 'The test and its scope are described under "How we evaluate forecasts" below.'));
+      return box;
+    }
+    if (series.skill === insufficientSkillStatus && backtest && entry) return element('p', noSkillWords(backtest, entry), 'notice forecast-no-skill');
+    return element('p', noMeasuredSkill, 'notice forecast-no-skill');
+  }
+
+  /** Above a withheld series: that no forecast is published for it, why, its own measured numbers when it has them, and the rule. */
+  function withheldNotice_(series: ForecastSeries, name: string): Element {
+    const { provenance } = published!;
+    const words = withheldSeriesWords(provenance, series, name);
+    const backtest = provenance.series_backtest;
+    const box = element('div', undefined, 'notice forecast-withheld');
+    box.append(element('p', words.headline, 'forecast-withheld-headline'), element('p', words.reason));
+    if (words.measured) {
+      const info: ProvenanceInfo = {
+        label: `Measured skill · ${name}`, records: [], synthetic: options.synthetic,
+        note: backtest
+          ? `Measured by koplik-epi on ${backtest.series}, for this series alone. Read exactly from the committed report ${backtest.report_path} (sha256 ${backtest.report_sha256}), run on the source snapshot sha256 ${backtest.input_sha256}. ${backtest.protocol} A measurement of the method on this series' past, not of any forecast.`
+          : 'Measured by koplik-epi on the series the report-vintage backtest scored; see "How we evaluate forecasts".',
+        citations: citationsOf(provenance),
+      };
+      const measured = element('p', undefined, 'forecast-series-headline');
+      measured.append(provenanceNumber(words.measured, info));
+      box.append(measured);
+    }
+    box.append(element('p', words.rule, 'forecast-policy'));
+    return box;
+  }
 
   function renderSeries(id: string) {
     const { provenance } = published!;
@@ -162,15 +214,15 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       note: `A model projection of weekly ${caseWords}, not a source observation: source records are the weekly reports the forecast was made from (${provenance.input.rows} input rows, sha256 ${provenance.input.sha256}). Method, seed ${provenance.seed}, ${provenance.run_count} members and every parameter with its citation are listed under "Method and parameters".`,
       citations: citationsOf(provenance),
     };
-    // A forecast of a series the backtest did not score says so first, before the reader sees the chart.
-    if (series.status === 'forecast') {
-      blocks.push(series.skill === 'backtested'
-        ? element('p', 'This series is the one the backtest scored: see "How we evaluate forecasts" below.', 'notice forecast-backtested')
-        : element('p', noMeasuredSkill, 'notice forecast-no-skill'));
-    }
+    // A forecast says first, before the reader sees the chart, what is measured about its own series: its measured
+    // skill from the series backtest (in plain words, with the basis), or that it has none.
+    if (series.status === 'forecast') blocks.push(skillNotice(series, name));
+    if (series.status === 'withheld') blocks.push(withheldNotice_(series, name));
     blocks.push(element('h3', `${name} · weekly ${caseWords}`));
     if (series.status === 'insufficient_data') {
       blocks.push(element('p', insufficientWords(provenance, series), 'notice forecast-insufficient'));
+    } else if (series.status === 'withheld') {
+      blocks.push(element('p', 'No chart and no forecast values are shown: the forecast the method made for this series is withheld and is not published.', 'chart-note'));
     } else {
       const history = (options.data?.cases ?? []).filter((r) => r.geography === id && r.case_definition === series.case_definition);
       const chart = forecastChart({ name, caseWords, history, rows, provenance, info, synthetic: Boolean(options.synthetic) });
@@ -227,59 +279,139 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     result.replaceChildren(...blocks);
   }
 
-  /** The backtest, as an evaluation of the method on the series it was run on: what was scored, how it did, what it does not measure. */
-  function renderEvaluation() {
-    const { provenance } = published!;
-    const skill = provenance.backtest;
-    const blocks: Element[] = [element('h2', 'How we evaluate forecasts')];
-    if (options.synthetic) blocks.push(element('p', 'SYNTHETIC EVALUATION · Invented numbers for development only; nothing was backtested.', 'synthetic notice'));
-    if (!skill) {
-      blocks.push(element('p', provenance.scope_note, 'notice'));
+  /** The report-vintage backtest on the Texas DSHS outbreak total: what was scored, how it did, what it does not measure. */
+  function westTexasBlocks(provenance: ForecastProvenance, skill: BacktestSkill, alongside: boolean): Element[] {
+    const words = skillWords(skill);
+    const skillInfo: ProvenanceInfo = {
+      label: `Backtest skill · ${skill.name}`, records: [], synthetic: options.synthetic,
+      note: `Measured by koplik-epi on ${skill.series}. Read exactly from the committed report ${skill.report_path} (sha256 ${skill.report_sha256}), which was run on the report-vintage manifest sha256 ${skill.manifest_sha256}. A measurement of the method on that series, not of any forecast shown above.`,
+      citations: citationsOf(provenance),
+    };
+    const blocks: Element[] = [];
+    if (alongside) blocks.push(element('h3', `Test on ${skill.name}: real-time by report vintage`));
+    blocks.push(element('p', `We tested this method on ${skill.name}. Each forecast used only the reports available at its forecast date and was then scored against the counts reported for the weeks it predicted.`));
+    const headline = element('p', undefined, 'forecast-headline');
+    headline.append(provenanceNumber(words.headline, skillInfo));
+    blocks.push(headline, element('p', words.scores));
+    if (words.narrow) blocks.push(element('p', words.narrow, 'notice forecast-narrow'));
+    blocks.push(element('p', evaluationScope(provenance), 'notice forecast-evaluation-scope'));
+    const horizons = element('details', undefined, 'table-scroll');
+    horizons.append(element('summary', 'Backtest scores by horizon, and what the backtest does not show'));
+    const table = element('table');
+    table.append(element('caption', `Backtest on ${skill.name}, exactly as measured`));
+    const headRow = element('tr');
+    for (const text of ['Weeks ahead', 'Targets', 'Mean CRPS (cases)', '50% interval coverage', '90% interval coverage']) { const cell = element('th', text); cell.scope = 'col'; headRow.append(cell); }
+    const head = element('thead'); head.append(headRow);
+    const body = element('tbody');
+    for (const h of skill.by_horizon) body.append(scoreRow(String(h.horizon), h.n, h.mean_crps, h.coverage_50, h.coverage_90));
+    body.append(scoreRow('All', skill.targets, skill.mean_crps, skill.coverage_50, skill.coverage_90));
+    table.append(head, body);
+    const limits = element('ul');
+    for (const text of skill.limitations) limits.append(element('li', text));
+    horizons.append(table, limits, reportLine(skill.report_path, backtestReportPath, skill.report_sha256, ` · seed ${skill.seed}`));
+    blocks.push(horizons);
+    return blocks;
+  }
+
+  /** One row of a score table: the prose's precision (percent with one decimal plus the exact count), two decimals for scores. */
+  function scoreRow(text: string, n: number, crps: number | null | undefined, c50: number | null | undefined, c90: number | null | undefined, extra: string[] = []) {
+    const tr = element('tr');
+    const weeks = element('th', text); weeks.scope = 'row';
+    const number = (value: number | null | undefined, digits: number) => (value == null ? 'no targets' : value.toFixed(digits));
+    const coverage = (value: number | null | undefined) => (value == null ? 'no targets' : `${percent(value)} (${Math.round(value * n)} of ${n})`);
+    tr.append(weeks, element('td', String(n)), ...extra.map((cell) => element('td', cell)), element('td', number(crps, 2)), element('td', coverage(c50)), element('td', coverage(c90)));
+    return tr;
+  }
+
+  /** "Exact report: <link> · sha256 <hash>" (named, not linked, for a synthetic fixture). */
+  function reportLine(path: string, published_: string, sha256: string, tail: string) {
+    const report = element('p', 'Exact report: ');
+    if (options.synthetic) report.append(element('code', path));
+    else {
+      const link = element('a', path);
+      link.href = `${options.base.replace(/\/$/, '')}/${published_}`;
+      report.append(link);
+    }
+    report.append(document.createTextNode(' · sha256 '), element('code', sha256), document.createTextNode(tail));
+    return report;
+  }
+
+  /** The pseudo-real-time test on the CDC NNDSS state series: pooled, then per series, each with its own measured skill or none. */
+  function seriesBlocks(provenance: ForecastProvenance, backtest: SeriesBacktest, nameOf_: (id: string) => string): Element[] {
+    const info: ProvenanceInfo = {
+      label: `Series backtest · ${backtest.name}`, records: [], synthetic: options.synthetic,
+      note: `Measured by koplik-epi on ${backtest.series}. Read exactly from the committed report ${backtest.report_path} (sha256 ${backtest.report_sha256}), run on the source snapshot sha256 ${backtest.input_sha256}. ${backtest.protocol} A measurement of the method on those series' past, not of any forecast shown above.`,
+      citations: citationsOf(provenance),
+    };
+    const blocks: Element[] = [element('h3', `Test on ${backtest.name}: ${basisLabel(backtest.basis)}`)];
+    blocks.push(element('p', `${backtest.protocol}`, 'forecast-series-basis'));
+    blocks.push(element('p', `Series scored: ${backtest.series}. A series has a measured skill only if the test scored at least ${backtest.minimum_targets} forecasts of it from at least ${backtest.minimum_origin_weeks} origin weeks, a floor fixed before any score was computed; below it the series has insufficient data for a skill, whatever its scores would have been.`));
+    const pooled = pooledWords(backtest);
+    if (pooled) {
+      const headline = element('p', undefined, 'forecast-series-headline');
+      headline.append(provenanceNumber(pooled.headline, info));
+      blocks.push(headline, element('p', pooled.scores));
+      if (pooled.narrow) blocks.push(element('p', pooled.narrow, 'notice forecast-series-narrow'));
     } else {
-      const words = skillWords(skill);
-      const skillInfo: ProvenanceInfo = {
-        label: `Backtest skill · ${skill.name}`, records: [], synthetic: options.synthetic,
-        note: `Measured by koplik-epi on ${skill.series}. Read exactly from the committed report ${skill.report_path} (sha256 ${skill.report_sha256}), which was run on the report-vintage manifest sha256 ${skill.manifest_sha256}. A measurement of the method on that series, not of any forecast shown above.`,
-        citations: citationsOf(provenance),
-      };
-      blocks.push(element('p', `We have tested this method once, on ${skill.name}. Each forecast used only the reports available at its forecast date and was then scored against the counts reported for the weeks it predicted.`));
-      const headline = element('p', undefined, 'forecast-headline');
-      headline.append(provenanceNumber(words.headline, skillInfo));
-      blocks.push(headline, element('p', words.scores));
-      if (words.narrow) blocks.push(element('p', words.narrow, 'notice forecast-narrow'));
-      blocks.push(element('p', evaluationScope(provenance), 'notice forecast-evaluation-scope'));
-      const horizons = element('details', undefined, 'table-scroll');
-      horizons.append(element('summary', 'Backtest scores by horizon, and what the backtest does not show'));
-      const table = element('table');
-      table.append(element('caption', `Backtest on ${skill.name}, exactly as measured`));
+      blocks.push(element('p', 'The pooled result is below the floor for a measured skill: insufficient data.', 'notice'));
+    }
+    blocks.push(element('p', seriesEvaluationScope(provenance), 'notice forecast-series-scope'));
+    blocks.push(element('p', policyWords(provenance.publication_policy), 'forecast-policy'));
+
+    const measured = backtest.by_series.filter((e) => e.measured);
+    const scored = backtest.by_series.filter((e) => e.targets > 0).length;
+    const details = element('details', undefined, 'table-scroll');
+    details.append(element('summary', 'Series with a measured skill, pooled scores by horizon, and what this test does not show'));
+    details.append(element('p', `${measured.length} of the ${backtest.by_series.length} state series have a measured skill; ${scored - measured.length} more had forecasts scored but too few for one; the other ${backtest.by_series.length - scored} never had a forecast in the test (the method's minimum-count rule never held for them), so they have no skill.`));
+    if (measured.length) {
+      const table = element('table', undefined, 'series-skill');
+      table.append(element('caption', `Series with a measured skill, ${basisLabel(backtest.basis)}, exactly as measured`));
+      const headRow = element('tr');
+      for (const text of ['Series', 'Targets', 'Origin weeks', 'Mean CRPS (cases)', '50% interval coverage', '90% interval coverage', 'Carrying the latest count forward (cases)']) { const cell = element('th', text); cell.scope = 'col'; headRow.append(cell); }
+      const head = element('thead'); head.append(headRow);
+      const body = element('tbody');
+      for (const e of [...measured].sort((a, b) => nameOf_(a.geography).localeCompare(nameOf_(b.geography), 'en'))) {
+        const m = e.measured!;
+        const tr = scoreRow(nameOf_(e.geography), m.targets, m.mean_crps, m.coverage_50, m.coverage_90, [String(e.origin_weeks)]);
+        tr.append(element('td', m.mean_persistence_abs_error.toFixed(2)));
+        body.append(tr);
+      }
+      table.append(head, body);
+      details.append(table);
+    }
+    if (backtest.pooled) {
+      const table = element('table', undefined, 'series-pooled');
+      table.append(element('caption', `All series pooled, by horizon, exactly as measured`));
       const headRow = element('tr');
       for (const text of ['Weeks ahead', 'Targets', 'Mean CRPS (cases)', '50% interval coverage', '90% interval coverage']) { const cell = element('th', text); cell.scope = 'col'; headRow.append(cell); }
       const head = element('thead'); head.append(headRow);
       const body = element('tbody');
-      const rowOf = (text: string, n: number, crps: number | null | undefined, c50: number | null | undefined, c90: number | null | undefined) => {
-        const tr = element('tr');
-        const weeks = element('th', text); weeks.scope = 'row';
-        const number = (value: number | null | undefined, digits: number) => (value == null ? 'no targets' : value.toFixed(digits));
-        // Coverage uses the prose's precision: one-decimal percent plus the exact count (covered of n).
-        const coverage = (value: number | null | undefined) => (value == null ? 'no targets' : `${percent(value)} (${Math.round(value * n)} of ${n})`);
-        tr.append(weeks, element('td', String(n)), element('td', number(crps, 2)), element('td', coverage(c50)), element('td', coverage(c90)));
-        return tr;
-      };
-      for (const h of skill.by_horizon) body.append(rowOf(String(h.horizon), h.n, h.mean_crps, h.coverage_50, h.coverage_90));
-      body.append(rowOf('All', skill.targets, skill.mean_crps, skill.coverage_50, skill.coverage_90));
+      const all = backtest.pooled.scores;
+      for (const h of all.by_horizon) body.append(scoreRow(String(h.horizon), h.n, h.mean_crps, h.coverage_50, h.coverage_90));
+      body.append(scoreRow('All', all.targets, all.mean_crps, all.coverage_50, all.coverage_90));
       table.append(head, body);
-      const limits = element('ul');
-      for (const text of skill.limitations) limits.append(element('li', text));
-      const report = element('p', 'Exact report: ');
-      if (options.synthetic) report.append(element('code', skill.report_path));
-      else {
-        const link = element('a', skill.report_path);
-        link.href = `${options.base.replace(/\/$/, '')}/${backtestReportPath}`;
-        report.append(link);
-      }
-      report.append(document.createTextNode(' · sha256 '), element('code', skill.report_sha256), document.createTextNode(` · seed ${skill.seed}`));
-      horizons.append(table, limits, report);
-      blocks.push(horizons);
+      details.append(table);
+    }
+    const limits = element('ul');
+    for (const text of backtest.limitations) limits.append(element('li', text));
+    details.append(limits, reportLine(backtest.report_path, seriesBacktestReportPath, backtest.report_sha256, ` · source snapshot sha256 ${backtest.input_sha256} · seed ${backtest.seed}`));
+    blocks.push(details);
+    return blocks;
+  }
+
+  /** The tests of the method, as evaluations on the series they were run on: what was scored, how it did, what each does not measure. */
+  function renderEvaluation() {
+    const { provenance } = published!;
+    const skill = provenance.backtest;
+    const backtest = provenance.series_backtest;
+    const blocks: Element[] = [element('h2', 'How we evaluate forecasts')];
+    if (options.synthetic) blocks.push(element('p', 'SYNTHETIC EVALUATION · Invented numbers for development only; nothing was backtested.', 'synthetic notice'));
+    if (!skill && !backtest) {
+      blocks.push(element('p', provenance.scope_note, 'notice'));
+    } else {
+      if (skill && backtest) blocks.push(element('p', 'We have tested this method twice, on two different things. The two tests are reported separately, each with its own scope and its own basis; neither says anything about the other.'));
+      if (backtest) blocks.push(...seriesBlocks(provenance, backtest, nameOf));
+      if (skill) blocks.push(...westTexasBlocks(provenance, skill, Boolean(backtest)));
     }
     evaluation.replaceChildren(...blocks);
     evaluation.hidden = false;
@@ -300,9 +432,14 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       return optgroup;
     };
     const forecast = provenance.series.filter((s) => s.status === 'forecast');
+    const withheld = provenance.series.filter((s) => s.status === 'withheld');
     const insufficient = provenance.series.filter((s) => s.status === 'insufficient_data');
-    select.replaceChildren(...(forecast.length ? [options_(forecast, 'Forecast available')] : []), ...(insufficient.length ? [options_(insufficient, 'Insufficient data: no forecast')] : []));
-    const initial = [preferred, forecast[0]?.geography, insufficient[0]?.geography].find((id) => id && provenance.series.some((s) => s.geography === id));
+    select.replaceChildren(
+      ...(forecast.length ? [options_(forecast, 'Forecast available')] : []),
+      ...(withheld.length ? [options_(withheld, 'Forecast withheld: not published')] : []),
+      ...(insufficient.length ? [options_(insufficient, 'Insufficient data: no forecast')] : []),
+    );
+    const initial = [preferred, forecast[0]?.geography, withheld[0]?.geography, insufficient[0]?.geography].find((id) => id && provenance.series.some((s) => s.geography === id));
     if (initial) choose(initial);
   }
   select.addEventListener('change', () => choose(select.value));
@@ -318,10 +455,16 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     if (!loaded) { status.textContent = 'Forecast not yet available: the pipeline has not published one. Nothing is shown rather than a guess.'; return; }
     published = loaded;
     const { provenance } = loaded;
-    const made = provenance.series.filter((s) => s.status === 'forecast').length;
-    status.textContent = made
-      ? `${made} of ${provenance.series.length} series have enough data to forecast; the rest are shown as insufficient data. Forecast origin ${weekLabel(provenance.origin_week)}, ${provenance.horizon_weeks} weeks ahead.`
-      : `No series has enough data to forecast: all ${provenance.series.length} are insufficient data.`;
+    const published_ = provenance.series.filter((s) => s.status === 'forecast').length;
+    const withheld = provenance.series.filter((s) => s.status === 'withheld').length;
+    const insufficient = provenance.series.length - published_ - withheld;
+    status.textContent = published_
+      ? `${published_} of ${provenance.series.length} series have a forecast that meets our publication rule${withheld ? `; ${withheld} more are withheld` : ''}; the rest have insufficient data. Forecast origin ${weekLabel(provenance.origin_week)}, ${provenance.horizon_weeks} weeks ahead.`
+      : withheld
+        ? `No forecast is published: the method made forecasts for ${withheld} of ${provenance.series.length} series and our publication rule withheld every one; the other ${insufficient} have insufficient data.`
+        : `No series has enough data to forecast: all ${provenance.series.length} are insufficient data.`;
+    const top = withheldNotice(provenance);
+    withheldBox.replaceChildren(...(top ? [element('p', top, 'notice forecast-withheld-top')] : []));
     notices.replaceChildren(
       ...(options.synthetic ? [element('p', 'SYNTHETIC FORECAST · Invented values for development only; not a model projection of any observed series.', 'synthetic notice')] : []),
       element('p', 'Model projection from reported counts, not a prediction of what will happen.', 'notice'));
