@@ -239,13 +239,13 @@ validated weekly case series with the **pre-registered defaults, unchanged** (3-
 look-back, at least 11 cases in the window, 8 weeks ahead, 1,000 members, the 23 hub quantile
 levels) and the recorded seed `20250101`, from an origin week two provisional weeks before the
 latest data. `build` publishes three files under `data/forecasts/`, or none:
-`weekly-cases.json` (v1 `Forecast` rows), `weekly-cases.provenance.json` (**contract v5**
-`ForecastProvenance`, schema `crates/koplik-contracts/schema/v5/ForecastProvenance.schema.json`,
-types generated into `src/generated/v5/`) and `backtest-west-texas-2025.json` (the committed
-backtest report the skill was read from, byte for byte). The companion lists **every series**
+`weekly-cases.json` (v1 `Forecast` rows), `weekly-cases.provenance.json` (**contract v6**
+`ForecastProvenance`, schema `crates/koplik-contracts/schema/v6/ForecastProvenance.schema.json`,
+types generated into `src/generated/v6/`) and the committed backtest reports the skills were
+read from, byte for byte: `backtest-west-texas-2025.json` and `backtest-cdc-states.json`. The companion lists **every series**
 considered, each forecast or `insufficient_data` with the estimator's reason, the method and every
 parameter with its citation, the seed, run count, quantile levels and origin week, the sha256 of the
-input series, and the backtest's measured skill with its scope. `src/forecast.ts` validates both
+input series, and the measured skills of the two backtests with their scope. `src/forecast.ts` validates both
 files against the committed schemas and refuses a pair where the companion does not describe the
 rows (the cross-checks mirror `ForecastProvenance::check_against`); a missing companion is an
 error, never a bare forecast. No file means a visible "not yet available" state.
@@ -257,22 +257,41 @@ revised, and not used) as dashed bars. The exact values are in a table with prov
 number. A series that does not meet the method's minimum-count rule says **insufficient data** and
 why, in words that name the counts; it never gets a number.
 
-A forecast of a series the backtest did not score is introduced, **first, above its chart**, by:
-"No measured skill for this series. This forecast method has not been tested on this data; treat
-the bands as illustrative, not as calibrated uncertainty." No skill number and no calibration
-adjective sits in or next to the chart. Each series carries `skill` in the companion
-(`backtested`, or `not backtested; no measured skill`); the page refuses any other value. **None of
-the published series is backtested**: the backtest scored one series (the Texas DSHS 2025 outbreak
-total by report date), while the published forecasts are of CDC NNDSS state series
-(`confirmed_or_unknown_status`).
+A forecast is introduced, **first, above its chart**, by what is measured about *its own series*
+(#1503). Each series carries `skill` in the companion, and the page refuses any other value or a
+value its backtest's entry does not support:
 
-The backtest is reported in its own section, **How we evaluate forecasts**, after the forecast:
-what was scored (the Texas DSHS outbreak total by report date, 2025; 48 targets from 7 forecast
-dates and 5 origin weeks), the numbers exactly as measured with one precision and counts ("90%
-intervals contained the true count 62.5% of the time (30 of 48)", 50%: 47.9% (23 of 48), mean CRPS
-3.66, persistence 5.79; the backtest's intervals were too narrow), the per-horizon table and the
-limitations, and that it does not measure the published state series (testing them is tracked as
-#1503). Synthetic dev mode serves an invented, clearly labelled forecast pair
+- `measured`: the pseudo-real-time backtest of the CDC NNDSS state series scored at least 40
+  targets of this series from at least 10 origin weeks (a floor fixed before any score). The page
+  says so in plain words with the numbers exactly as measured ("In a pseudo-real-time (revised
+  counts truncated at each forecast date) backtest on this series, 90% intervals contained the true
+  count 35.1% of the time (101 of 288) ...", mean CRPS against carrying the latest count forward,
+  the origin weeks it rests on, and that it is not real-time), each number opening a provenance
+  drawer that names the report and the snapshot it was read from.
+- `insufficient data for a measured skill`: the backtest ran on this series but scored too few
+  targets or origin weeks. "No measured skill for this series. The pseudo-real-time ... backtest
+  ... scored N forecasts ... too little to state a skill ... Treat the bands as illustrative."
+  No other series' number is shown for it.
+- `not backtested; no measured skill` (for example the Texas DSHS county series): "No measured skill
+  for this series. This forecast method has not been tested on this data; treat the bands as
+  illustrative, not as calibrated uncertainty."
+- `backtested`: the series is the one the report-vintage backtest scored (Texas DSHS outbreak
+  total); see below.
+
+No skill number and no calibration adjective sits in or next to the chart of a series without a
+measured skill.
+
+The tests are reported in their own section, **How we evaluate forecasts**, after the forecast,
+each with its own scope and basis and neither standing in for the other. The **CDC state series**
+test (pseudo-real-time: one retrieval of the source is held and CDC publishes no revision history,
+so counts are revised counts truncated at each forecast date, never called real-time) gives the
+pooled result over the series where the method's minimum-count rule held ("pooled over 22 series and
+239 forecasts, 90% intervals contained the true count 39.0% of the time (682 of 1748)"; the pooled
+mean is dominated by the largest projections and is not any one series' skill), the table of the
+series with a measured skill, the pooled scores by horizon, the limitations and the exact report.
+The **West Texas** test (48 targets from 7 forecast dates and 5 origin weeks, real-time by report
+vintage) keeps its own headline, per-horizon table and limitations, and does not measure the
+published state series. Synthetic dev mode serves an invented, clearly labelled forecast pair
 (`data/fixtures/web/synthetic-v1/synthetic-forecast*.json`) from `npm run fixtures`.
 
 ## Integration events

@@ -275,13 +275,38 @@ or its absence, to the published forecast's provenance companion (contracts v6),
 report was run with exactly the published configuration; it also copies the report unchanged next
 to the forecasts so every number on the page can be checked against it.
 
-## Follow-ups (filed as their own Issues, not fixed here)
+## Follow-ups (filed as their own Issues, not fixed here: #1514, #1515, #1513)
 
-- A real-time backtest needs successive dated retrievals of the NNDSS series (the store keeps every
+- #1514: a real-time backtest needs successive dated retrievals of the NNDSS series (the store keeps every
   retrieval; only one real-byte snapshot is committed). Build vintages from them with
   `koplik_epi::backtest::vintages`-style versions once there are enough.
-- The method explodes after a one-week burst of cases (see above). Any change (a cap on `R`,
+- #1515: the method explodes after a one-week burst of cases (see above). Any change (a cap on `R`,
   negative-binomial offspring, a smoothed input) is a method change and must be pre-registered and
   scored the same way before it replaces the published default.
-- The forecast stage aborts the whole run when one series' projection passes 2^40, instead of
+- #1513: the forecast stage aborts the whole run when one series' projection passes 2^40, instead of
   marking that series.
+
+## Publication (contract v6)
+
+The pipeline's `forecast` stage reads `data/reports/backtest/cdc-states.json` and attaches the
+evaluation to the forecast's provenance companion as `series_backtest` (contract **v6**; v5 is
+frozen; v6 was the next free number when this was written, and is renumbered at merge if another
+Issue took it). It attaches only a report run with exactly the published configuration (window,
+look-back, minimum cases, horizon, members, seed, provisional weeks), on the NNDSS source, whose
+protocol carries the label "pseudo-real-time (revised counts truncated at each forecast date)";
+otherwise nothing is attached and the companion says so. Each forecast series' `skill` is
+`measured` (its own entry carries scores because it reached the floor), `insufficient data for a
+measured skill` (the evaluation ran on it but scored too little; its counts are published, its
+scores are not), or `not backtested; no measured skill` (not an NNDSS state series, for example the
+Texas DSHS county series). The contract's deserializer rejects a series whose skill disagrees with
+its entry, a floor that is not what the scores say, pooled numbers that do not add up, and a
+pseudo-real-time backtest that does not say so. The page shows, above each chart, the measured
+numbers for that series in plain words (or that it has none), and a separate evaluation block
+(pooled, series with a measured skill, limitations, the exact report) apart from the West Texas
+evaluation. The report is copied byte for byte beside the forecasts
+(`forecasts/backtest-cdc-states.json`).
+
+At the origin of the published forecast (2026-W36) the fixture run forecasts 6 series: Pennsylvania
+(measured: 108 targets from 17 origin weeks, mean CRPS 384.47 against 25.71 for carrying the last
+count forward, 90% coverage 34.3%) and Kentucky, Maryland, New York, Ohio and Wisconsin, which have
+insufficient data for a measured skill.
