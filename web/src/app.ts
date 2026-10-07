@@ -2,6 +2,8 @@ import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, missingReasonWords, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
 import { cumulativeSection, cumulativeSeries, cumulativeTable } from './cumulative';
 import { attributionSection } from './attribution-view';
+import { explorerSummary } from './summary';
+import { summarySection } from './summary-view';
 import { footerSources } from './attribution';
 import { mountRouter, pageEvent, pageHash, pageIds, pageTitles, type PageId } from './router';
 import { caseScales, createMap, type MapView } from './map';
@@ -116,6 +118,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   main.append(element('p', 'SURVEILLANCE EXPLORER', 'eyebrow'), element('h1', 'Measles across the United States'),
     element('p', 'Explore reported cases, vaccination coverage and the pace of an outbreak. Missing reports stay missing.', 'intro'));
 
+  main.append(summarySection(explorerSummary(data), data.synthetic));
   let level: 'state' | 'county' = 'state';
   let metric: Metric = 'cases-2025';
   let selected = data.geographies.find((g) => g.id === '48')?.id || data.geographies.find((g) => g.level === 'state')?.id || '';
