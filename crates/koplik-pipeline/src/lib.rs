@@ -1665,7 +1665,7 @@ fn build(config: &Config) -> Result<Manifest> {
             m.inputs.push(hash_file(&config.work, from)?);
             let path = config.work.join(from);
             let bytes = if from == FORECAST_ROWS_REL {
-                json_bytes(&v6::RowArtifact { rows: rows.clone() })
+                pack_rows::<v1::Forecast>(&path)?
             } else {
                 fs::read(&path).map_err(|e| PipelineError::io(&path, e))?
             };
@@ -1708,8 +1708,14 @@ fn row_artifact<T: v6::PublicationRow>(config: &Config, rel: &str) -> Result<Opt
         return Ok(None);
     }
     let rows: Vec<T> = read_json(&path)?;
-    Ok(Some((
-        rows.len() as u64,
-        json_bytes(&v6::RowArtifact { rows }),
-    )))
+    Ok(Some((rows.len() as u64, pack_rows::<T>(&path)?)))
+}
+
+/// Preserve source JSON numbers exactly while changing only provenance storage.
+fn pack_rows<T: v6::PublicationRow>(path: &Path) -> Result<Vec<u8>> {
+    let bytes = fs::read(path).map_err(|e| PipelineError::io(path, e))?;
+    v6::pack_json::<T>(&bytes).map_err(|source| PipelineError::Json {
+        path: path.to_path_buf(),
+        source,
+    })
 }

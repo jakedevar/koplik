@@ -58,7 +58,9 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   a per-file `provenance` table, and `rows` whose `provenance` arrays hold zero-based
   u32 indices. The complete record is deduplicated, preserving row order and the
   ordered provenance of every number, including repeated references. Deserialization
-  checks indices and runs the released row validators after expansion. Empty rows
+  checks indices and runs the released row validators after expansion. `pack_json`
+  validates existing row JSON and preserves every non-provenance field as raw JSON
+  so decimal parsing cannot change published numbers. Empty rows
   have an empty table. Companions, GeoJSON and stage outputs retain their current
   contracts; released v1–v5 sources and schemas are unchanged. Schema: `schema/v6/`.
 

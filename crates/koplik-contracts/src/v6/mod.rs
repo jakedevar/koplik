@@ -54,6 +54,55 @@ struct WireArtifact {
     rows: Vec<Value>,
 }
 
+/// Pack existing row JSON while preserving the exact JSON of every non-provenance
+/// field. The normal serde_json decimal parser may round a float by one ULP;
+/// parsing then reserializing such a value would change what a browser displays.
+/// RawValue avoids that second numerical representation, without changing the
+/// parser or any upstream science. Released row validators still check the input.
+pub fn pack_json<T: PublicationRow>(bytes: &[u8]) -> serde_json::Result<Vec<u8>> {
+    use serde_json::value::{RawValue, to_raw_value};
+    let _: Vec<T> = serde_json::from_slice(bytes)?;
+    let mut rows: Vec<BTreeMap<String, Box<RawValue>>> = serde_json::from_slice(bytes)?;
+    let mut table = Vec::<Provenance>::new();
+    let mut lookup = BTreeMap::new();
+    for row in &mut rows {
+        // The typed validation above guarantees this non-empty array exists.
+        let records: Vec<Provenance> = serde_json::from_str(row["provenance"].get())?;
+        let mut indices = Vec::with_capacity(records.len());
+        for record in records {
+            let key = serde_json::to_string(&record)?;
+            let index = match lookup.get(&key) {
+                Some(index) => *index,
+                None => {
+                    let index = u32::try_from(table.len()).map_err(|_| {
+                        <serde_json::Error as serde::ser::Error>::custom(
+                            "provenance table exceeds u32",
+                        )
+                    })?;
+                    table.push(record);
+                    lookup.insert(key, index);
+                    index
+                }
+            };
+            indices.push(index);
+        }
+        row.insert("provenance".to_owned(), to_raw_value(&indices)?);
+    }
+    #[derive(Serialize)]
+    struct RawArtifact {
+        contract_version: u8,
+        provenance: Vec<Provenance>,
+        rows: Vec<BTreeMap<String, Box<RawValue>>>,
+    }
+    let mut packed = serde_json::to_vec(&RawArtifact {
+        contract_version: 6,
+        provenance: table,
+        rows,
+    })?;
+    packed.push(b'\n');
+    Ok(packed)
+}
+
 impl<T: PublicationRow> Serialize for RowArtifact<T> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::Error;

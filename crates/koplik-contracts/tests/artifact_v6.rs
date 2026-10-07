@@ -77,3 +77,25 @@ fn malformed_indices_tables_versions_and_expanded_rows_are_rejected() {
     invalid["extra"] = json!(true);
     assert!(serde_json::from_value::<GeographyArtifact>(invalid).is_err());
 }
+
+#[test]
+fn packing_existing_json_preserves_numeric_tokens_without_reparsing_floats() {
+    use koplik_contracts::v6::{KindergartenMmrCoverage, pack_json};
+    use serde_json::value::RawValue;
+    let source = format!(
+        r#"[{{"geography":"48","school_year":"2023-24","coverage":{{"status":"reported","coverage_pct":94.54545454545455,"exemption_pct":null}},"imputed":false,"imputation_method":null,"provenance":[{}]}}]"#,
+        record()
+    );
+    let packed = pack_json::<KindergartenMmrCoverage>(source.as_bytes()).unwrap();
+    #[derive(serde::Deserialize)]
+    struct RawRow {
+        coverage: Box<RawValue>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Packed {
+        rows: Vec<RawRow>,
+    }
+    let before: Vec<RawRow> = serde_json::from_str(&source).unwrap();
+    let after: Packed = serde_json::from_slice(&packed).unwrap();
+    assert_eq!(before[0].coverage.get(), after.rows[0].coverage.get());
+}

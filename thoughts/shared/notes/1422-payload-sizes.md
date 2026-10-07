@@ -21,23 +21,25 @@ These are reproducible local compression sizes, not a live HTTP measurement.
 | Total | 20933157 | 310563 |
 
 After v6: same fixtures; four observation envelopes and forecast rows.
+Packing validates current-contract JSON and preserves non-provenance fields as raw
+JSON to avoid changing decimal values during parsing and reserialization.
 GeoJSON boundaries and scenario/forecast companions keep their existing shapes.
 
 | Artifact | After raw bytes | After gzip bytes |
 | --- | ---: | ---: |
 | forecasts/backtest-west-texas-2025.json | 189272 | 8259 |
-| forecasts/weekly-cases.json | 39711 | 3610 |
+| forecasts/weekly-cases.json | 39849 | 3617 |
 | forecasts/weekly-cases.provenance.json | 25908 | 4267 |
-| manifest.json | 32354 | 6373 |
+| manifest.json | 32354 | 6376 |
 | scenarios/gaines-2025.json | 1899 | 955 |
 | scenarios/gaines-2025.provenance.json | 4997 | 2190 |
-| v6/coverage.json | 116454 | 7280 |
+| v6/coverage.json | 116496 | 7459 |
 | v6/geographies.json | 41886 | 7392 |
-| v6/rt.json | 2453131 | 51091 |
+| v6/rt.json | 2453176 | 50903 |
 | v6/texas-counties.json | 169613 | 23419 |
 | v6/us-states.json | 233074 | 73431 |
-| v6/weekly-cases.json | 1065557 | 23780 |
-| Total | 4373856 | 212047 |
+| v6/weekly-cases.json | 1065557 | 23797 |
+| Total | 4374081 | 212065 |
 
-Two v6 `make pipeline-fixtures` runs produced identical SHA-256 hashes for all 12 published files.
+Two final v6 `make pipeline-fixtures` runs produced identical SHA-256 hashes for all 12 published files.
 Total raw reduction: 79.1%; gzip reduction: 31.7%. No observations or provenance were removed.
