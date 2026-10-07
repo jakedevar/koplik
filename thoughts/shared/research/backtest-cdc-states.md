@@ -366,8 +366,8 @@ contract check the same numbers.
 outcome does not depend on the thresholds: the author had already seen the per-series table when
 writing them, so this is stated plainly. Seven series reach the floor (AZ, KS, NM, PA, SC, TX, UT).
 Only one has `coverage_90 >= 0.75` (Kansas, 76.8%), and its mean CRPS is 14,916,265.56 against 3.28
-for persistence; the other six fail both. Every one of the seven has a mean CRPS above its persistence
-error (the ratio runs from 1.94 for New Mexico... see the per-series table), so criterion 3 alone
+for persistence; the other six fail both criteria. Every one of the seven has a mean CRPS above its persistence
+error (the ratio runs from 4.64 for Arizona to about 5.9 million for Utah), so criterion 3 alone
 refuses all of them, whatever the coverage threshold is. Pennsylvania, the only series with a
 measured skill that the site would otherwise have forecast at this origin, has 90% coverage 34.3% and
 mean CRPS 384.47 against 25.71. The panel therefore publishes no forecast and says why, in plain
