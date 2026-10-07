@@ -1,4 +1,4 @@
-import { caseChart, rtChart, rtLabel } from './charts';
+import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
 import { attributionSection } from './attribution-view';
 import { createMap, type MapView } from './map';
@@ -125,9 +125,13 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   function renderReports(year: number) {
     const cases = data.cases.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
     const rt = data.rt.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
-    const words = caseDefinitionWords(cases);
-    charts.replaceChildren(element('h3', `Weekly ${words}`), caseChart(cases, year, data.synthetic),
-      element('p', `Bars show new ${words} in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.`, 'chart-note'),
+    const series = caseSeries(cases, year);
+    const caseSvgs = caseCharts(cases, year, data.synthetic);
+    const caseBlocks = series.flatMap((one, i) => [element('h3', `Weekly ${one.label}`), caseSvgs[i],
+      element('p', `Bars show new ${one.label} in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.`, 'chart-note')]);
+    if (series.length > 1) caseBlocks.unshift(element('p', `This geography has case counts under ${series.length} different case definitions in MMWR ${year} (${series.map((one) => one.label).join('; ')}). They count different things, so each is charted separately and they are never added together or compared on one axis.`, 'notice case-definitions-notice'));
+    if (!series.length) caseBlocks.push(element('h3', 'Weekly cases'));
+    charts.replaceChildren(...caseBlocks,
       element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year, data.synthetic),
       element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
     if (!cases.length) charts.prepend(element('p', 'No case data for this geography and year.', 'notice'));
@@ -136,7 +140,8 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     table.append(element('caption', `${name.textContent} · MMWR ${year}`));
     const head = element('thead');
     const headers = element('tr');
-    for (const text of ['MMWR week', `New ${words}`, 'R_t / quality']) {
+    const caseColumns = series.length ? series : [undefined];
+    for (const text of ['MMWR week', ...caseColumns.map((one) => `New ${one?.label ?? 'cases'}`), 'R_t / quality']) {
       const cell = element('th', text);
       cell.scope = 'col';
       headers.append(cell);
@@ -146,17 +151,20 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const weeks = [...new Set([...cases, ...rt].map((r) => r.week.week))].sort((a, b) => a - b);
     // Show omitted weeks inside a reported period as no data as well as explicit missing rows.
     if (weeks.length) for (let week = weeks[0]; week <= weeks.at(-1)!; week++) {
-      const c = cases.find((r) => r.week.week === week);
       const estimates = rt.filter((row) => row.week.week === week).sort((a, b) => a.interval_level - b.interval_level);
       const row = element('tr');
       row.dataset.geography = selected;
       row.dataset.week = `${year}-${week}`;
       const weekCell = element('th', `W${week}`);
       weekCell.scope = 'row';
-      const caseCell = element('td', c?.cases.status === 'reported' ? String(c.cases.count) : `No data${c?.cases.status === 'missing' ? ` · ${c.cases.reason}` : ''}`);
-      if (c?.cases.status === 'reported') caseCell.replaceChildren(provenanceNumber(String(c.cases.count), {
-        label: `${name.textContent} · ${year} W${week} · ${c.cases.count} ${caseDefinitionLabels[c.case_definition]}`, records: c.provenance, synthetic: data.synthetic,
-      }));
+      const caseCells = caseColumns.map((one) => {
+        const c = (one ? one.rows : cases).find((r) => r.week.week === week);
+        const cell = element('td', c?.cases.status === 'reported' ? String(c.cases.count) : `No data${c?.cases.status === 'missing' ? ` · ${c.cases.reason}` : ''}`);
+        if (c?.cases.status === 'reported') cell.replaceChildren(provenanceNumber(String(c.cases.count), {
+          label: `${name.textContent} · ${year} W${week} · ${c.cases.count} ${caseDefinitionLabels[c.case_definition]}`, records: c.provenance, synthetic: data.synthetic,
+        }));
+        return cell;
+      });
       const rtCell = element('td', estimates.length ? undefined : 'No data');
       for (const estimate of estimates) {
         const report = element('div');
@@ -170,7 +178,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
         else if (estimate.status === 'insufficient_data') report.className = 'insufficient';
         rtCell.append(report);
       }
-      row.append(weekCell, caseCell, rtCell);
+      row.append(weekCell, ...caseCells, rtCell);
       body.append(row);
     }
     table.append(head, body);

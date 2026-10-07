@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { caseChart, rtChart, rtLabel } from './charts';
+import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
+
+const caseChart = (rows: Parameters<typeof caseCharts>[0], year: number, synthetic = false) => {
+  const charts = caseCharts(rows, year, synthetic);
+  expect(charts).toHaveLength(1);
+  return charts[0];
+};
 
 describe('accessible SVG reports', () => {
   it('names the case definition in the title, axis label and provenance label', () => {
@@ -11,8 +17,30 @@ describe('accessible SVG reports', () => {
     const county = caseChart(data.cases.filter((r) => r.geography === '48165'), 2025, true);
     expect(county.querySelector('title')?.textContent).toContain('Weekly confirmed cases');
     expect([...county.querySelectorAll('text')].map((t) => t.textContent)).toContain('New confirmed cases');
-    const mixed = caseChart([data.cases.find((r) => r.geography === '48')!, data.cases.find((r) => r.geography === '48165')!].map((r, i) => ({ ...r, week: { year: 2025, week: i + 1 } })), 2025, true);
-    expect(mixed.querySelector('title')?.textContent).toContain('case definitions differ');
+  });
+  it('never mixes case definitions: one labelled series per definition, each on its own axis', () => {
+    const data = fixtureDataset();
+    const nndss = data.cases.find((r) => r.geography === '48' && r.case_definition === 'confirmed_or_unknown_status' && r.cases.status === 'reported')!;
+    const dshs = data.cases.find((r) => r.geography === '48165' && r.case_definition === 'confirmed' && r.cases.status === 'reported')!;
+    // Same geography, week 1 confirmed and week 2 confirmed-or-unknown-status: schema-valid, not comparable.
+    const rows = [{ ...dshs, geography: '48', week: { year: 2025, week: 1 }, cases: { status: 'reported' as const, count: 7 } },
+      { ...nndss, geography: '48', week: { year: 2025, week: 2 }, cases: { status: 'reported' as const, count: 900 } }];
+    const series = caseSeries(rows, 2025);
+    expect(series.map((one) => [one.definition, one.label, one.rows.map((r) => r.week.week)])).toEqual([
+      ['confirmed', 'confirmed cases', [1]],
+      ['confirmed_or_unknown_status', 'confirmed or unknown-status cases', [2]],
+    ]);
+    const svgs = caseCharts(rows, 2025, true);
+    expect(svgs).toHaveLength(2);
+    expect(svgs.map((svg) => svg.querySelector('title')?.textContent)).toEqual([
+      expect.stringContaining('Weekly confirmed cases, MMWR 2025. Charted separately from other case definitions; they are never added together.'),
+      expect.stringContaining('Weekly confirmed or unknown-status cases, MMWR 2025. Charted separately from other case definitions; they are never added together.'),
+    ]);
+    expect(svgs.map((svg) => svg.querySelector('.series-legend')?.textContent)).toEqual(['New confirmed cases', 'New confirmed or unknown-status cases']);
+    // Each series has its own y scale: the 7 and the 900 are each the tallest bar of their own chart.
+    expect(svgs.map((svg) => svg.querySelector('.case-bar')?.getAttribute('data-week'))).toEqual(['1', '2']);
+    expect(svgs.map((svg) => [...svg.querySelectorAll('text')].map((t) => t.textContent).filter((t) => t === '7' || t === '900'))).toEqual([['7'], ['900']]);
+    expect(svgs.map((svg) => svg.querySelectorAll('.case-bar').length)).toEqual([1, 1]);
   });
   it('renders reported zero and leaves missing weeks as gaps', () => {
     const rows = fixtureDataset().cases.filter((r) => r.geography === '35');
