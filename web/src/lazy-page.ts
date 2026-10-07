@@ -30,7 +30,7 @@ export function onFirstShow(root: HTMLElement, id: PageId, label: string, contai
       alert.className = 'notice load-failed';
       alert.setAttribute('role', 'alert');
       const message = document.createElement('p');
-      message.textContent = `${label} is unavailable: it could not be loaded${error instanceof Error && error.message ? ` (${error.message})` : ''}. Nothing is shown in its place; no figures were estimated.`;
+      message.textContent = `${label} is unavailable: it could not be loaded${error instanceof Error && error.message ? ` (${error.message})` : ''}. Nothing is shown in its place; no figures were estimated. Retry, or reload the page if it keeps failing.`;
       const retry = document.createElement('button');
       retry.type = 'button';
       retry.textContent = `Retry loading ${label}`;
