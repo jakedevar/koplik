@@ -423,7 +423,9 @@ pub fn pdf_lines(bytes: &[u8]) -> Result<Vec<PdfLine>> {
         .map_err(|e| IngestError::Parse(format!("PDF text: {e}")))?;
 
     // Group by (page, baseline y rounded to half a point).
-    let mut keyed: std::collections::BTreeMap<(u32, i64), Vec<(f64, f64, String)>> =
+    // (x, advance, text) of each character, per line.
+    type LineChars = Vec<(f64, f64, String)>;
+    let mut keyed: std::collections::BTreeMap<(u32, i64), LineChars> =
         std::collections::BTreeMap::new();
     for (page, x, y, w, s) in c.chars {
         keyed

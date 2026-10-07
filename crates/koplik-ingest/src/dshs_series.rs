@@ -25,13 +25,15 @@
 //!   when both are `reported` and the cumulative did not fall; a fall (a case removed or
 //!   reclassified) or an unreadable value is `missing:ambiguous`.
 //! * *Per MMWR week*, a week being the MMWR week that contains the report date: for week W
-//!   take the last report dated in W and the last report before W. If that previous report is
-//!   in week W-1 the weekly count is their difference (rules as for intervals). A week with
-//!   no report is `missing:not_reported`. A week whose previous report is more than one week
-//!   back, or that has no previous report at all (the first report's cumulative includes
-//!   everything before it and cannot be assigned to one week), is not split: the first is
-//!   `missing:ambiguous`, the second `missing:not_reported`. The exact multi-week increase
-//!   stays available in the interval series.
+//!   take the last county-detail report dated in W and the last one before W. The weekly count
+//!   is their difference (rules as for intervals) only when both are *the last report of any
+//!   kind* in their weeks and the earlier one is in week W-1; so a week whose last report has
+//!   no county breakdown (the Tableau-era pages) is not given a partial count. Otherwise the
+//!   week is `missing:ambiguous` (it has a report but the count cannot be completed or
+//!   split, e.g. after a gap or a breakdown-less last report). A week with no county-detail
+//!   report is `missing:not_reported`, and so is the first report's week (that cumulative
+//!   includes everything before it and cannot be assigned to one week). The exact multi-week
+//!   increase stays available in the interval series.
 //! * The week is the week the report is dated, i.e. when DSHS published the cumulative, not
 //!   the week of rash onset. Reporting lags onset; treat recent weeks as provisional.
 //!
@@ -207,6 +209,10 @@ pub struct VintageManifest {
     pub manifest_version: u32,
     pub description: String,
     pub entries: Vec<ManifestEntry>,
+    /// Captures the Internet Archive's index listed for the outbreak page that could not be
+    /// fetched (for example a persistent HTTP 500); their versions, if different, are absent
+    /// from `entries`.
+    pub unretrieved_captures: Vec<String>,
 }
 
 pub fn manifest(vintages: &[Vintage]) -> VintageManifest {
@@ -242,6 +248,7 @@ pub fn manifest(vintages: &[Vintage]) -> VintageManifest {
                 issues: v.report.issues.clone(),
             })
             .collect(),
+        unretrieved_captures: Vec::new(),
     }
 }
 
@@ -376,6 +383,13 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
         });
     }
 
+    // Dates of every report held, with or without county detail.
+    let all_dates: Vec<NaiveDate> = vintages
+        .iter()
+        .map(|v| v.report.report_date)
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
     let all_counties: BTreeSet<CountyFips> = points
         .iter()
         .flat_map(|p| p.counties.keys().copied())
@@ -422,8 +436,21 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
             let in_week = points.iter().rfind(|p| p.week == week);
             let before = points.iter().rfind(|p| p.week < week);
             let after = points.iter().find(|p| p.week > week);
+            // The last report of any kind in a week; a week's county count is only complete
+            // when that report is the county-detail one used.
+            let last_any = |w: MmwrWeek| {
+                all_dates
+                    .iter()
+                    .rfind(|d| MmwrWeek::from_date(**d).is_ok_and(|dw| dw == w))
+                    .copied()
+            };
+            let complete = |now: &Point<'_>, prev: &Point<'_>| {
+                prev.week.next().is_ok_and(|n| n == week)
+                    && last_any(week) == Some(now.date)
+                    && last_any(prev.week) == Some(prev.date)
+            };
             let (confirmed, provenance) = match (in_week, before) {
-                (Some(now), Some(prev)) if prev.week.next().is_ok_and(|n| n == week) => (
+                (Some(now), Some(prev)) if complete(now, prev) => (
                     difference(prev.cumulative(county), now.cumulative(county)),
                     prov(&[prev.vintage, now.vintage]),
                 ),
@@ -489,6 +516,27 @@ const DSHS_SOURCES: [&str; 4] = [
     crate::dshs_sources::SOURCE_REPORT_WAYBACK,
 ];
 
+/// Outbreak-page captures named by a stored CDX listing but not held in the store.
+fn unretrieved_captures(store: &crate::store::SnapshotStore) -> Result<Vec<String>> {
+    let held: BTreeSet<String> = store
+        .retrievals(Some(crate::dshs_sources::SOURCE_PAGE_WAYBACK))?
+        .into_iter()
+        .map(|r| r.url)
+        .collect();
+    let mut missing = BTreeSet::new();
+    for r in store.retrievals(Some(crate::dshs_sources::SOURCE_CDX))? {
+        if !r.url.contains("news-alerts/measles-outbreak-2025") {
+            continue;
+        }
+        for c in crate::dshs_sources::parse_cdx(&store.get_verified(&r.sha256)?)? {
+            if !held.contains(&c.url()) {
+                missing.insert(c.url());
+            }
+        }
+    }
+    Ok(missing.into_iter().collect())
+}
+
 /// Parse every stored DSHS snapshot (offline) and derive the manifest and series.
 pub fn build_from_store(
     store: &crate::store::SnapshotStore,
@@ -511,7 +559,8 @@ pub fn build_from_store(
         }
     }
     let vintages = group_vintages(reports)?;
-    let manifest = manifest(&vintages);
+    let mut manifest = manifest(&vintages);
+    manifest.unretrieved_captures = unretrieved_captures(store)?;
     let series = derive(&vintages, lookup)?;
     Ok(Built {
         vintages,
@@ -857,5 +906,36 @@ mod tests {
         assert_eq!(m.entries[1].outbreak_total, Some(624));
         let s = derive(&v, &lookup()).unwrap();
         assert_eq!(s.cumulative.len(), 1);
+    }
+
+    #[test]
+    fn a_week_whose_last_report_has_no_county_breakdown_gets_no_partial_count() {
+        // Tue 03-25 (week 13) has county rows; Fri 03-28 (also week 13) is dashboard-only.
+        let mut dashboard = report("2025-03-28", "20250329000000", &[], Some(400));
+        dashboard.format = ReportFormat::HtmlNarrativeOnly;
+        dashboard.outbreak_counties = None;
+        let v = group_vintages(vec![
+            report(
+                "2025-03-18",
+                "20250319000000",
+                &[("Gaines", "100")],
+                Some(100),
+            ),
+            report(
+                "2025-03-25",
+                "20250326000000",
+                &[("Gaines", "150")],
+                Some(150),
+            ),
+            dashboard,
+        ])
+        .unwrap();
+        let s = derive(&v, &lookup()).unwrap();
+        assert_eq!(
+            weekly(&s, fips(48165)),
+            vec![("2025-W12".into(), nr()), ("2025-W13".into(), amb())]
+        );
+        // The Tue-to-Tue interval is still exact.
+        assert_eq!(s.intervals[0].new_cases, rep(50));
     }
 }

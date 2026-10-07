@@ -1,0 +1,863 @@
+{
+  "manifest_version": 1,
+  "description": "Every distinct Texas DSHS 2025 measles outbreak report version held as a snapshot (Internet Archive capture or live fetch). Use first_seen_at, not report_date alone, to decide whether a version was available at a forecast date. Vintages with county_detail=false have no county numbers.",
+  "entries": [
+    {
+      "report_date": "2025-03-04",
+      "format": "html_county_table",
+      "outbreak_total": 159,
+      "county_detail": true,
+      "county_rows": 9,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-05T18:45:28Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250305184528id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-05T18:45:28Z",
+        "retrieved_at": "2026-10-07T02:42:17Z",
+        "sha256": "f808ad80e3f32b6163aeddcb58c552598a10c28aa0c9c4dac7437d86921380b7",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-03-07T02:23:56Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-07",
+      "format": "html_county_table",
+      "outbreak_total": 198,
+      "county_detail": true,
+      "county_rows": 9,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-08T01:40:05Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250308014005id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-08T01:40:05Z",
+        "retrieved_at": "2026-10-07T02:42:43Z",
+        "sha256": "4d0927f321e1484e1adf0c7dad0670c990e879865cebd1bbd171ad6980baf353",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-03-11T01:08:28Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-11",
+      "format": "html_county_table",
+      "outbreak_total": 223,
+      "county_detail": true,
+      "county_rows": 9,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-12T19:05:52Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250312190552id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-12T19:05:52Z",
+        "retrieved_at": "2026-10-07T02:43:08Z",
+        "sha256": "728db7eb912ae6435fb67dee0673ed7d6d899af9bf68d4dd9628668ee6c0d97f",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-03-14T07:37:53Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-14",
+      "format": "html_county_table",
+      "outbreak_total": 259,
+      "county_detail": true,
+      "county_rows": 11,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-15T03:50:09Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250315035009id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-15T03:50:09Z",
+        "retrieved_at": "2026-10-07T02:43:35Z",
+        "sha256": "3c337a8e4256c721d5aed7793f7d2fb7055b522633b97cab60d6d8104be5120a",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 4,
+      "last_seen_at": "2025-03-18T15:39:58Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-18",
+      "format": "html_county_table",
+      "outbreak_total": 279,
+      "county_detail": true,
+      "county_rows": 11,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-19T00:39:33Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250319003933id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-19T00:39:33Z",
+        "retrieved_at": "2026-10-07T02:44:19Z",
+        "sha256": "44bb97f812ccb0f6f533d30b9c714eaa2b47c11d1ca2fd9966a9958f6181d136",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-03-21T14:46:08Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-21",
+      "format": "html_county_table",
+      "outbreak_total": 309,
+      "county_detail": true,
+      "county_rows": 14,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-22T12:35:11Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250322123511id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-22T12:35:11Z",
+        "retrieved_at": "2026-10-07T02:44:43Z",
+        "sha256": "22872dd18ff9fc92a5f5ac86e40f2420b5c19b56c62a87db41e0414963e0ce1f",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 4,
+      "last_seen_at": "2025-03-25T02:55:21Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-25",
+      "format": "html_county_table",
+      "outbreak_total": 327,
+      "county_detail": true,
+      "county_rows": 15,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-26T07:56:27Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250326075627id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-26T07:56:27Z",
+        "retrieved_at": "2026-10-07T02:45:26Z",
+        "sha256": "720216177070821385798e84626779488fa220bae93c6116f0832658c5f80c3f",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-03-28T01:06:47Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-28",
+      "format": "html_narrative_only",
+      "outbreak_total": 400,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-29T02:44:43Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250329024443id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-03-29T02:44:43Z",
+        "retrieved_at": "2026-10-07T02:45:53Z",
+        "sha256": "1b3e9a0987f764774b5705707c0dede718aa76b903109b05c1bc61f3f35ed796",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-01T01:42:08Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-01",
+      "format": "html_narrative_only",
+      "outbreak_total": 422,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-02T06:58:03Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250402065803id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-02T06:58:03Z",
+        "retrieved_at": "2026-10-07T02:46:46Z",
+        "sha256": "3ba6454dd3d6c50e7c13d0d6ebe423ea07b3bcc512e65a0de5735c41d97ecfe6",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-04T03:30:30Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-04",
+      "format": "html_narrative_only",
+      "outbreak_total": 481,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-05T12:02:40Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250405120240id_/https://dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-05T12:02:40Z",
+        "retrieved_at": "2026-10-07T02:47:32Z",
+        "sha256": "2bda47180bdc3463705cd903af4e2dcaea75f2fe03ed27ca8cac74d065cabebb",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-07T08:28:56Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-08",
+      "format": "html_narrative_only",
+      "outbreak_total": 505,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-08T17:06:39Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250408170639id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-08T17:06:39Z",
+        "retrieved_at": "2026-10-07T02:47:58Z",
+        "sha256": "c7ae84f71a59b93986a5ab9af699bac28b0c0106b69d363be4b1be6ef8b6352c",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-11T02:00:50Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-11",
+      "format": "html_narrative_only",
+      "outbreak_total": 541,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-12T00:24:12Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250412002412id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-12T00:24:12Z",
+        "retrieved_at": "2026-10-07T02:48:29Z",
+        "sha256": "a2b0d21825f17c8926605a1c1122800a2cb4de26670e087b0e2ac4a2fde7f708",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-14T08:46:51Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-15",
+      "format": "html_narrative_only",
+      "outbreak_total": 561,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-15T21:33:21Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250415213321id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-15T21:33:21Z",
+        "retrieved_at": "2026-10-07T02:48:54Z",
+        "sha256": "366382468ed6a114ce57d56298002fb167ad74bd35a5ab018f87493c98ea1a8f",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 4,
+      "last_seen_at": "2025-04-18T05:11:34Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-18",
+      "format": "html_narrative_only",
+      "outbreak_total": 597,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-20T01:34:55Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250420013455id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-20T01:34:55Z",
+        "retrieved_at": "2026-10-07T02:49:48Z",
+        "sha256": "490c8c16ae77078987f6d0f5400c964bec76aad349943528695167d3eec29d33",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-04-21T15:05:15Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-22",
+      "format": "html_narrative_only",
+      "outbreak_total": 624,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-22T10:33:10Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250422103310id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-22T10:33:10Z",
+        "retrieved_at": "2026-10-07T02:50:26Z",
+        "sha256": "271f2a5d70b4d9642504a0b8036baca4df557d69a5c8456bdf567ecabf4900cf",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-04-24T00:11:19Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-25",
+      "format": "html_narrative_only",
+      "outbreak_total": 646,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-26T14:19:06Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250426141906id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-26T14:19:06Z",
+        "retrieved_at": "2026-10-07T02:50:54Z",
+        "sha256": "f602a79ece25c1378c7cd52c62bb161afe67cd9c19d288a70884971e43ac84b2",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-04-26T14:19:06Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-04-29",
+      "format": "html_narrative_only",
+      "outbreak_total": 663,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-04-29T22:52:11Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250429225211id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-04-29T22:52:11Z",
+        "retrieved_at": "2026-10-07T02:51:25Z",
+        "sha256": "8ec5c513bd4827c000a6e579c528c2e55803addf0078bded5a39b35781002368",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 5,
+      "last_seen_at": "2025-05-03T18:47:03Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-02",
+      "format": "html_narrative_only",
+      "outbreak_total": 683,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-05T07:12:17Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250505071217id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-05T07:12:17Z",
+        "retrieved_at": "2026-10-07T02:52:25Z",
+        "sha256": "a0a301cf0ee78dd2fbbb632133bc5ca7448c4242397945a25d852db74d59f4de",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-05-06T00:52:51Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-06",
+      "format": "html_narrative_only",
+      "outbreak_total": 702,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-07T07:47:08Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250507074708id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-07T07:47:08Z",
+        "retrieved_at": "2026-10-07T02:53:03Z",
+        "sha256": "f4847c894a746e2eec078358f1c28386f64cbec280501990da86832d666064b4",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-05-08T09:55:42Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-09",
+      "format": "html_narrative_only",
+      "outbreak_total": 709,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-09T17:35:43Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250509173543id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-09T17:35:43Z",
+        "retrieved_at": "2026-10-07T02:53:26Z",
+        "sha256": "b3361dd7065304c035b9748c63235dcf9d6f087c2c6cffdd72c6ea8cdcbb5656",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 4,
+      "last_seen_at": "2025-05-14T11:56:27Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-16",
+      "format": "html_narrative_only",
+      "outbreak_total": 718,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-17T11:57:18Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250517115718id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-17T11:57:18Z",
+        "retrieved_at": "2026-10-07T02:54:27Z",
+        "sha256": "8e3d569158876b7a87afc93fa2fdd0b3b77a87ef6a4f36209b12b5ecfa52e602",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-05-20T07:21:44Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-20",
+      "format": "html_narrative_only",
+      "outbreak_total": 722,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-21T00:44:03Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250521004403id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-21T00:44:03Z",
+        "retrieved_at": "2026-10-07T02:54:59Z",
+        "sha256": "5a89974f02ae01f5d9730b39e4a721f16aa8fd51ad88a2cff5a190841cf61e0a",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-05-21T00:44:03Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-23",
+      "format": "html_narrative_only",
+      "outbreak_total": 728,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-23T19:02:41Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250523190241id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-23T19:02:41Z",
+        "retrieved_at": "2026-10-07T02:55:13Z",
+        "sha256": "7dc2ae52da511c3dfc7adc9204cf221e98e3b93a12cbcc45fd0d11c089cf630c",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-05-23T19:02:41Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-27",
+      "format": "html_narrative_only",
+      "outbreak_total": 729,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-27T16:15:18Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250527161518id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-27T16:15:18Z",
+        "retrieved_at": "2026-10-07T02:55:20Z",
+        "sha256": "e181049e58b6b27ce4003f4f4ebdc356b7f4e562c1481ed435a075ea77135200",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-05-30T13:42:20Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-05-30",
+      "format": "html_narrative_only",
+      "outbreak_total": 738,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-05-31T23:37:05Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250531233705id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-05-31T23:37:05Z",
+        "retrieved_at": "2026-10-07T02:55:52Z",
+        "sha256": "2a4f6ab36f863e8bea4f7af122bc4a98f375f74f07ae70249898710ea19ac927",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-06-02T21:04:35Z",
+      "issues": [
+        "table \"2025 Texas Measles Cases Not Associated with the Outbreak in West Texas\": rows sum to 35 but the printed total is 32"
+      ]
+    },
+    {
+      "report_date": "2025-06-03",
+      "format": "html_narrative_only",
+      "outbreak_total": 742,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-06-03T16:25:51Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250603162551id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-06-03T16:25:51Z",
+        "retrieved_at": "2026-10-07T02:56:42Z",
+        "sha256": "9ec1b3bca3c5c70a4dfcb3cda5ff372455617d9ce5ac732a0f28a8f6be415936",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-06-04T11:13:31Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-06-06",
+      "format": "html_narrative_only",
+      "outbreak_total": 742,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-06-06T19:42:36Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250606194236id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-06-06T19:42:36Z",
+        "retrieved_at": "2026-10-07T02:57:00Z",
+        "sha256": "0a3c82df2e5fcaeac0835e28ac1d36f4ee6eb682e4285d70606f4e78f850e315",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 4,
+      "last_seen_at": "2025-06-10T03:57:17Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-06-10",
+      "format": "html_narrative_only",
+      "outbreak_total": 744,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-06-14T22:46:50Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250614224650id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-06-14T22:46:50Z",
+        "retrieved_at": "2026-10-07T02:57:40Z",
+        "sha256": "768d2deb3dfe722473eb04d990e355d5897e40a966c0ccfb635917c92c5aad03",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-06-16T20:46:11Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-06-17",
+      "format": "html_narrative_only",
+      "outbreak_total": 750,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-06-20T07:24:35Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250620072435id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-06-20T07:24:35Z",
+        "retrieved_at": "2026-10-07T02:57:59Z",
+        "sha256": "85307603937b87aa520ba291d94ddda94bd769393f225321d7a57c8c74a81456",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-06-23T17:07:21Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-06-24",
+      "format": "html_narrative_only",
+      "outbreak_total": 750,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-06-26T11:49:20Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250626114920id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-06-26T11:49:20Z",
+        "retrieved_at": "2026-10-07T02:58:30Z",
+        "sha256": "be0c96cf2e836df9a7d167198cf1cbf7ab0b3274932d35d1a3795b715ebc2b40",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2025-06-28T23:49:32Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-07-01",
+      "format": "html_narrative_only",
+      "outbreak_total": 753,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-07-01T05:19:08Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250701051908id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-07-01T05:19:08Z",
+        "retrieved_at": "2026-10-07T02:59:08Z",
+        "sha256": "0f6cc951c566ae2314d4fafd24f07c6c1881763b8b37a699eaf6a737b400a5c5",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 6,
+      "last_seen_at": "2025-07-07T09:43:35Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-07-08",
+      "format": "html_narrative_only",
+      "outbreak_total": 753,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-07-09T09:21:41Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250709092141id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-07-09T09:21:41Z",
+        "retrieved_at": "2026-10-07T03:00:00Z",
+        "sha256": "2af2233dedd937655774aad2182b01e71132515496d527d4c563aa7e69c8ecbb",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 6,
+      "last_seen_at": "2025-07-15T01:41:09Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-07-15",
+      "format": "html_narrative_only",
+      "outbreak_total": 762,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-07-18T03:50:35Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250718035035id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-07-18T03:50:35Z",
+        "retrieved_at": "2026-10-07T03:00:58Z",
+        "sha256": "0a6a54c4b09d513f66a1b9f8a5adf2d03accd6ee392ec9027e82886aaeea47d8",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-07-21T20:35:10Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-07-22",
+      "format": "html_narrative_only",
+      "outbreak_total": 762,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-07-22T18:47:39Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250722184739id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-07-22T18:47:39Z",
+        "retrieved_at": "2026-10-07T03:01:42Z",
+        "sha256": "94346bd527e9df9c68ffeb3eb000639c200a95953947329a02b2aae315608524",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-07-29T00:47:13Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-07-29",
+      "format": "html_narrative_only",
+      "outbreak_total": 762,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-07-30T02:13:17Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250730021317id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-07-30T02:13:17Z",
+        "retrieved_at": "2026-10-07T03:02:19Z",
+        "sha256": "843e772756540539b20d0d0276c62e81dd61df01926dc4f56230373c3ba33714",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 6,
+      "last_seen_at": "2025-08-05T00:39:44Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-08-05",
+      "format": "html_narrative_only",
+      "outbreak_total": 762,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-08-07T21:13:27Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250807211327id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-08-07T21:13:27Z",
+        "retrieved_at": "2026-10-07T03:03:54Z",
+        "sha256": "3e66f664daa67a86ef327ffee8ebc098b6538715481e1dc17a1bfa146c3192e3",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 3,
+      "last_seen_at": "2025-08-10T15:34:14Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-08-12",
+      "format": "html_narrative_only",
+      "outbreak_total": 762,
+      "county_detail": false,
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-08-13T09:53:27Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-outbreak-page-wayback",
+        "url": "https://web.archive.org/web/20250813095327id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "original_url": "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+        "capture_time": "2025-08-13T09:53:27Z",
+        "retrieved_at": "2026-10-07T03:04:19Z",
+        "sha256": "007a817fa15f695d58b09616568cef14d8aa1ce787b71b3d255072d47e2ce095",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 17,
+      "last_seen_at": "2026-10-07T02:38:45Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-11-24",
+      "format": "pdf_data_report",
+      "outbreak_total": 762,
+      "county_detail": true,
+      "county_rows": 38,
+      "data_as_of": "Preliminary Data as of: 11/24/2025, 6:26:00 PM",
+      "first_seen_at": "2025-12-17T05:50:56Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-data-report-wayback",
+        "url": "https://web.archive.org/web/20251217055056id_/https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-data-report-nov-2025.pdf",
+        "original_url": "https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-data-report-nov-2025.pdf",
+        "capture_time": "2025-12-17T05:50:56Z",
+        "retrieved_at": "2026-10-07T02:40:38Z",
+        "sha256": "f055da2eaff8308f9dd53e8bf4f0181edf07e73e1584f73691c522e7bfad6a05",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-12-17T05:50:56Z",
+      "issues": [
+        "footnote: * An additional 182 potential cases from March 2025 in children younger than 18 years old were reported from Gaines County. Due to insufficient information, these",
+        "footnote: ** Category includes all cases not known to be linked to the 2025 Texas Measles Outbreak or acquired through international travel.",
+        "table \"Table 1: Confirmed Cases in Texas Residents / 2025 Texas Outbreak (%)*\": rows sum to 763 but the printed total is 762"
+      ]
+    },
+    {
+      "report_date": "2025-12-23",
+      "format": "pdf_data_report",
+      "outbreak_total": 762,
+      "county_detail": true,
+      "county_rows": 38,
+      "data_as_of": "Preliminary Data as of: 12/17/2025, 11:00:00 AM",
+      "first_seen_at": "2026-01-08T04:41:00Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-data-report-wayback",
+        "url": "https://web.archive.org/web/20260108044100id_/https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-12-23-25.pdf",
+        "original_url": "https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-12-23-25.pdf",
+        "capture_time": "2026-01-08T04:41:00Z",
+        "retrieved_at": "2026-10-07T02:40:47Z",
+        "sha256": "e8d6795dbf3117fc68f9719aed03194708d59e373bba3b1d4589f84e5868821f",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2026-01-08T04:41:00Z",
+      "issues": [
+        "footnote: * An additional 182 potential cases from March 2025 in children younger than 18 years old were reported from Gaines County. Due to insufficient information, these reports",
+        "footnote: ** Category includes all cases not known to be linked to the 2025 Texas Measles Outbreak or acquired through international travel.",
+        "table \"Table 1: Confirmed Cases in Texas Residents / 2025 Texas Outbreak (%)*\": rows sum to 763 but the printed total is 762"
+      ]
+    },
+    {
+      "report_date": "2026-01-12",
+      "format": "pdf_data_report",
+      "outbreak_total": 762,
+      "county_detail": true,
+      "county_rows": 38,
+      "data_as_of": "Preliminary Data as of: 1/12/2026, 2:00:00 PM",
+      "first_seen_at": "2026-02-09T18:41:25Z",
+      "first_snapshot": {
+        "source_id": "dshs-measles-data-report-wayback",
+        "url": "https://web.archive.org/web/20260209184125id_/https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-011226.pdf",
+        "original_url": "https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-011226.pdf",
+        "capture_time": "2026-02-09T18:41:25Z",
+        "retrieved_at": "2026-10-07T02:40:57Z",
+        "sha256": "5bdce9b1933a8876b097ab2002437c3c10f9ae5bac4629519f2438ff431d2794",
+        "licence_id": "internet-archive-terms-of-use"
+      },
+      "snapshot_count": 2,
+      "last_seen_at": "2026-10-07T02:38:46Z",
+      "issues": [
+        "footnote: * An additional 182 potential cases from March 2025 in children younger than 18 years old were reported from Gaines County. Due to insufficient information, these reports",
+        "footnote: ** Category includes all cases not known to be linked to the 2025 Texas Measles Outbreak or acquired through international travel.",
+        "table \"Table 1: Confirmed Cases in Texas Residents / 2025 Texas Outbreak (%)*\": rows sum to 763 but the printed total is 762"
+      ]
+    }
+  ],
+  "unretrieved_captures": [
+    "https://web.archive.org/web/20250830101138id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025"
+  ]
+}
