@@ -72,7 +72,8 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
       }
     }
     const weekly = inputRow as unknown as WeeklyCaseCount;
-    const key = kind === 'geographies' ? (inputRow as unknown as Geography).id : `${weekly.geography}:${kind === 'coverage' ? (inputRow as unknown as KindergartenMmrCoverage).school_year : `${weekly.week.year}:${weekly.week.week}`}`;
+    const observationKey = kind === 'geographies' ? (inputRow as unknown as Geography).id : `${weekly.geography}:${kind === 'coverage' ? (inputRow as unknown as KindergartenMmrCoverage).school_year : `${weekly.week.year}:${weekly.week.week}`}`;
+    const key = kind === 'rt' ? `${observationKey}:${(inputRow as unknown as RtEstimate).interval_level}` : observationKey;
     if (keys.has(key)) throw new Error(`${kind}: duplicate row ${key}`);
     keys.add(key);
   }

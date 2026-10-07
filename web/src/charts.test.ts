@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { caseChart, rtChart, rtLabel } from './charts';
-import { fixtureDataset } from './fixtures.test-utils';
+import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 
 describe('accessible SVG reports', () => {
   it('renders reported zero and leaves missing weeks as gaps', () => {
@@ -27,6 +27,35 @@ describe('accessible SVG reports', () => {
     expect(rtLabel(rows[0])).toBe('Insufficient data');
     expect(rtLabel(rows[5])).toContain('Provisional — estimate withheld');
     expect(rtChart([rows[1], rows[4]], 2025).querySelectorAll('.rt-ribbon')).toHaveLength(2);
+  });
+  it('connects adjacent weeks independently at both 50% and 95% credible levels', () => {
+    const svg = rtChart(pairedRtRows().reverse(), 2025);
+    const ribbons = [...svg.querySelectorAll('.rt-ribbon')];
+    expect(ribbons.map((ribbon) => ribbon.getAttribute('data-interval-level'))).toEqual(['0.95', '0.5']);
+    for (const ribbon of ribbons) {
+      expect(ribbon.getAttribute('points')?.split(' ')).toHaveLength(4);
+      expect(ribbon.querySelector('title')?.textContent).toContain('weeks 2–3');
+    }
+    expect([...svg.querySelectorAll('.rt-mean')].map((line) => line.getAttribute('points')?.split(' ').length)).toEqual([2, 2]);
+  });
+  it('splits paired sequences only at missing, provisional and insufficient weeks, retaining quality markers', () => {
+    const paired = pairedRtRows().filter((row) => row.week.week === 2);
+    const rows = Array.from({ length: 12 }, (_, i) => i + 1).filter((week) => week !== 4)
+      .flatMap((week) => paired.map((row) => ({
+        ...row, week: { year: 2025, week }, provisional: week === 10,
+        ...(week === 7 ? { status: 'insufficient_data' as const, mean: null, lower: null, upper: null } : {}),
+      })));
+    const svg = rtChart(rows, 2025);
+    for (const level of ['0.5', '0.95']) {
+      const meanLines = [...svg.querySelectorAll(`.rt-mean[data-interval-level="${level}"]`)];
+      expect(meanLines.map((line) => line.getAttribute('points')?.split(' ').length)).toEqual([3, 2, 2, 2]);
+      expect(svg.querySelectorAll(`.rt-ribbon[data-interval-level="${level}"]`)).toHaveLength(4);
+    }
+    expect(svg.querySelector('[data-week="7"] .rt-insufficient-band')?.tagName).toBe('rect');
+    expect(svg.querySelector('[data-week="10"] .rt-provisional-band')?.tagName).toBe('rect');
+    expect([...svg.querySelectorAll('.rt-point')].map((point) => point.getAttribute('data-week'))).toEqual([
+      '1', '2', '3', '5', '6', '8', '9', '11', '12', '1', '2', '3', '5', '6', '8', '9', '11', '12',
+    ]);
   });
   it('marks every withheld week with distinct visible and accessible quality states', () => {
     const rows = fixtureDataset().rt.filter((r) => r.geography === '48');

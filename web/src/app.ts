@@ -138,16 +138,21 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     // Show omitted weeks inside a reported period as no data as well as explicit missing rows.
     if (weeks.length) for (let week = weeks[0]; week <= weeks.at(-1)!; week++) {
       const c = cases.find((r) => r.week.week === week);
-      const r = rt.find((row) => row.week.week === week);
+      const estimates = rt.filter((row) => row.week.week === week).sort((a, b) => a.interval_level - b.interval_level);
       const row = element('tr');
       row.dataset.geography = selected;
       row.dataset.week = `${year}-${week}`;
       const weekCell = element('th', `W${week}`);
       weekCell.scope = 'row';
       const caseCell = element('td', c?.confirmed.status === 'reported' ? String(c.confirmed.count) : `No data${c?.confirmed.status === 'missing' ? ` · ${c.confirmed.reason}` : ''}`);
-      const rtCell = element('td', r ? rtLabel(r) : 'No data');
-      if (r?.provisional) rtCell.className = 'provisional';
-      else if (r?.status === 'insufficient_data') rtCell.className = 'insufficient';
+      const rtCell = element('td', estimates.length ? undefined : 'No data');
+      for (const estimate of estimates) {
+        const report = element('div', `${estimate.interval_level * 100}% · ${rtLabel(estimate)}`);
+        report.dataset.intervalLevel = String(estimate.interval_level);
+        if (estimate.provisional) report.className = 'provisional';
+        else if (estimate.status === 'insufficient_data') report.className = 'insufficient';
+        rtCell.append(report);
+      }
       row.append(weekCell, caseCell, rtCell);
       body.append(row);
     }
