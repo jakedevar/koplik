@@ -50,7 +50,6 @@ resolved in `PoliteConfig::live_from_env`, the one entry point for every live pa
 examples, and the pipeline's ingest stage (the pipeline, #1359, is expected to call it when it
 lands; until then the CLI and examples are the live paths).
 
-Parsing, listing and every test are offline and need no contact. When a public Koplik repository
-exists, switch `DEFAULT_CONTACT` to its URL.
+Parsing, listing and every test are offline and need no contact.
 
 Tests run offline against `data/fixtures/`; the HTTP client is injected (`http::HttpClient`).

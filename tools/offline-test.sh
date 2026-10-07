@@ -11,6 +11,7 @@ gate_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 isolation_error='unshare and ip (iproute2) are required on Linux'
 if command -v unshare >/dev/null && command -v ip >/dev/null &&
    isolation_error=$(unshare -rn sh -eu -c 'ip link set lo up' 2>&1); then
+  # unshare -r maps the invoking user to uid 0 inside the namespace; permission-based tests may differ there.
   # Probe separately so a failing test is never mistaken for unavailable isolation.
   # All descendants, including browsers and local web servers, inherit the namespace.
   exec unshare -rn sh -eu -c '

@@ -33,6 +33,7 @@ describe('scenario provenance companion (contract v4)', () => {
     expect(() => parseScenarioProvenance(mutate((v) => { v.extra = true; }), scenario)).toThrow('Invalid scenario provenance');
     expect(() => parseScenarioProvenance(mutate((v) => { delete v.seeding.assumption; }), scenario)).toThrow('Invalid scenario provenance');
     expect(() => parseScenarioProvenance(mutate((v) => { v.statement = '  '; }), scenario)).toThrow('statement must not be empty');
+    expect(() => parseScenarioProvenance(mutate((v) => { v.scenario = '  '; }), scenario)).toThrow('scenario must not be empty');
   });
 
   it('loads from the scenarios folder, treats a missing file as absent and rejects server errors', async () => {
