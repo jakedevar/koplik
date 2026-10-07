@@ -87,12 +87,14 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
         await cp(join(project, 'target/tools/bin/wasm-bindgen'), join(work, 'target/tools/bin/wasm-bindgen'));
         for (const gate of gates) {
           console.log(`LIVE candidate QA: make ${gate}`);
+          // Chromium needs a short socket path. Cargo targets and publication
+          // archives stay under this sandbox; only browser scratch uses /tmp.
           const output = await new Promise((accept, reject) => {
             // These test-only contacts/inputs are public fixtures and dummy
             // config. Keep foreground gate output in the parent test's tee log.
             const child = spawn('make', [gate], { cwd: work, stdio: ['ignore', 'pipe', 'pipe'], env: {
               ...runtime, CARGO_TARGET_DIR: candidateTarget, CARGO_NET_OFFLINE: 'true',
-              npm_config_offline: 'true', TMPDIR: taskTarget } });
+              npm_config_offline: 'true', TMPDIR: '/tmp' } });
             let stdout = '';
             child.stdout.on('data', (chunk) => { stdout += chunk; process.stdout.write(chunk); });
             child.stderr.on('data', (chunk) => process.stderr.write(chunk));
