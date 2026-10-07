@@ -424,7 +424,6 @@ struct ReportPrimary {
     min_cases: u32,
     horizon_weeks: u32,
     run_count: u32,
-    truth: Vec<(MmwrWeek, Option<u32>)>,
     origins: Vec<ReportOrigin>,
     by_horizon: Vec<ReportSummary>,
     pooled: ReportSummary,

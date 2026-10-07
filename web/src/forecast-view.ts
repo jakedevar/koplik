@@ -242,7 +242,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
         note: `Measured by koplik-epi on ${skill.series}. Read exactly from the committed report ${skill.report_path} (sha256 ${skill.report_sha256}), which was run on the report-vintage manifest sha256 ${skill.manifest_sha256}. A measurement of the method on that series, not of any forecast shown above.`,
         citations: citationsOf(provenance),
       };
-      blocks.push(element('p', `We have tested this method once, on ${skill.name}: ${skill.series}. It made forecasts from ${skill.forecast_dates} forecast dates (${skill.origin_weeks} distinct origin weeks), each using only the reports available at that date, and was scored on ${skill.targets} later weeks.`));
+      blocks.push(element('p', `We have tested this method once, on ${skill.name}. Each forecast used only the reports available at its forecast date and was then scored against the counts reported for the weeks it predicted.`));
       const headline = element('p', undefined, 'forecast-headline');
       headline.append(provenanceNumber(words.headline, skillInfo));
       blocks.push(headline, element('p', words.scores));
