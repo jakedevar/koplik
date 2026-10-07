@@ -282,6 +282,22 @@ fn offline_cli_writes_v1_rows_and_complete_gaps() {
             texas(year)
         );
     }
+    for (name, rows) in [
+        ("cdc-2023-25-gaps.json", cdc()),
+        ("texas-2023-24-gaps.json", texas(2023)),
+        ("texas-2024-25-gaps.json", texas(2024)),
+    ] {
+        let path = dir().join("../../reports/coverage").join(name);
+        let committed: Vec<KindergartenMmrCoverage> =
+            serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+        assert_eq!(
+            committed,
+            coverage::gaps(&rows)
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>()
+        );
+    }
     for (src, n, gap_count) in [("cdc-coverage", 102, 3), ("texas-coverage", 254, 4)] {
         let out = tmp.path().join(format!("{src}.json"));
         let gaps = tmp.path().join(format!("{src}.gaps.json"));
