@@ -24,7 +24,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   checked byte-for-byte by `tests/frozen.rs`.
 - **v2** (released, frozen): v1 plus simulation result types (see above). `schema/v2/` and
   `src/v2/mod.rs` are frozen by `tests/frozen.rs` too.
-- **v3** (`CONTRACT_VERSION` 3): v2 plus one changed type. `WeeklyCaseCount` replaces
+- **v3** (released, frozen by `tests/frozen.rs`): v2 plus one changed type. `WeeklyCaseCount` replaces
   `confirmed` with `cases` plus a required `case_definition` (`confirmed` |
   `confirmed_or_unknown_status`). Why: CDC's NNDSS publication criteria for measles (event
   code 10140) print cases with *confirmed and unknown* case status, and the weekly data carries
@@ -35,11 +35,18 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   upgrades a v1 row losslessly (`case_definition: confirmed`); v2 re-exports v1's row, so the
   same impl is also the v2 upgrade. Consumers still on v1/v2 rows (R_t, web loader, Texas DSHS
   connector) migrate in follow-ups.
+- **v4** (`CONTRACT_VERSION` 4): v3 plus one new type, `ScenarioProvenance` (#1400, #1455): the
+  companion of a what-if `ScenarioInput`. It states the seeding as an assumption (not data),
+  names where the node inputs came from, and cites every model parameter with the value the
+  scenario ran with. `ScenarioProvenance::check_against(&ScenarioInput)` is the rule that a
+  scenario is only published beside a companion that describes it (same seed, run count, start
+  week, nodes, seeding and parameter values). The scenario input keeps its v1 shape. Every
+  other type is re-exported from v3 unchanged. Schema: `schema/v4/`.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema --test schema_v2 --test schema_v3
+make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4
 git add crates/koplik-contracts/schema
 ```
 

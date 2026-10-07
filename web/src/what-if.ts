@@ -4,6 +4,8 @@ import type { EnsembleResult } from './generated/v2/EnsembleResult';
 import { ensembleChart } from './what-if-chart';
 import { bindProvenance, provenanceNumber, uniqueProvenance, type ProvenanceInfo } from './provenance';
 import { parseScenario } from './scenario';
+import { loadScenarioProvenance } from './scenario-provenance';
+import type { Provenance } from './generated/Provenance';
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {
   const node = document.createElement(tag);
@@ -11,19 +13,30 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
   if (className) node.className = className;
   return node;
 }
+function sourceLine(provenance: Partial<Provenance>) {
+  const line = element('p', `${provenance.source_id} · Retrieved ${provenance.retrieved_at} · Licence/terms: ${provenance.licence_id}`);
+  // Source URLs are rendered only as HTTP(S) links, never executable schemes.
+  if (provenance.url && /^https?:\/\//i.test(provenance.url)) { const link = element('a', provenance.url); link.href = provenance.url; line.append(element('br'), link); }
+  line.append(element('br'), element('code', provenance.sha256 ?? 'Missing'));
+  return line;
+}
 interface Options {
   base: string;
   synthetic?: boolean;
   load?: typeof loadScenario;
+  loadProvenance?: typeof loadScenarioProvenance;
   worker?: () => SimulationWorker;
   clock?: () => number;
 }
 
 export function mountWhatIf(main: HTMLElement, options: Options): () => void {
   const panel = element('section', undefined, 'panel what-if');
-  panel.setAttribute('aria-label', 'Gaines County 2025 what-if');
-  panel.append(element('h2', 'What if? · Gaines County, Texas · 2025'),
-    element('p', 'illustrative model scenario, not a prediction', 'notice'));
+  panel.setAttribute('aria-label', 'Gaines County hypothetical introduction what-if');
+  // Replaced by the scenario's own statement once its provenance companion has loaded.
+  const hypothetical = element('p', 'Hypothetical: a stated introduction into Gaines County, given its population and kindergarten MMR coverage. This is not a reconstruction or forecast of the 2025 outbreak.', 'notice hypothetical');
+  panel.append(element('h2', 'What if? · Gaines County, Texas · hypothetical introduction'),
+    element('p', 'illustrative model scenario, not a prediction', 'notice'),
+    hypothetical);
   if (options.synthetic) panel.append(element('p', 'SYNTHETIC MODEL INPUTS · Artificial seven-county fixture for development only; coverage, population and seeding are invented.', 'synthetic notice'));
   const status = element('p', 'Loading scenario data…', 'what-if-status');
   status.setAttribute('role', 'status');
@@ -67,7 +80,7 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
       label: 'Gaines County simulated cumulative infections · 1,000-run ensemble', synthetic: options.synthetic,
       records: uniqueProvenance(replayInput.nodes.flatMap((node) => [...node.provenance,
         ...(node.baseline_coverage.status === 'reported' ? node.baseline_coverage.provenance : [])])),
-      note: 'Derived from the exact replay scenario, across all its counties. These are all source records linked to node population, centroids and baseline coverage. Parameters, initial seeding and coverage overrides have no separate source links in the v1 artifact; they are configuration, not observations. The seed and parameters appear on the panel.',
+      note: 'Derived from the exact replay scenario, across all its counties. These are all source records linked to node population, centroids and baseline coverage. The initial seeding is a stated assumption of the hypothetical (one introduced infectious person), not data, and each parameter is cited to its published source in the scenario provenance companion; none is an observation of this county. Coverage overrides are your own what-if choices. The seed, seeding and parameters appear on the panel.',
     };
     const fingerprint = element('code', result.fingerprint);
     fingerprint.className = 'engine-fingerprint';
@@ -157,9 +170,12 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
   slider.addEventListener('input', () => update());
   reset.addEventListener('click', () => { slider.value = String(baseline); update(true); });
 
-  (options.load || loadScenario)(options.base, options.synthetic).then((loaded) => {
+  (options.load || loadScenario)(options.base, options.synthetic).then(async (loaded) => {
     if (disposed) return;
     if (!loaded) { status.textContent = 'Scenario data not yet available. Gaines County coverage, population and centroids must come from the pipeline.'; return; }
+    const provenance = await (options.loadProvenance || loadScenarioProvenance)(options.base, loaded, options.synthetic);
+    if (disposed) return;
+    if (!provenance) { fail('Scenario provenance not yet available: the scenario is never shown without its sources.'); return; }
     scenario = loaded;
     const node = loaded.nodes.find((n) => n.id === gaines)!;
     const measured = node.baseline_coverage;
@@ -179,19 +195,49 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     metadata.append(description);
     const sources = element('details');
     sources.append(element('summary', measured.status === 'reported' ? 'Baseline coverage provenance' : 'Synthetic scenario input provenance (coverage override)'));
-    for (const provenance of measured.status === 'reported' ? measured.provenance : node.provenance) {
-      const line = element('p', `${provenance.source_id} · Retrieved ${provenance.retrieved_at} · Licence/terms: ${provenance.licence_id}`);
-      const link = element('a', provenance.url);
-      // Source URLs are rendered only as HTTP(S) links, never executable schemes.
-      if (/^https?:\/\//i.test(provenance.url)) { link.href = provenance.url; line.append(element('br'), link); }
-      line.append(element('br'), element('code', provenance.sha256)); sources.append(line);
-    }
+    for (const record of measured.status === 'reported' ? measured.provenance : node.provenance) sources.append(sourceLine(record));
+
+    const seeding = provenance.seeding;
+    hypothetical.textContent = provenance.statement;
+    const seedingInfo: ProvenanceInfo = {
+      label: `Introduced into the scenario · ${seeding.initial_infectious} infectious`, records: [], synthetic: options.synthetic,
+      note: `${options.synthetic ? 'Synthetic fixture seeding. ' : ''}A stated assumption, not data. ${seeding.assumption} ${seeding.limitation}`,
+      citations: [{ source: 'Stated assumption of the hypothetical, not a source observation', note: seeding.assumption }],
+    };
+    const seedingLine = element('p', 'Introduced at the start: ');
+    seedingLine.append(provenanceNumber(`${seeding.initial_infectious} infectious`, seedingInfo),
+      document.createTextNode(` and ${seeding.initial_exposed} exposed in Gaines County (a stated assumption, not data). `), element('span', seeding.limitation));
+    const seedingDetails = element('details');
+    seedingDetails.append(element('summary', 'How the scenario is seeded, and what it leaves out'), element('p', provenance.statement), element('p', `Assumption: ${seeding.assumption}`),
+      element('p', `Start week MMWR ${seeding.start_week.year} W${seeding.start_week.week}: ${seeding.start_week_basis}`), element('p', `Limits: ${seeding.limitation}`), element('p', provenance.neighbourhood_note));
+    for (const excluded of provenance.excluded_nodes) seedingDetails.append(element('p', `${excluded.name} (${excluded.geography}) is not simulated: ${excluded.reason}.`));
+    for (const input of provenance.nodes) seedingDetails.append(element('p', `${input.name} (${input.geography}): population ${input.population}, ${input.population_basis}. Centroid: ${input.centroid_basis}. Coverage ${input.coverage_school_year}: ${input.coverage_basis}.`));
+
     const parameters = element('details');
     const parameterJson = element('pre', JSON.stringify(loaded.parameters, null, 2));
     bindProvenance(parameterJson, { label: 'Model parameters (from scenario artifact)', records: [], synthetic: options.synthetic,
-      note: 'All values are explicit model configuration. The v1 scenario artifact does not provide source links for these parameters; no source attribution is inferred from county data.' });
-    parameters.append(element('summary', 'Model parameters (from scenario artifact)'), parameterJson);
-    metadata.append(sources, parameters);
+      note: 'The exact values this scenario runs with. Each is configuration, not an observation, and is cited to its published source in the table below and in the scenario provenance companion.',
+      citations: provenance.parameters.map((p) => ({ source: `${p.parameter}: ${p.source}`, url: p.url, note: p.note })) });
+    const citations = element('table', undefined, 'parameter-citations');
+    citations.append(element('caption', 'Model parameters and the sources they are cited to'));
+    const citationHead = element('tr');
+    for (const heading of ['Parameter', 'Value', 'Published source']) { const cell = element('th', heading); cell.scope = 'col'; citationHead.append(cell); }
+    const citationBody = element('tbody');
+    for (const parameter of provenance.parameters) {
+      const row = element('tr');
+      const name = element('th', parameter.parameter); name.scope = 'row';
+      const valueCell = element('td');
+      const valueText = JSON.stringify(parameter.value);
+      valueCell.append(provenanceNumber(valueText, { label: `${parameter.parameter} = ${valueText}`, records: [], synthetic: options.synthetic,
+        note: 'A model parameter, not an observation.', citations: [{ source: parameter.source, url: parameter.url, note: parameter.note }] }));
+      const sourceCell = element('td', `${parameter.source}. ${parameter.note}`);
+      if (parameter.url && /^https?:\/\//i.test(parameter.url)) { const link = element('a', parameter.url); link.href = parameter.url; sourceCell.append(element('br'), link); }
+      row.append(name, valueCell, sourceCell); citationBody.append(row);
+    }
+    const citationHeader = element('thead'); citationHeader.append(citationHead);
+    citations.append(citationHeader, citationBody);
+    parameters.append(element('summary', 'Model parameters and their sources'), parameterJson, citations);
+    metadata.append(seedingLine, sources, seedingDetails, parameters);
     update(true);
   }).catch((error: unknown) => { if (!disposed) fail(error instanceof Error ? error.message : String(error)); });
 

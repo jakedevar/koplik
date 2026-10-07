@@ -24,7 +24,8 @@
 use crate::seir::EngineError;
 use koplik_contracts::v1::{Centroid, ScenarioInput};
 
-fn distance_km(a: Centroid, b: Centroid) -> f64 {
+/// Great-circle distance in km between two centroids (the distance the gravity weights use).
+pub fn distance_km(a: Centroid, b: Centroid) -> f64 {
     let radians = core::f64::consts::PI / 180.0;
     let lat = libm::sin((b.latitude - a.latitude) * radians / 2.0);
     let lon = libm::sin((b.longitude - a.longitude) * radians / 2.0);

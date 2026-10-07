@@ -8,9 +8,11 @@
 //! ingest    network (live) or data/fixtures (--from-fixtures)  -> <store>  + <work>/ingest.manifest.json
 //! validate  <store> latest snapshots                           -> <work>/validate/{weekly-cases,coverage,geographies,
 //!                                                                 us-states,texas-counties,dshs-*,gaps}.json
+//!                                                                 <work>/scenarios/gaines-2025{,.provenance}.json
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
 //! forecast  (no forecaster yet: skipped, manifest only)
-//! build     <work>/validate + <work>/infer                     -> <out>/v1/*.json, <out>/manifest.json
+//! build     <work>/validate + <work>/infer                     -> <out>/v1/*.json, <out>/scenarios/*.json,
+//!                                                                 <out>/manifest.json
 //! ```
 //!
 //! Sources: CDC NNDSS weekly cases by state (v3 rows, `confirmed_or_unknown_status`), Texas
@@ -19,8 +21,13 @@
 //! the Census county reference file and the Census 2024 cartographic boundaries. A source
 //! that is not in the store is reported as `missing` in the manifests; the build writes
 //! everything else and an explicitly empty artifact where the web app needs a file, never a
-//! guessed one. Population and centroids (#1352) have no connector yet, so the what-if
-//! scenario is absent until a stage supplies it.
+//! guessed one. The what-if scenario (#1455) is built in `validate` from the Census 2025
+//! population and Gazetteer snapshots and the kindergarten coverage rows, by the pre-registered
+//! rule in [`scenario`]: a hypothetical introduction into Gaines County, not a replay of the
+//! 2025 outbreak. Its companion `scenarios/gaines-2025.provenance.json` (contract v4) states the
+//! seeding as an assumption and cites every parameter.
+
+pub mod scenario;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -42,7 +49,8 @@ use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
 use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, Retrieval, RetrievalMeta, SnapshotStore, sha256_of};
 use koplik_ingest::{
-    cdc, census_boundaries, census_counties, coverage, dshs_series, dshs_sources, jurisdictions,
+    cdc, census_boundaries, census_counties, census_population, coverage, dshs_series,
+    dshs_sources, jurisdictions,
 };
 use serde::{Deserialize, Serialize};
 
@@ -409,6 +417,9 @@ pub fn known_source_ids() -> Result<BTreeSet<String>> {
         ]
         .map(str::to_owned),
     );
+    for source in census_population::SOURCES {
+        ids.insert(census_population::source_spec(source)?.source_id);
+    }
     Ok(ids)
 }
 
@@ -481,6 +492,26 @@ fn ingest_live(config: &Config) -> Result<Manifest> {
             for kind in [BoundaryKind::States, BoundaryKind::TexasCounties] {
                 missing(&mut m, kind.source_id(), &e);
             }
+        }
+    }
+    // Census 2025 population estimates and Gazetteer internal points (#1352): four pinned named
+    // files (the connector refuses bytes that differ from the pin).
+    for source in census_population::SOURCES {
+        let source_id = census_population::source_spec(source)?.source_id;
+        match census_population::fetch_source(&mut fetcher, &store, source) {
+            Ok((r, _)) => {
+                m.outputs
+                    .push(hash_file(&config.store, &blob_rel(&r.sha256))?);
+                m.items.insert(
+                    source_id,
+                    ItemStatus::Present {
+                        retrieval: Some(r),
+                        rows: None,
+                        gaps: None,
+                    },
+                );
+            }
+            Err(e) => missing(&mut m, &source_id, &e),
         }
     }
     // Internet Archive captures of the DSHS outbreak page and data reports, paced for
@@ -764,6 +795,7 @@ pub struct GapReport {
 fn validate(config: &Config) -> Result<Manifest> {
     let store = SnapshotStore::open(&config.store)?;
     clear_dir(&config.work.join("validate"))?;
+    clear_dir(&config.work.join("scenarios"))?;
     let mut m = Manifest::new(Stage::Validate, config.mode);
     let mut report = GapReport::default();
 
@@ -1054,6 +1086,95 @@ fn validate(config: &Config) -> Result<Manifest> {
     }
     geographies.sort_by_key(|g| g.id);
 
+    // Census 2025 population estimates and Gazetteer internal points (#1352): absent snapshots
+    // are reported missing; a present one that does not parse is an error.
+    let county_population = census_snapshot(
+        &mut m,
+        config,
+        &store,
+        census_population::COUNTY_SOURCE_ID,
+        || census_population::parse_latest_populations(&store, false),
+    )?;
+    let county_gazetteer = census_snapshot(
+        &mut m,
+        config,
+        &store,
+        census_population::COUNTY_GEO_SOURCE_ID,
+        || census_population::parse_latest_geographies(&store, false),
+    )?;
+    let state_gazetteer = census_snapshot(
+        &mut m,
+        config,
+        &store,
+        census_population::STATE_GEO_SOURCE_ID,
+        || census_population::parse_latest_geographies(&store, true),
+    )?;
+    // Geography.centroid is the Gazetteer internal point (a representative point, not a
+    // population-weighted or geometric centroid); where the Gazetteer has none it stays null,
+    // and the Gazetteer snapshot is added to the geography's source records.
+    let internal_points: BTreeMap<GeoId, &Geography> = county_gazetteer
+        .iter()
+        .chain(state_gazetteer.iter())
+        .flat_map(|(_, rows)| rows.iter())
+        .filter(|g| g.centroid.is_some())
+        .map(|g| (g.id, g))
+        .collect();
+    for g in &mut geographies {
+        if let Some(point) = internal_points.get(&g.id) {
+            let mut records = g.provenance.as_slice().to_vec();
+            for p in point.provenance.as_slice() {
+                if !records.contains(p) {
+                    records.push(p.clone());
+                }
+            }
+            g.centroid = point.centroid;
+            g.provenance =
+                Provenances::new(records).map_err(|e| PipelineError::Data(e.to_string()))?;
+        }
+    }
+
+    // The what-if scenario (#1455): a hypothetical introduction into Gaines County, built by the
+    // pre-registered rule in `scenario` from the Census population and Gazetteer snapshots and
+    // the kindergarten coverage rows. The DSHS report vintages are not an input.
+    let scenario_item = match (&county_population, &county_gazetteer) {
+        (Some((_, populations)), Some((_, gazetteer))) => {
+            let sources = scenario::Sources {
+                populations,
+                gazetteer,
+                coverage: &cov,
+            };
+            match scenario::build(&scenario::ScenarioConfig::default(), &sources) {
+                Ok(built) => {
+                    for (rel, bytes) in [
+                        (
+                            format!("scenarios/{SCENARIO_ARTIFACT}.json"),
+                            json_bytes(&built.input),
+                        ),
+                        (
+                            format!("scenarios/{SCENARIO_ARTIFACT}.provenance.json"),
+                            json_bytes(&built.provenance),
+                        ),
+                    ] {
+                        m.outputs.push(write_file(&config.work, &rel, &bytes)?);
+                    }
+                    ItemStatus::Present {
+                        retrieval: None,
+                        rows: Some(built.input.nodes.len() as u64),
+                        gaps: Some(built.provenance.excluded_nodes.len() as u64),
+                    }
+                }
+                Err(scenario::ScenarioError::Missing(reason)) => ItemStatus::Missing { reason },
+                Err(scenario::ScenarioError::Invalid(reason)) => {
+                    return Err(PipelineError::Data(format!("what-if scenario: {reason}")));
+                }
+            }
+        }
+        _ => ItemStatus::Missing {
+            reason: "the scenario needs the Census county population and the Census county Gazetteer in the store".into(),
+        },
+    };
+    m.items.insert(SCENARIO_ARTIFACT.to_owned(), scenario_item);
+
     for (name, bytes, rows) in [
         ("weekly-cases", json_bytes(&cases), cases.len()),
         ("coverage", json_bytes(&cov), cov.len()),
@@ -1079,6 +1200,37 @@ fn validate(config: &Config) -> Result<Manifest> {
     m.inputs.dedup();
     m.outputs.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(m)
+}
+
+/// Parse the latest snapshot of a Census population or Gazetteer source and record it as a
+/// validate input; `None` (and a `missing` item) when the store holds none. A snapshot that is
+/// there but does not parse is an error, never skipped.
+fn census_snapshot<T>(
+    m: &mut Manifest,
+    config: &Config,
+    store: &SnapshotStore,
+    source_id: &str,
+    parse: impl FnOnce() -> std::result::Result<(Retrieval, Vec<T>), IngestError>,
+) -> Result<Option<(Retrieval, Vec<T>)>> {
+    if store.latest(source_id)?.is_none() {
+        m.items.insert(
+            source_id.to_owned(),
+            ItemStatus::Missing {
+                reason: format!("no snapshot of {source_id} in the store"),
+            },
+        );
+        return Ok(None);
+    }
+    let (retrieval, rows) = parse()?;
+    record_source(
+        m,
+        &config.store,
+        store,
+        source_id,
+        Some(rows.len() as u64),
+        None,
+    )?;
+    Ok(Some((retrieval, rows)))
 }
 
 /// Rows whose count is an explicit `missing`, as `"<geography> <week>: <reason>"`.
@@ -1308,30 +1460,45 @@ fn build(config: &Config) -> Result<Manifest> {
             );
         }
     }
-    // The what-if scenario needs population and centroids (#1352): a later stage writes it
-    // under <work>/scenarios; until then it is reported missing and no file is published.
+    // The what-if scenario (#1455): validate writes it with its provenance companion (#1400).
+    // A scenario is only published together with a companion that agrees with it.
     let scenario_rel = format!("scenarios/{SCENARIO_ARTIFACT}.json");
+    let provenance_rel = format!("scenarios/{SCENARIO_ARTIFACT}.provenance.json");
     let scenario_path = config.work.join(&scenario_rel);
     if scenario_path.is_file() {
         // Deserialising a ScenarioInput runs the contract's own validation.
         let scenario: v1::ScenarioInput = read_json(&scenario_path)?;
-        m.inputs.push(hash_file(&config.work, &scenario_rel)?);
-        let bytes = fs::read(&scenario_path).map_err(|e| PipelineError::io(&scenario_path, e))?;
-        m.outputs
-            .push(write_file(&config.out, &scenario_rel, &bytes)?);
+        let provenance_path = config.work.join(&provenance_rel);
+        if !provenance_path.is_file() {
+            return Err(PipelineError::Data(format!(
+                "{} exists without its provenance companion {}; a scenario is never published without one",
+                scenario_path.display(),
+                provenance_path.display()
+            )));
+        }
+        let provenance: koplik_contracts::v4::ScenarioProvenance = read_json(&provenance_path)?;
+        provenance
+            .check_against(&scenario)
+            .map_err(|e| PipelineError::Data(format!("{}: {e}", provenance_path.display())))?;
+        for rel in [&scenario_rel, &provenance_rel] {
+            m.inputs.push(hash_file(&config.work, rel)?);
+            let path = config.work.join(rel);
+            let bytes = fs::read(&path).map_err(|e| PipelineError::io(&path, e))?;
+            m.outputs.push(write_file(&config.out, rel, &bytes)?);
+        }
         m.items.insert(
             SCENARIO_ARTIFACT.to_owned(),
             ItemStatus::Present {
                 retrieval: None,
                 rows: Some(scenario.nodes.len() as u64),
-                gaps: None,
+                gaps: Some(provenance.excluded_nodes.len() as u64),
             },
         );
     } else {
         m.items.insert(
             SCENARIO_ARTIFACT.to_owned(),
             ItemStatus::Missing {
-                reason: "population and centroids are not ingested (#1352); no scenario is written and the what-if panel shows unavailable".into(),
+                reason: "validate wrote no scenario (an input is missing from the store, see its manifest); nothing is published and the what-if panel shows unavailable".into(),
             },
         );
     }

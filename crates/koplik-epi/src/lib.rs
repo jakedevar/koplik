@@ -15,6 +15,7 @@ pub mod rt;
 mod sampling;
 pub mod seir;
 
-pub use defaults::default_parameters;
+pub use defaults::{ParameterCitation, default_parameters, parameter_citations};
 pub use ensemble::{Band, DailySummary, Ensemble, derive_seed, simulate_ensemble};
+pub use gravity::distance_km;
 pub use seir::{Compartments, EngineError, Step, Trajectory, simulate_member};

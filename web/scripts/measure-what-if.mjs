@@ -92,9 +92,13 @@ try {
   // Full-width seed in the actual browser/Worker path, not only a unit serializer.
   const fixture = await readFile(new URL('../../data/fixtures/seir/synthetic-scenario.json', import.meta.url), 'utf8');
   const large = fixture.replace(/"seed":\s*1353/, '"seed":18446744073709551615');
+  // The provenance companion must name the same seed or the panel refuses the pair.
+  const companion = (await readFile(new URL('../../data/fixtures/seir/synthetic-scenario.provenance.json', import.meta.url), 'utf8'))
+    .replace(/"seed":\s*"1353"/, '"seed": "18446744073709551615"');
   page.removeAllListeners('request');
   page.on('request', (request) => {
     if (request.url().endsWith('/data/scenarios/synthetic-scenario.json')) request.respond({ status: 200, contentType: 'application/json', body: large });
+    else if (request.url().endsWith('/data/scenarios/synthetic-scenario.provenance.json')) request.respond({ status: 200, contentType: 'application/json', body: companion });
     else if (request.url().startsWith(origin) || /^(data|blob):/.test(request.url())) request.continue();
     else { errors.push(`External request: ${request.url()}`); request.abort(); }
   });

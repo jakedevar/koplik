@@ -82,8 +82,13 @@ The boundary files are the Census 2024 cartographic boundaries converted by
 `koplik-ingest` (52 states and 254 Texas counties, `properties.GEOID`, `NAME` and
 provenance on every feature). When a boundary snapshot is absent from the store the
 pipeline writes an explicitly empty FeatureCollection and records it as missing in
-the manifest; the what-if scenario (`data/scenarios/gaines-2025.json`) is absent
-until population and centroids exist (#1352).
+the manifest. `koplik-pipeline validate` builds the what-if scenario
+(`data/scenarios/gaines-2025.json`) and its provenance companion
+(`data/scenarios/gaines-2025.provenance.json`); `build` publishes both or neither, and
+reports `gaines-2025` missing in the manifest when an input is absent from the store.
+`geographies.json` rows carry `centroid` (the Census Gazetteer internal point) for the
+state and Texas county geographies the Gazetteer covers. No `population` artifact is
+published: nothing in the web reads one.
 
 At load time Ajv validates rows against the committed v1 schemas and the client
 checks contract cross-field semantics, duplicates and geography references.
@@ -144,18 +149,41 @@ Vitest also checks these trees and exercises rejection with contaminated outputs
 If upgrading a sandbox that ran the old generator, remove its generated
 `public/data/synthetic-v1/` and `dist/data/synthetic-v1/` before building.
 
-## Gaines County 2025 what-if panel
+## Gaines County hypothetical-introduction what-if panel
 
-The pipeline must write `web/public/data/scenarios/gaines-2025.json`: one
-unwrapped **v1 ScenarioInput**, with Gaines FIPS `48165`, a 2025 start week,
-measured (`reported`, `imputed: false`) baseline coverage and its provenance,
-plus population, centroids, initial exposed/infectious counts and all model
-parameters. Other nodes with missing coverage require explicit overrides under
-the existing engine contract. This artifact is independent of the map artifacts;
-the panel can load even when surveillance reports are unavailable. Missing or
-invalid scenario data leaves a visible unavailable state; there is no production
-fixture fallback. Current real coverage/population/centroid inputs are pending
-#1351, #1352 and pipeline #1359.
+The panel is a **hypothetical introduction**: what could happen if one infectious
+person arrived in Gaines County, given its population and kindergarten MMR coverage.
+It is **not a reconstruction or forecast of the 2025 outbreak** and not a fitted
+model, and nothing in it is compared with reported cases. (The artifact keeps the
+name `gaines-2025` for the 2025 population and coverage vintages it uses.) A
+historical replay was withdrawn because a cumulative DSHS count is not current
+infectious prevalence and the retained report vintages are too far apart to repair
+that; see `thoughts/shared/notes/gaines-2025-scenario-replay.md`.
+
+The pipeline writes `web/public/data/scenarios/gaines-2025.json`: one
+unwrapped **v1 ScenarioInput**, with Gaines FIPS `48165`, a 2025 reference start
+week, measured (`reported`, `imputed: false`) baseline coverage and its provenance,
+plus population, centroid, the introduced infectious/exposed counts (1 and 0 by
+default: a stated assumption, configurable in the pipeline) and all model
+parameters. It is built by a rule committed before its first run
+(`crates/koplik-pipeline/src/scenario.rs`). This artifact is independent of the
+map artifacts; the panel can load even when surveillance reports are unavailable.
+Missing or invalid scenario data leaves a visible unavailable state; there is no
+production fixture fallback.
+
+Beside it, `gaines-2025.provenance.json` (**contract v4** `ScenarioProvenance`,
+schema `crates/koplik-contracts/schema/v4/ScenarioProvenance.schema.json`, types
+generated into `src/generated/v4/`, validated by `src/scenario-provenance.ts`) states
+the seeding as an assumption and cites every parameter (#1400): `{ contract_version: 4,
+scenario, statement, seed (decimal text), run_count, seeding: { geography,
+initial_infectious, initial_exposed, start_week, assumption, start_week_basis,
+limitation }, parameters: [{ parameter, value, source, url, note }], nodes[],
+excluded_nodes[], neighbourhood_note }`. The panel refuses a scenario whose companion
+is absent or does not describe it (same seed, run count, start week, node set,
+seeding and parameter values), shows the companion's statement as its plain-words
+notice, the introduced people marked as a stated assumption (click the number), and a
+table citing each parameter (click a value). Parameters are literature citations,
+shown in the provenance drawer as published sources rather than snapshot records.
 
 The panel starts at Gaines' measured coverage, removes any pre-existing Gaines
 override, and always requests 1,000 runs. Changing the native keyboard-accessible

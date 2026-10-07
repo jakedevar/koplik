@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Geography",
+  "description": "A geography: FIPS key, level and a display name. The name is for display only; it is\nnever a key and may change spelling between sources.",
+  "type": "object",
+  "properties": {
+    "centroid": {
+      "description": "Centroid in WGS84 decimal degrees, when known (`null` otherwise).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Centroid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "level": {
+      "description": "Must agree with the length of `id` (2 digits = state, 5 digits = county).",
+      "$ref": "#/$defs/GeoLevel"
+    },
+    "name": {
+      "description": "Display name, e.g. \"Gaines County\" (non-empty).",
+      "type": "string"
+    },
+    "provenance": {
+      "description": "Source records for the name and centroid (never empty).",
+      "$ref": "#/$defs/Provenances"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "level",
+    "name",
+    "provenance"
+  ],
+  "$defs": {
+    "Centroid": {
+      "description": "A point on the WGS84 ellipsoid in decimal degrees (e.g. a county's population or\ngeometric centroid; the source states which in its provenance).",
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "description": "Degrees north, -90 to 90.",
+          "type": "number",
+          "format": "double",
+          "maximum": 90,
+          "minimum": -90
+        },
+        "longitude": {
+          "description": "Degrees east, -180 to 180.",
+          "type": "number",
+          "format": "double",
+          "maximum": 180,
+          "minimum": -180
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "GeoLevel": {
+      "description": "Level of a geography.",
+      "type": "string",
+      "enum": [
+        "state",
+        "county"
+      ]
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

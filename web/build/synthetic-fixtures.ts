@@ -14,9 +14,11 @@ export function syntheticFixtures(fixtureRoot: string, enabled: boolean): Plugin
       const base = `${server.config.base.replace(/\/$/, '')}/data/synthetic-v1/`;
       server.middlewares.use(async (request, response, next) => {
         const path = request.url?.split('?')[0] || '';
-        if (path === `${server.config.base.replace(/\/$/, '')}/data/scenarios/synthetic-scenario.json`) {
+        const scenarioBase = `${server.config.base.replace(/\/$/, '')}/data/scenarios/`;
+        const scenarioFile = { [`${scenarioBase}synthetic-scenario.json`]: 'synthetic-scenario.json', [`${scenarioBase}synthetic-scenario.provenance.json`]: 'synthetic-scenario.provenance.json' }[path];
+        if (scenarioFile) {
           try {
-            const content = await readFile(resolve(fixtureRoot, '../../seir/synthetic-scenario.json'));
+            const content = await readFile(resolve(fixtureRoot, '../../seir', scenarioFile));
             response.setHeader('Content-Type', 'application/json');
             response.end(content);
           } catch (error) { next(error); }

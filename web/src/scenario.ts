@@ -7,7 +7,7 @@ export const gaines = '48165';
 // UI representation only: the v1 wire contract still requires a JSON u64 number.
 export type Scenario = Omit<ScenarioInput, 'seed'> & { seed: string };
 
-const ajv = new Ajv({ strict: false, allErrors: true });
+export const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
 for (const [format, maximum] of [['uint8', 255], ['uint16', 65535], ['uint32', 4294967295], ['uint64', Number.MAX_SAFE_INTEGER]] as const) {
   ajv.addFormat(format, { type: 'number', validate: (value: number) => Number.isSafeInteger(value) && value >= 0 && value <= maximum });
