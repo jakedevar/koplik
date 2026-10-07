@@ -6,14 +6,8 @@ import {
 } from './forecast';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import { bindProvenance, provenanceNumber, uniqueProvenance, type ProvenanceInfo } from './provenance';
+import { drawAxes, drawLegend, plot, svgNode } from './chart-style';
 
-const NS = 'http://www.w3.org/2000/svg';
-function svgNode(tag: string, attributes: Record<string, string | number>, text?: string) {
-  const node = document.createElementNS(NS, tag);
-  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
-  if (text) node.textContent = text;
-  return node;
-}
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {
   const node = document.createElement(tag);
   if (text !== undefined) node.textContent = text;
@@ -47,33 +41,31 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
   const origin = weekOrdinal(provenance.origin_week);
   const first = origin - 15;
   const last = origin + provenance.horizon_weeks;
-  const step = 560 / (last - first + 1);
-  const x = (ordinal: number) => 50 + (ordinal - first + 0.5) * step;
+  const step = (plot.right - plot.left) / (last - first + 1);
+  const x = (ordinal: number) => plot.left + (ordinal - first + 0.5) * step;
   const observed = history.filter((r) => weekOrdinal(r.week) >= first && weekOrdinal(r.week) <= weekOrdinal(provenance.latest_data_week));
   const upper = rows.map((r) => quantileAt(r, 0.95)!);
   const counts = observed.map((r) => (r.cases.status === 'reported' ? r.cases.count : 0));
   const max = Math.max(1, ...upper, ...counts);
-  const y = (value: number) => 190 - (value / max) * 160;
+  const y = (value: number) => plot.base - (value / max) * (plot.base - plot.top);
   const median = rows.map((r) => quantileAt(r, 0.5)!);
   const last90 = rows.at(-1)!;
   const label = `Forecast of weekly ${caseWords} for ${name}: the median runs from ${show(median[0])} in ${weekLabel(rows[0].target_week)} to ${show(median.at(-1)!)} in ${weekLabel(last90.target_week)}; in the last week the 90% interval runs from ${show(quantileAt(last90, 0.05)!)} to ${show(quantileAt(last90, 0.95)!)}. Exact values are in the table below.`;
-  const svg = svgNode('svg', { viewBox: '0 0 640 270', role: 'img', 'aria-label': label, class: 'forecast-chart' }) as SVGSVGElement;
+  const svg = svgNode('svg', { viewBox: `0 0 ${plot.width} 250`, role: 'img', 'aria-label': label, class: 'chart forecast-chart' }) as SVGSVGElement;
   svg.append(svgNode('title', {}, label));
 
   const known = new Map<number, Week>();
   for (const r of observed) known.set(weekOrdinal(r.week), r.week);
   known.set(origin, provenance.origin_week);
   for (const r of rows) known.set(weekOrdinal(r.target_week), r.target_week);
-  for (const value of [0, max]) {
-    svg.append(svgNode('line', { x1: 50, x2: 610, y1: y(value), y2: y(value), class: 'gridline' }), svgNode('text', { x: 5, y: y(value) + 4, class: 'axis-label' }, show(value)));
-  }
   let previousYear = 0;
+  const ticks: { x: number; label: string }[] = [];
   for (const [ordinal, week] of [...known].sort((a, b) => a[0] - b[0])) {
     if ((ordinal - first) % 4 !== 0 && ordinal !== last) continue;
-    svg.append(svgNode('text', { x: x(ordinal), y: 207, 'text-anchor': 'middle', class: 'axis-label' }, week.year === previousYear ? `W${week.week}` : weekLabel(week)));
+    ticks.push({ x: x(ordinal), label: week.year === previousYear ? `W${week.week}` : weekLabel(week) });
     previousYear = week.year;
   }
-  svg.append(svgNode('text', { x: 50, y: 15, class: 'axis-label' }, `Weekly ${caseWords}`));
+  drawAxes(svg, { maximum: max, unit: `Weekly ${caseWords}`, ticks, format: show });
 
   // The forecast, drawn first so the provisional bars stay visible over it.
   const bands = svgNode('g', { class: 'forecast-bands' });
@@ -88,8 +80,8 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
   bindProvenance(bands as unknown as SVGElement, { ...info, label: `Forecast of weekly ${caseWords} for ${name} · median and 50% and 90% bands` });
   svg.append(bands);
 
-  svg.append(svgNode('line', { x1: x(origin) + step / 2, x2: x(origin) + step / 2, y1: 22, y2: 190, class: 'forecast-origin' }),
-    svgNode('text', { x: x(origin) + step / 2 - 4, y: 33, 'text-anchor': 'end', class: 'axis-label' }, `Forecast origin ${weekLabel(provenance.origin_week)}`));
+  svg.append(svgNode('line', { x1: x(origin) + step / 2, x2: x(origin) + step / 2, y1: plot.top - 6, y2: plot.base, class: 'forecast-origin' }),
+    svgNode('text', { x: x(origin) + step / 2 - 4, y: plot.top + 8, 'text-anchor': 'end', class: 'axis-label' }, `Forecast origin ${weekLabel(provenance.origin_week)}`));
 
   for (const row of observed) {
     if (row.cases.status !== 'reported') continue;
@@ -97,19 +89,19 @@ export function forecastChart({ name, caseWords, history, rows, provenance, info
     const provisional = ordinal > origin;
     const text = `${weekLabel(row.week)}: ${row.cases.count} ${caseDefinitionLabels[row.case_definition]}${provisional ? ' (provisional: not used by the forecast)' : ''}`;
     const bar = row.cases.count === 0
-      ? svgNode('line', { x1: x(ordinal) - step * 0.3, x2: x(ordinal) + step * 0.3, y1: 190, y2: 190, class: provisional ? 'forecast-provisional-zero' : 'case-zero', 'data-week': row.week.week })
-      : svgNode('rect', { x: x(ordinal) - step * 0.3, y: y(row.cases.count), width: step * 0.6, height: 190 - y(row.cases.count), class: provisional ? 'forecast-provisional-bar' : 'case-bar', 'data-week': row.week.week });
+      ? svgNode('line', { x1: x(ordinal) - step * 0.3, x2: x(ordinal) + step * 0.3, y1: plot.base, y2: plot.base, class: provisional ? 'forecast-provisional-zero' : 'case-zero', 'data-week': row.week.week })
+      : svgNode('rect', { x: x(ordinal) - step * 0.3, y: y(row.cases.count), width: step * 0.6, height: plot.base - y(row.cases.count), class: provisional ? 'forecast-provisional-bar' : 'case-bar', 'data-week': row.week.week });
     bar.append(svgNode('title', {}, text));
     bindProvenance(bar as SVGElement, { label: text, records: row.provenance, synthetic });
     svg.append(bar);
   }
-  const legend = svgNode('g', { class: 'forecast-legend' });
-  legend.append(svgNode('rect', { x: 50, y: 226, width: 10, height: 10, class: 'case-bar' }), svgNode('text', { x: 65, y: 235, class: 'axis-label' }, 'Reported'),
-    svgNode('rect', { x: 125, y: 226, width: 10, height: 10, class: 'forecast-provisional-bar' }), svgNode('text', { x: 140, y: 235, class: 'axis-label' }, 'Provisional, not used'),
-    svgNode('rect', { x: 275, y: 226, width: 10, height: 10, class: 'forecast-band-50' }), svgNode('text', { x: 290, y: 235, class: 'axis-label' }, '50% band'),
-    svgNode('rect', { x: 360, y: 226, width: 10, height: 10, class: 'forecast-band-90' }), svgNode('text', { x: 375, y: 235, class: 'axis-label' }, '90% band'),
-    svgNode('line', { x1: 445, x2: 461, y1: 231, y2: 231, class: 'forecast-median' }), svgNode('text', { x: 466, y: 235, class: 'axis-label' }, 'Forecast median'));
-  svg.append(legend);
+  drawLegend(svg, [
+    { kind: 'swatch', className: 'key-bar', label: 'Reported' },
+    { kind: 'swatch', className: 'key-provisional', label: 'Provisional, not used' },
+    { kind: 'swatch', className: 'key-band-50', label: '50% band' },
+    { kind: 'swatch', className: 'key-band-90', label: '90% band' },
+    { kind: 'line', className: 'key-median', label: 'Forecast median' },
+  ], plot.base + 46, 'forecast-legend');
   return svg;
 }
 

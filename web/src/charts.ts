@@ -3,37 +3,19 @@ import type { RtEstimate } from './generated/RtEstimate';
 import { caseDefinitionLabels, compareWeeks, type CaseDefinition } from './data';
 import { bindProvenance } from './provenance';
 
-const NS = 'http://www.w3.org/2000/svg';
+import { drawAxes, drawLegend, plot, svgNode as svgElement } from './chart-style';
+
 let chartId = 0;
-function svgElement(tag: string, attributes: Record<string, string | number>) {
-  const node = document.createElementNS(NS, tag);
-  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
-  return node;
-}
+const chartHeight = 200;
 function chart(title: string, maximum: number, unit: string): SVGSVGElement {
-  const svg = svgElement('svg', { viewBox: '0 0 640 210', role: 'img', 'aria-label': title }) as SVGSVGElement;
-  const titleNode = svgElement('title', {});
-  titleNode.textContent = title;
-  svg.append(titleNode);
-  for (const [y, value] of [[170, 0], [25, maximum]]) {
-    svg.append(svgElement('line', { x1: 40, x2: 610, y1: y, y2: y, class: 'gridline' }));
-    const text = svgElement('text', { x: 5, y: y + 4, class: 'axis-label' });
-    text.textContent = String(value);
-    svg.append(text);
-  }
-  for (const week of [1, 13, 26, 39, 53]) {
-    const text = svgElement('text', { x: x(week), y: 195, 'text-anchor': 'middle', class: 'axis-label' });
-    text.textContent = `W${week}`;
-    svg.append(text);
-  }
-  const label = svgElement('text', { x: 40, y: 14, class: 'axis-label' });
-  label.textContent = unit;
-  label.classList.add('series-legend');
-  svg.append(label);
+  const svg = svgElement('svg', { viewBox: `0 0 ${plot.width} ${chartHeight}`, role: 'img', 'aria-label': title, class: 'chart' }) as SVGSVGElement;
+  svg.append(svgElement('title', {}, title));
+  drawAxes(svg, { maximum, unit, ticks: [1, 13, 26, 39, 53].map((week) => ({ x: x(week), label: `W${week}` })) });
   return svg;
 }
-const x = (week: number) => 45 + (week - 1) * 10.7;
-const y = (value: number, maximum: number) => 170 - value / maximum * 145;
+// Weeks 1 to 53 across the plot, inset by half a bar so the first and last bars stay inside it.
+const x = (week: number) => plot.left + 6 + (week - 1) * ((plot.right - plot.left - 12) / 52);
+const y = (value: number, maximum: number) => plot.base - value / maximum * (plot.base - plot.top);
 
 /** One plotted series: every row shares one case definition. Definitions are never mixed or summed. */
 export interface CaseSeries {
@@ -63,9 +45,9 @@ function seriesChart(series: CaseSeries, year: number, synthetic: boolean, separ
   for (const row of selected) {
     if (row.cases.status !== 'reported') continue;
     const bar = row.cases.count === 0 ?
-      svgElement('line', { x1: x(row.week.week) - 3, x2: x(row.week.week) + 3, y1: 170, y2: 170, class: 'case-zero', 'data-week': row.week.week }) :
+      svgElement('line', { x1: x(row.week.week) - 3, x2: x(row.week.week) + 3, y1: plot.base, y2: plot.base, class: 'case-zero', 'data-week': row.week.week }) :
       svgElement('rect', { x: x(row.week.week) - 3, y: y(row.cases.count, max), width: 6,
-        height: 170 - y(row.cases.count, max), class: 'case-bar', 'data-week': row.week.week });
+        height: plot.base - y(row.cases.count, max), class: 'case-bar', 'data-week': row.week.week });
     const title = svgElement('title', {});
     title.textContent = `Week ${row.week.week}: ${row.cases.count} ${caseDefinitionLabels[row.case_definition]}`;
     bindProvenance(bar as SVGElement, { label: title.textContent, records: row.provenance, synthetic });
@@ -96,7 +78,6 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
   const svg = chart(`Effective reproduction number, MMWR ${year}. Mean and credible interval; provisional and insufficient data are withheld.`, maximum, 'R_t');
   bindProvenance(svg, { label: `Effective reproduction number chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
     note: 'Derived R_t estimates: all source records attached to the chart rows. Axis ticks and R_t = 1 are display references, not source observations.' });
-  svg.setAttribute('viewBox', '0 0 640 240');
   const hatchId = `rt-insufficient-hatch-${++chartId}`;
   const withheld = selected.filter((r) => r.provisional || r.status === 'insufficient_data');
   const description = svgElement('desc', { id: `${hatchId}-description` });
@@ -118,26 +99,23 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
     marker.append(title);
     bindProvenance(marker as SVGElement, { label, records: row.provenance, synthetic });
     if (row.status === 'insufficient_data') marker.append(svgElement('rect', {
-      x: x(row.week.week) - 4, y: 25, width: 8, height: 145, fill: `url(#${hatchId})`, class: 'rt-insufficient-band',
+      x: x(row.week.week) - 4, y: plot.top, width: 8, height: plot.base - plot.top, fill: `url(#${hatchId})`, class: 'rt-insufficient-band',
     }));
     if (row.provisional) marker.append(svgElement('rect', {
-      x: x(row.week.week) - 4, y: 25, width: 8, height: 145, class: 'rt-provisional-band',
+      x: x(row.week.week) - 4, y: plot.top, width: 8, height: plot.base - plot.top, class: 'rt-provisional-band',
     }));
-    const text = svgElement('text', { x: x(row.week.week), y: 182, 'text-anchor': 'middle', class: 'axis-label' });
+    const text = svgElement('text', { x: x(row.week.week), y: plot.base + 36, 'text-anchor': 'middle', class: 'axis-label' });
     text.textContent = `${row.status === 'insufficient_data' ? 'I' : ''}${row.provisional ? 'P' : ''}`;
     marker.append(text);
     svg.append(marker);
   }
-  const legend = svgElement('g', { class: 'rt-status-legend', 'aria-label': 'I: Insufficient data; P: Provisional, estimate withheld; blank: no row. IP means both statuses.' });
-  legend.append(svgElement('rect', { x: 40, y: 217, width: 10, height: 12, fill: `url(#${hatchId})` }),
-    svgElement('rect', { x: 215, y: 217, width: 10, height: 12, class: 'rt-provisional-band' }));
-  for (const [px, label] of [[56, 'I: Insufficient data'], [231, 'P: Provisional (withheld)'], [450, 'Blank: no row']] as const) {
-    const text = svgElement('text', { x: px, y: 227, class: 'axis-label' });
-    text.textContent = label;
-    legend.append(text);
-  }
-  svg.append(legend);
-  svg.append(svgElement('line', { x1: 40, x2: 610, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));
+  const legendHeight = drawLegend(svg, [
+    { kind: 'swatch', className: 'key-insufficient', fill: `url(#${hatchId})`, label: 'I: Insufficient data' },
+    { kind: 'swatch', className: 'key-provisional-outline', label: 'P: Provisional (withheld)' },
+    { kind: 'swatch', className: 'key-blank', label: 'Blank: no row' },
+  ], plot.base + 64, 'rt-status-legend', 'I: Insufficient data; P: Provisional, estimate withheld; blank: no row. IP means both statuses.');
+  svg.setAttribute('viewBox', `0 0 ${plot.width} ${plot.base + 64 + legendHeight - 12}`);
+  svg.append(svgElement('line', { x1: plot.left, x2: plot.right, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));
   // Paired levels are interleaved by week. Build each level's sequence before
   // splitting on unavailable weeks; paint wider credible levels first.
   const groups: RtEstimate[][] = [];

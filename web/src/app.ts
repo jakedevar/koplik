@@ -2,9 +2,12 @@ import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, missingReasonWords, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
 import { cumulativeSection, cumulativeSeries, cumulativeTable } from './cumulative';
 import { attributionSection } from './attribution-view';
+import { explorerSummary } from './summary';
+import { summarySection } from './summary-view';
 import { footerSources } from './attribution';
 import { mountRouter, pageEvent, pageHash, pageIds, pageTitles, type PageId } from './router';
-import { caseScales, createMap, type MapView } from './map';
+import { caseScales, coverageScale, type MapView } from './map-scales';
+import { createLazyMap } from './map-lazy';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
 /** Said above a Texas county's weekly chart: why most weeks are "No data", and that nothing fills them. */
@@ -109,13 +112,14 @@ export function showStatus(root: HTMLElement, message: string, error = false) {
 
 export type MapFactory = (container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void) => MapView;
 
-export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: MapFactory = createMap): () => void {
+export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: MapFactory = createLazyMap): () => void {
   const { pages } = shell(root);
   const main = pages.explorer;
   if (data.synthetic) main.append(element('p', 'SYNTHETIC TEST DATA · Invented values and simplified geometry for development only. These are not observed measles reports.', 'synthetic notice'));
   main.append(element('p', 'SURVEILLANCE EXPLORER', 'eyebrow'), element('h1', 'Measles across the United States'),
     element('p', 'Explore reported cases, vaccination coverage and the pace of an outbreak. Missing reports stay missing.', 'intro'));
 
+  main.append(summarySection(explorerSummary(data), data.synthetic));
   let level: 'state' | 'county' = 'state';
   let metric: Metric = 'cases-2025';
   let selected = data.geographies.find((g) => g.id === '48')?.id || data.geographies.find((g) => g.level === 'state')?.id || '';
@@ -314,7 +318,11 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const showDefinition = !isCoverage && definitions.length > 0;
     definitionLabel.hidden = definitionSelect.hidden = !showDefinition;
     definitionSelect.disabled = definitions.length < 2;
-    if (isCoverage) legend.append(element('span', 'MMR coverage · 0–100%', 'legend-scale'));
+    if (isCoverage) {
+      const block = element('span', 'MMR coverage · 0–100%', 'legend-scale');
+      block.style.setProperty('--scale', `linear-gradient(90deg, ${coverageScale.map(([, colour]) => colour).join(', ')})`);
+      legend.append(block);
+    }
     else if (definition) {
       const block = element('span', `Reported ${caseDefinitionLabels[definition]} · 0 → 500+`, 'legend-scale');
       block.dataset.caseDefinition = definition;

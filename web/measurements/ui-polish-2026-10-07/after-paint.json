@@ -1,0 +1,148 @@
+{
+ "unthrottled": {
+  "runs": [
+   {
+    "fcp": 80,
+    "lcp": 188,
+    "cls": 0,
+    "content": 177.3999999910593,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 32,
+    "lcp": 32,
+    "cls": 0,
+    "content": 165.6000000089407,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 32,
+    "lcp": 32,
+    "cls": 0,
+    "content": 166.30000001192093,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 24,
+    "lcp": 24,
+    "cls": 0,
+    "content": 162.5,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 20,
+    "lcp": 20,
+    "cls": 0,
+    "content": 169.59999999403954,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 68,
+    "lcp": 68,
+    "cls": 0,
+    "content": 159.5,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 32,
+    "lcp": 32,
+    "cls": 0,
+    "content": 159.79999999701977,
+    "transferred": 582893,
+    "requests": 11,
+    "dataRequests": 7
+   }
+  ],
+  "median_fcp_ms": 32,
+  "median_lcp_ms": 32,
+  "median_cls": 0,
+  "median_content_ms": 165.6000000089407,
+  "median_transferred_kb": 569,
+  "median_requests": 11
+ },
+ "mobile_throttled": {
+  "runs": [
+   {
+    "fcp": 440,
+    "lcp": 2336,
+    "cls": 0,
+    "content": 2310.3999999910593,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 436,
+    "lcp": 2264,
+    "cls": 0,
+    "content": 2239.7999999970198,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 432,
+    "lcp": 2224,
+    "cls": 0,
+    "content": 2201.4000000059605,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 444,
+    "lcp": 2228,
+    "cls": 0,
+    "content": 2202.1000000089407,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 432,
+    "lcp": 2244,
+    "cls": 0,
+    "content": 2219.3999999910593,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 428,
+    "lcp": 2276,
+    "cls": 0,
+    "content": 2251.7000000029802,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   },
+   {
+    "fcp": 440,
+    "lcp": 2224,
+    "cls": 0,
+    "content": 2199.7999999970198,
+    "transferred": 297665,
+    "requests": 10,
+    "dataRequests": 7
+   }
+  ],
+  "median_fcp_ms": 436,
+  "median_lcp_ms": 2244,
+  "median_cls": 0,
+  "median_content_ms": 2219.3999999910593,
+  "median_transferred_kb": 291,
+  "median_requests": 10
+ }
+}

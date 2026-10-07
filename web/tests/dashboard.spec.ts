@@ -35,7 +35,9 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   const appOrigin = new URL(test.info().project.use.baseURL!).origin;
   const external: string[] = [];
   const pageErrors: string[] = [];
+  const wasmRequests: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
+  page.on('request', (request) => { if (/koplik_wasm|simulation\.worker/.test(request.url())) wasmRequests.push(request.url()); });
   await context.route('**/*', (route) => {
     const url = route.request().url();
     if (url.startsWith(`${appOrigin}/`) || /^(blob|data):/.test(url)) return route.continue();
@@ -48,9 +50,15 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await page.locator('.maplibregl-canvas').evaluate((node) => { node.dataset.mounted = 'once'; });
   await expect(page.locator('.map')).toHaveAttribute('data-map-state', 'ready');
   await expect(page.locator('.map-status')).toBeEmpty();
-  const initial = page.locator('.engine-fingerprint');
-  await expect(initial).toHaveText('7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb');
-  const points = await page.locator('.ensemble-median').getAttribute('points');
+  // The Explorer's summary: the as-of date and the headline numbers, each with its coverage and a provenance trigger.
+  const summary = page.locator('.summary');
+  await expect(summary.locator('.summary-asof')).toContainText('Data as of MMWR');
+  await expect(summary.locator('.summary-asof')).toContainText('source snapshot retrieved');
+  await expect(summary.locator('.stat-value button')).toHaveCount(3);
+  await expect(summary.locator('.stat-note').first()).toContainText(/\d+ of \d+ jurisdictions/);
+  await expect(summary.locator('.stat-note').first()).toContainText('not a full-year total');
+  // The what-if engine (WASM and worker) is not fetched until its page is first shown.
+  expect(wasmRequests).toEqual([]);
 
   const total = page.locator('.headline-value button');
   await total.focus(); await total.press('Enter');
@@ -77,6 +85,9 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
 
   await nav(page).getByRole('link', { name: 'What-if' }).click();
   await expectPageChrome(page, 'What-if');
+  const initial = page.locator('.engine-fingerprint');
+  await expect(initial).toHaveText('7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb');
+  const points = await page.locator('.ensemble-median').getAttribute('points');
   const slider = page.getByRole('slider', { name: 'Gaines County kindergarten MMR coverage' });
   await slider.focus(); await slider.press('ArrowRight');
   await expect(slider).toHaveValue('71');
@@ -263,18 +274,18 @@ test('the navbar fits a narrow screen', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
 
-test('every page fits a narrow screen with its provenance text wrapped, not clipped', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 800 });
+for (const width of [390, 768]) test(`every page fits a ${width} px screen with its provenance text wrapped, not clipped`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 800 });
   for (const entry of pages) {
     await page.goto(`./${entry.hash}`);
     await expectPageChrome(page, entry.name);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     // Panels clip overflow, so also require every visible element to end inside the viewport.
     // Content of a horizontal scroll container (.table-scroll) scrolls rather than clips; the container itself must fit.
-    const clipped = await page.evaluate(() => [...document.querySelectorAll('main *')]
+    const clipped = await page.evaluate((w) => [...document.querySelectorAll('main *')]
       .filter((el) => (el as HTMLElement).offsetParent !== null && !el.parentElement?.closest('.table-scroll'))
-      .filter((el) => el.getBoundingClientRect().right > 390.5)
-      .map((el) => `${el.tagName.toLowerCase()}.${String(el.className)}`));
+      .filter((el) => el.getBoundingClientRect().right > w + 0.5)
+      .map((el) => `${el.tagName.toLowerCase()}.${String(el.className)}`), width);
     expect(clipped, entry.name).toEqual([]);
   }
   // The Census file URLs and SHA-256 hashes are shown in full on the Sources page.
