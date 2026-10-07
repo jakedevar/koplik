@@ -2,13 +2,14 @@ import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { compile } from 'json-schema-to-typescript';
 
-const schemaDir = new URL('../../crates/koplik-contracts/schema/v1/', import.meta.url);
-const outputDir = new URL('../src/generated/', import.meta.url);
+for (const version of ['v1', 'v2']) {
+const schemaDir = new URL(`../../crates/koplik-contracts/schema/${version}/`, import.meta.url);
+const outputDir = new URL(`../src/generated/${version === 'v1' ? '' : 'v2/'}`, import.meta.url);
 await mkdir(outputDir, { recursive: true });
-for (const file of (await readdir(schemaDir)).filter((name) => name.endsWith('.json')).sort()) {
+for (const file of (await readdir(schemaDir)).filter((name) => version === 'v1' ? name.endsWith('.json') : name === 'EnsembleResult.schema.json').sort()) {
   const schema = JSON.parse(await readFile(new URL(file, schemaDir), 'utf8'));
   const text = await compile(schema, schema.title, {
-    bannerComment: '/* Generated from koplik-contracts schema/v1. Run npm run generate:types. */',
+    bannerComment: `/* Generated from koplik-contracts schema/${version}. Run npm run generate:types. */`,
     cwd: fileURLToPath(schemaDir),
     additionalProperties: false,
   });
@@ -20,4 +21,5 @@ for (const file of (await readdir(schemaDir)).filter((name) => name.endsWith('.j
   } else {
     await writeFile(target, text);
   }
+}
 }
