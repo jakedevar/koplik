@@ -1,9 +1,33 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const source = JSON.parse(readFileSync(resolve('../data/fixtures/web/synthetic-v1/synthetic-weekly-cases.json'), 'utf8'))[0].provenance[0];
 const scenarioSource = JSON.parse(readFileSync(resolve('../data/fixtures/seir/synthetic-scenario.json'), 'utf8')).nodes[0].provenance[0];
+
+const disclaimerText = 'Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.';
+const pages = [
+  { name: 'Explorer', hash: '#/explorer', heading: 'Measles across the United States' },
+  { name: 'Forecast', hash: '#/forecast', heading: 'Where is measles going next?' },
+  { name: 'What-if', hash: '#/what-if', heading: 'What if vaccination coverage were different?' },
+  { name: 'Sources', hash: '#/sources', heading: 'Data sources and method' },
+];
+/** Every page: the verbatim disclaimer and the compact attribution footer with its three source links and the Sources link. */
+async function expectPageChrome(page: Page, name: string, emptyHash = false) {
+  const entry = pages.find((p) => p.name === name)!;
+  // The Explorer is also what an empty hash shows (the address then has no page hash).
+  if (!emptyHash) await expect(page).toHaveURL(new RegExp(`${entry.hash}$`));
+  await expect(page.getByRole('heading', { level: 1, name: entry.heading })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name })).toHaveAttribute('aria-current', 'page');
+  await expect(page.getByRole('navigation', { name: 'Primary' }).locator('[aria-current="page"]')).toHaveCount(1);
+  await expect(page.locator('footer .disclaimer')).toHaveText(disclaimerText);
+  const footer = page.locator('footer .source-footer');
+  await expect(footer.getByRole('link', { name: 'CDC' })).toHaveAttribute('href', 'https://data.cdc.gov/resource/x9gk-5huc');
+  await expect(footer.getByRole('link', { name: 'US Census Bureau' })).toHaveAttribute('href', 'https://www.census.gov/');
+  await expect(footer.getByRole('link', { name: 'Texas DSHS' })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
+  await expect(footer.getByRole('link', { name: 'Sources and attribution' })).toHaveAttribute('href', '#/sources');
+}
+const nav = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
 
 test('fixture dashboard renders the map, recomputes the ensemble and opens accessible provenance', async ({ page, context }) => {
   const appOrigin = new URL(test.info().project.use.baseURL!).origin;
@@ -16,17 +40,10 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
     external.push(url); return route.abort();
   });
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Measles across the United States' })).toBeVisible();
-  const attribution = page.getByRole('region', { name: 'Data sources and attribution' });
-  await expect(attribution).toBeVisible();
-  await expect(attribution).toContainText('Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data');
-  await expect(attribution).toContainText('Source: Texas Department of State Health Services (DSHS)');
-  await expect(attribution.getByRole('link', { name: /Texas DSHS 2025 measles outbreak page/ })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
-  await expect(attribution).toContainText('downloaded directly from the US Census Bureau (www2.census.gov), limited to a fixed list of named public-domain files whose SHA-256 hashes are pinned');
-  await expect(attribution.getByRole('link', { name: 'https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip' })).toBeVisible();
-  await expect(attribution).toContainText('national_county2020.txt) is the one Census file not downloaded directly from the Census Bureau: Koplik uses an Internet Archive (Wayback Machine) capture');
+  await expectPageChrome(page, 'Explorer', true);
   await expect(page.locator('.synthetic').first()).toContainText('SYNTHETIC TEST DATA');
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+  await page.locator('.maplibregl-canvas').evaluate((node) => { node.dataset.mounted = 'once'; });
   await expect(page.locator('.map')).toHaveAttribute('data-map-state', 'ready');
   await expect(page.locator('.map-status')).toBeEmpty();
   const initial = page.locator('.engine-fingerprint');
@@ -56,6 +73,8 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(drawer.getByRole('heading')).toContainText('2 confirmed or unknown-status cases');
   await close.press('Escape'); await expect(plottedNumber).toBeFocused();
 
+  await nav(page).getByRole('link', { name: 'What-if' }).click();
+  await expectPageChrome(page, 'What-if');
   const slider = page.getByRole('slider', { name: 'Gaines County kindergarten MMR coverage' });
   await slider.focus(); await slider.press('ArrowRight');
   await expect(slider).toHaveValue('71');
@@ -85,6 +104,8 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(drawer).toContainText('Published source: SYNTHETIC fixture');
   await close.press('Escape');
 
+  await nav(page).getByRole('link', { name: 'Forecast' }).click();
+  await expectPageChrome(page, 'Forecast');
   // The forecast sits beside its measured backtest skill in plain words, with the exact values and their provenance.
   const forecast = page.locator('.forecast');
   await expect(forecast.getByRole('heading', { name: /Where next/ })).toBeVisible();
@@ -123,6 +144,8 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
 
   // The Texas county drill-down charts the cumulative count each DSHS report printed, one point per report, never joined
   // by a line, each point opening its provenance, and says in words that weekly counts are not derived from it.
+  await nav(page).getByRole('link', { name: 'Explorer' }).click();
+  await expectPageChrome(page, 'Explorer');
   await page.getByRole('button', { name: 'Explore Texas counties →' }).click();
   const cumulative = page.locator('.cumulative-reports');
   await expect(cumulative.getByRole('heading', { name: 'Cumulative confirmed cases as reported by Texas DSHS' })).toBeVisible();
@@ -140,5 +163,92 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   // The weekly series keeps its own heading and says why weeks can be No data.
   await expect(page.locator('.charts h3').first()).toHaveText('Weekly confirmed cases');
   await expect(page.locator('.county-weekly-note')).toContainText('Nothing is estimated or interpolated.');
+
+  // The Forecast page follows the geography chosen on the Explorer, while hidden.
+  await page.getByRole('button', { name: '← United States' }).click();
+  await page.getByLabel('Select a state').selectOption('20');
+  await nav(page).getByRole('link', { name: 'Forecast' }).click();
+  await expectPageChrome(page, 'Forecast');
+  await expect(page.locator('#forecast-geography')).toHaveValue('20');
+  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toContainText('We do not publish a forecast for Kansas.');
+
+  // Sources: the full attribution lives here and nowhere else.
+  await nav(page).getByRole('link', { name: 'Sources' }).click();
+  await expectPageChrome(page, 'Sources');
+  const attribution = page.getByRole('region', { name: 'Data sources and attribution' });
+  await expect(attribution).toBeVisible();
+  await expect(attribution).toContainText('Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data');
+  await expect(attribution).toContainText('Source: Texas Department of State Health Services (DSHS)');
+  await expect(attribution.getByRole('link', { name: /Texas DSHS 2025 measles outbreak page/ })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
+  await expect(attribution).toContainText('downloaded directly from the US Census Bureau (www2.census.gov), limited to a fixed list of named public-domain files whose SHA-256 hashes are pinned');
+  await expect(attribution.getByRole('link', { name: 'https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip' })).toBeVisible();
+  await expect(attribution).toContainText('national_county2020.txt) is the one Census file not downloaded directly from the Census Bureau: Koplik uses an Internet Archive (Wayback Machine) capture');
+  await expect(page.locator('.attribution')).toHaveCount(1);
+  await expect(page.locator('[data-page-view="sources"] .attribution')).toBeVisible();
+
+  // Navigation never rebuilt the map or the what-if: the same canvas and the recomputed ensemble are still there.
+  await nav(page).getByRole('link', { name: 'Explorer' }).click();
+  await expectPageChrome(page, 'Explorer');
+  await expect(page.locator('.maplibregl-canvas[data-mounted="once"]')).toBeVisible();
+  await expect(page.locator('.map')).toHaveAttribute('data-map-state', 'ready');
+  await expect(initial).not.toHaveText('7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb');
+  // Hidden pages are out of the accessibility tree, so the slider is found by id here.
+  await expect(page.locator('#what-if-coverage')).toHaveValue('71');
   expect(external).toEqual([]); expect(pageErrors).toEqual([]);
+});
+
+test('pages are reachable by keyboard and direct hash, survive a reload, and follow back and forward', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(String(error)));
+  // Direct hash: each page opens on load, and a reload keeps it.
+  for (const entry of pages) {
+    await page.goto(`./${entry.hash}`);
+    await expectPageChrome(page, entry.name);
+    await page.reload();
+    await expectPageChrome(page, entry.name);
+  }
+  // An empty hash is the Explorer; an unknown one falls back to it.
+  await page.goto('./');
+  await expectPageChrome(page, 'Explorer', true);
+  await page.goto('./#/no-such-page');
+  await expectPageChrome(page, 'Explorer');
+  // Keyboard: Tab to a nav link, Enter, and focus lands on the new page's heading.
+  await page.goto('./#/explorer');
+  await expectPageChrome(page, 'Explorer');
+  const forecastLink = nav(page).getByRole('link', { name: 'Forecast' });
+  await forecastLink.focus();
+  await expect(forecastLink).toBeFocused();
+  await forecastLink.press('Enter');
+  await expectPageChrome(page, 'Forecast');
+  await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeFocused();
+  await nav(page).getByRole('link', { name: 'Sources' }).click();
+  await expectPageChrome(page, 'Sources');
+  // Back and forward walk the page history.
+  await page.goBack();
+  await expectPageChrome(page, 'Forecast');
+  await page.goBack();
+  await expectPageChrome(page, 'Explorer');
+  await page.goForward();
+  await expectPageChrome(page, 'Forecast');
+  // The Explorer's map is laid out again when it comes back into view.
+  await nav(page).getByRole('link', { name: 'Explorer' }).click();
+  await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+  const [map, canvas] = await Promise.all([page.locator('.map').boundingBox(), page.locator('.maplibregl-canvas').boundingBox()]);
+  expect(canvas!.width).toBeGreaterThan(map!.width - 2);
+  expect(pageErrors).toEqual([]);
+});
+
+test('the navbar fits a narrow screen', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('./#/explorer');
+  await expectPageChrome(page, 'Explorer');
+  for (const entry of pages) {
+    const link = nav(page).getByRole('link', { name: entry.name });
+    await expect(link).toBeVisible();
+    const box = (await link.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
