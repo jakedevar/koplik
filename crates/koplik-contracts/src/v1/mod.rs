@@ -18,16 +18,17 @@ mod rt;
 mod scenario;
 mod weekly_cases;
 
-pub use coverage::{KindergartenMmrCoverage, SchoolYear};
+pub use coverage::{CoverageValue, KindergartenMmrCoverage, SchoolYear};
 pub use fips::{CountyFips, FipsError, GeoId, GeoLevel, StateFips};
 pub use forecast::{Forecast, ForecastQuantile};
-pub use geography::Geography;
+pub use geography::{Centroid, Geography};
 pub use mmwr::{MmwrError, MmwrWeek};
 pub use population::Population;
 pub use provenance::{Provenance, ProvenanceError, Provenances, Sha256Hex};
 pub use rt::{RtEstimate, RtStatus};
 pub use scenario::{
-    CoverageOverride, GravityParameters, InitialInfection, ScenarioInput, SeirParameters,
+    BaselineCoverage, CoverageOverride, GravityParameters, R0, ScenarioInput, ScenarioNode,
+    SeirParameters,
 };
 pub use weekly_cases::{CaseCount, MissingReason, WeeklyCaseCount};
 

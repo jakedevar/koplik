@@ -1,28 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ScenarioInput",
-  "description": "Everything needed to reproduce an ensemble: same input, same seed, same trajectories.",
+  "description": "Everything needed to reproduce an ensemble: same input, same seed, same trajectories.\nIt is self-contained: the engine needs nothing else (no data lookups).",
   "type": "object",
   "properties": {
     "coverage_overrides": {
-      "description": "Coverage replacements; geographies not listed use their measured baseline.",
+      "description": "Coverage replacements (what-if slider); each names a node and appears at most once.",
       "type": "array",
       "items": {
         "$ref": "#/$defs/CoverageOverride"
       }
     },
-    "geographies": {
-      "description": "Geographies simulated (non-empty, no duplicates).",
+    "nodes": {
+      "description": "Simulated geographies: non-empty, unique, in canonical order (`GeoId` order: states\nby FIPS code, then counties by FIPS code), so output order never depends on input order.",
       "type": "array",
       "items": {
-        "$ref": "#/$defs/GeoId"
-      }
-    },
-    "initial_infections": {
-      "description": "Initial infectious counts per geography.",
-      "type": "array",
-      "items": {
-        "$ref": "#/$defs/InitialInfection"
+        "$ref": "#/$defs/ScenarioNode"
       }
     },
     "parameters": {
@@ -47,15 +40,91 @@
   },
   "additionalProperties": false,
   "required": [
-    "geographies",
+    "nodes",
     "start_week",
     "coverage_overrides",
-    "initial_infections",
     "parameters",
     "seed",
     "run_count"
   ],
   "$defs": {
+    "BaselineCoverage": {
+      "description": "Baseline kindergarten MMR coverage of a node, or an explicit missing value. A node with\nmissing coverage is only valid when a `coverage_overrides` entry supplies its value.",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "coverage_pct": {
+              "description": "Coverage percent, 0 to 100.",
+              "type": "number",
+              "format": "double",
+              "maximum": 100,
+              "minimum": 0
+            },
+            "imputed": {
+              "description": "True when the value was imputed rather than measured.",
+              "type": "boolean"
+            },
+            "provenance": {
+              "$ref": "#/$defs/Provenances"
+            },
+            "status": {
+              "type": "string",
+              "const": "reported"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "coverage_pct",
+            "imputed",
+            "provenance"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "reason": {
+              "$ref": "#/$defs/MissingReason"
+            },
+            "status": {
+              "type": "string",
+              "const": "missing"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "reason"
+          ]
+        }
+      ]
+    },
+    "Centroid": {
+      "description": "A point on the WGS84 ellipsoid in decimal degrees (e.g. a county's population or\ngeometric centroid; the source states which in its provenance).",
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "description": "Degrees north, -90 to 90.",
+          "type": "number",
+          "format": "double",
+          "maximum": 90,
+          "minimum": -90
+        },
+        "longitude": {
+          "description": "Degrees east, -180 to 180.",
+          "type": "number",
+          "format": "double",
+          "maximum": 180,
+          "minimum": -180
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
     "CoverageOverride": {
       "description": "Replace a geography's baseline kindergarten MMR coverage in a what-if run.",
       "type": "object",
@@ -111,23 +180,24 @@
         "distance_exponent"
       ]
     },
-    "InitialInfection": {
-      "description": "Infectious individuals placed in a geography at the start week.",
-      "type": "object",
-      "properties": {
-        "geography": {
-          "$ref": "#/$defs/GeoId"
+    "MissingReason": {
+      "description": "Why a weekly count is missing.",
+      "oneOf": [
+        {
+          "description": "The source did not report this geography and week.",
+          "type": "string",
+          "const": "not_reported"
         },
-        "infectious": {
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0
+        {
+          "description": "The source withheld the value (small-number suppression).",
+          "type": "string",
+          "const": "suppressed"
+        },
+        {
+          "description": "The source has the week but the value could not be read unambiguously.",
+          "type": "string",
+          "const": "ambiguous"
         }
-      },
-      "additionalProperties": false,
-      "required": [
-        "geography",
-        "infectious"
       ]
     },
     "MmwrWeek": {
@@ -153,6 +223,139 @@
       "required": [
         "year",
         "week"
+      ]
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "R0": {
+      "description": "Basic reproduction number R0 in a fully susceptible population: a fixed value, or a\nuniform prior that the engine samples once per ensemble member (uniform on `[min, max]`,\ndrawn from that member's derived seed before its first step). The sampling lives in\n`koplik-epi`; this type only states the choice, so a scenario is reproducible from its\nseed. E.g. the spec's R0 prior of 12 to 18 is `uniform_prior { min: 12, max: 18 }`.",
+      "oneOf": [
+        {
+          "description": "Every member uses this value (`value > 0`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fixed"
+            },
+            "value": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "Each member draws its own R0 uniformly from `[min, max]` (`0 < min <= max`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "uniform_prior"
+            },
+            "max": {
+              "type": "number",
+              "format": "double"
+            },
+            "min": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ]
+        }
+      ]
+    },
+    "ScenarioNode": {
+      "description": "One simulated geography with everything the engine needs about it.",
+      "type": "object",
+      "properties": {
+        "baseline_coverage": {
+          "$ref": "#/$defs/BaselineCoverage"
+        },
+        "centroid": {
+          "description": "Location used for gravity coupling.",
+          "$ref": "#/$defs/Centroid"
+        },
+        "id": {
+          "$ref": "#/$defs/GeoId"
+        },
+        "initial_exposed": {
+          "description": "Exposed (latent) individuals at the start week.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "initial_infectious": {
+          "description": "Infectious individuals at the start week. Exposed plus infectious must not exceed\nthe population.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "population": {
+          "description": "Resident population (`> 0`).",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "population",
+        "baseline_coverage",
+        "centroid",
+        "initial_exposed",
+        "initial_infectious"
       ]
     },
     "SeirParameters": {
@@ -197,9 +400,8 @@
           "format": "double"
         },
         "r0": {
-          "description": "Basic reproduction number R0 in a fully susceptible population.",
-          "type": "number",
-          "format": "double"
+          "description": "Basic reproduction number R0: fixed, or a prior sampled once per ensemble member.",
+          "$ref": "#/$defs/R0"
         },
         "time_step_days": {
           "description": "Tau-leap step length in days.",
@@ -217,6 +419,11 @@
         "time_step_days",
         "horizon_days"
       ]
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
     }
   }
 }

@@ -52,10 +52,24 @@ fn fips_round_trip() {
 #[test]
 fn geography_round_trip() {
     let g = Geography::new(gaines(), "Gaines County").unwrap();
-    assert_eq!(round_trip(&g)["level"], json!("county"));
+    let j = round_trip(&g);
+    assert_eq!(j["level"], json!("county"));
+    assert_eq!(j["centroid"], serde_json::Value::Null);
+    let g = g.with_centroid(Centroid::new(32.74, -102.64).unwrap());
+    assert_eq!(round_trip(&g)["centroid"]["latitude"], json!(32.74));
     // Level must agree with the id.
-    let bad = json!({"id": "48", "level": "county", "name": "Texas"});
+    let bad = json!({"id": "48", "level": "county", "name": "Texas", "centroid": null});
     assert!(serde_json::from_value::<Geography>(bad).is_err());
+    // Centroid out of range is rejected.
+    for (lat, lon) in [(91.0, 0.0), (-90.5, 0.0), (0.0, 180.5), (0.0, -181.0)] {
+        let bad = json!({"id": "48165", "level": "county", "name": "G",
+            "centroid": {"latitude": lat, "longitude": lon}});
+        assert!(
+            serde_json::from_value::<Geography>(bad).is_err(),
+            "{lat} {lon}"
+        );
+    }
+    assert!(Centroid::new(f64::NAN, 0.0).is_err());
 }
 
 #[test]
@@ -99,17 +113,23 @@ fn weekly_case_count_round_trip_and_missing_is_not_zero() {
     assert_eq!(missing.confirmed.count(), None);
 }
 
-#[test]
-fn coverage_round_trip() {
-    let c = KindergartenMmrCoverage {
+fn coverage_row() -> KindergartenMmrCoverage {
+    KindergartenMmrCoverage {
         geography: gaines(),
         school_year: "2023-24".parse().unwrap(),
-        coverage_pct: 82.0,
-        exemption_pct: Some(14.0),
+        coverage: CoverageValue::Reported {
+            coverage_pct: 82.0,
+            exemption_pct: Some(14.0),
+        },
         imputed: false,
         imputation_method: None,
         provenance: prov(),
-    };
+    }
+}
+
+#[test]
+fn coverage_round_trip() {
+    let c = coverage_row();
     assert_eq!(round_trip(&c)["school_year"], json!("2023-24"));
     let imputed = KindergartenMmrCoverage {
         imputed: true,
@@ -125,9 +145,36 @@ fn coverage_round_trip() {
     bad["imputation_method"] = json!("x");
     assert!(serde_json::from_value::<KindergartenMmrCoverage>(bad).is_err());
     let mut bad = serde_json::to_value(&c).unwrap();
-    bad["coverage_pct"] = json!(101.0);
+    bad["coverage"]["coverage_pct"] = json!(101.0);
     assert!(serde_json::from_value::<KindergartenMmrCoverage>(bad).is_err());
     assert!("2023-25".parse::<SchoolYear>().is_err());
+}
+
+#[test]
+fn coverage_missing_is_not_zero() {
+    let zero = KindergartenMmrCoverage {
+        coverage: CoverageValue::Reported {
+            coverage_pct: 0.0,
+            exemption_pct: None,
+        },
+        ..coverage_row()
+    };
+    let missing = KindergartenMmrCoverage {
+        coverage: CoverageValue::Missing {
+            reason: MissingReason::NotReported,
+        },
+        ..coverage_row()
+    };
+    let zj = round_trip(&zero);
+    let mj = round_trip(&missing);
+    assert_ne!(zj["coverage"], mj["coverage"]);
+    assert_eq!(zero.coverage.coverage_pct(), Some(0.0));
+    assert_eq!(missing.coverage.coverage_pct(), None);
+    // A missing value cannot be flagged imputed.
+    let mut bad = serde_json::to_value(&missing).unwrap();
+    bad["imputed"] = json!(true);
+    bad["imputation_method"] = json!("guess");
+    assert!(serde_json::from_value::<KindergartenMmrCoverage>(bad).is_err());
 }
 
 #[test]
@@ -176,20 +223,38 @@ fn rt_round_trip() {
     assert!(serde_json::from_value::<RtEstimate>(bad).is_err());
 }
 
+fn node(code: &str, baseline: BaselineCoverage) -> ScenarioNode {
+    ScenarioNode {
+        id: code.parse().unwrap(),
+        population: 21_000,
+        baseline_coverage: baseline,
+        centroid: Centroid::new(32.74, -102.64).unwrap(),
+        initial_exposed: 2,
+        initial_infectious: 3,
+    }
+}
+
+fn reported(pct: f64) -> BaselineCoverage {
+    BaselineCoverage::Reported {
+        coverage_pct: pct,
+        imputed: false,
+        provenance: prov(),
+    }
+}
+
 fn scenario() -> ScenarioInput {
     ScenarioInput {
-        geographies: vec![gaines(), "48079".parse().unwrap()],
+        nodes: vec![node("48079", reported(90.0)), node("48165", reported(82.0))],
         start_week: week(2025, 5),
         coverage_overrides: vec![CoverageOverride {
             geography: gaines(),
             coverage_pct: 95.0,
         }],
-        initial_infections: vec![InitialInfection {
-            geography: gaines(),
-            infectious: 3,
-        }],
         parameters: SeirParameters {
-            r0: 15.0,
+            r0: R0::UniformPrior {
+                min: 12.0,
+                max: 18.0,
+            },
             latent_period_days: 11.0,
             infectious_period_days: 8.0,
             mmr_effectiveness_one_dose: 0.93,
@@ -208,21 +273,54 @@ fn scenario() -> ScenarioInput {
     }
 }
 
+fn rejects(mutate: impl FnOnce(&mut serde_json::Value)) {
+    let mut j = serde_json::to_value(scenario()).unwrap();
+    mutate(&mut j);
+    assert!(serde_json::from_value::<ScenarioInput>(j).is_err());
+}
+
 #[test]
 fn scenario_round_trip_keeps_full_u64_seed() {
     let s = scenario();
     let text = serde_json::to_string(&s).unwrap();
     assert!(text.contains("18446744073709551615"));
     assert_eq!(serde_json::from_str::<ScenarioInput>(&text).unwrap(), s);
-    let mut bad = serde_json::to_value(&s).unwrap();
-    bad["run_count"] = json!(0);
-    assert!(serde_json::from_value::<ScenarioInput>(bad).is_err());
-    let mut bad = serde_json::to_value(&s).unwrap();
-    bad["parameters"]["r0"] = json!(-1.0);
-    assert!(serde_json::from_value::<ScenarioInput>(bad).is_err());
-    let mut bad = serde_json::to_value(&s).unwrap();
-    bad["geographies"] = json!(["48165", "48165"]);
-    assert!(serde_json::from_value::<ScenarioInput>(bad).is_err());
+    // A fixed R0 and a missing-but-overridden baseline also round trip.
+    let mut f = scenario();
+    f.parameters.r0 = R0::Fixed { value: 15.0 };
+    f.nodes[1].baseline_coverage = BaselineCoverage::Missing {
+        reason: MissingReason::NotReported,
+    };
+    round_trip(&f);
+}
+
+#[test]
+fn scenario_rejections() {
+    rejects(|j| j["run_count"] = json!(0));
+    rejects(|j| j["nodes"] = json!([]));
+    rejects(|j| {
+        let n = j["nodes"][0].clone();
+        j["nodes"][1] = n; // duplicate id
+    });
+    rejects(|j| j["nodes"].as_array_mut().unwrap().reverse()); // not in FIPS order
+    rejects(|j| j["nodes"][0]["population"] = json!(0));
+    rejects(|j| j["nodes"][0]["initial_exposed"] = json!(21_000)); // E + I > population
+    rejects(|j| j["nodes"][0]["centroid"]["latitude"] = json!(90.1));
+    rejects(|j| j["nodes"][0]["centroid"]["longitude"] = json!(-180.1));
+    rejects(|j| j["parameters"]["r0"] = json!({"kind": "fixed", "value": -1.0}));
+    rejects(|j| j["parameters"]["r0"] = json!({"kind": "uniform_prior", "min": 18.0, "max": 12.0}));
+    rejects(|j| j["parameters"]["r0"] = json!({"kind": "uniform_prior", "min": 0.0, "max": 12.0}));
+    rejects(|j| j["parameters"]["r0"] = json!(15.0)); // bare number is no longer a shape
+    rejects(|j| j["coverage_overrides"][0]["geography"] = json!("48001")); // unlisted node
+    rejects(|j| {
+        let o = j["coverage_overrides"][0].clone();
+        j["coverage_overrides"].as_array_mut().unwrap().push(o); // duplicate override
+    });
+    // Missing baseline without an override is rejected (never guessed).
+    rejects(|j| {
+        j["nodes"][0]["baseline_coverage"] = json!({"status": "missing", "reason": "not_reported"})
+    });
+    rejects(|j| j["nodes"][0]["baseline_coverage"]["coverage_pct"] = json!(120.0));
 }
 
 #[test]

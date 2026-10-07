@@ -4,6 +4,17 @@
   "description": "A geography: FIPS key, level and a display name. The name is for display only; it is\nnever a key and may change spelling between sources.",
   "type": "object",
   "properties": {
+    "centroid": {
+      "description": "Centroid in WGS84 decimal degrees, when known (`null` otherwise).",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Centroid"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "id": {
       "$ref": "#/$defs/GeoId"
     },
@@ -23,6 +34,31 @@
     "name"
   ],
   "$defs": {
+    "Centroid": {
+      "description": "A point on the WGS84 ellipsoid in decimal degrees (e.g. a county's population or\ngeometric centroid; the source states which in its provenance).",
+      "type": "object",
+      "properties": {
+        "latitude": {
+          "description": "Degrees north, -90 to 90.",
+          "type": "number",
+          "format": "double",
+          "maximum": 90,
+          "minimum": -90
+        },
+        "longitude": {
+          "description": "Degrees east, -180 to 180.",
+          "type": "number",
+          "format": "double",
+          "maximum": 180,
+          "minimum": -180
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "latitude",
+        "longitude"
+      ]
+    },
     "GeoId": {
       "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
       "type": "string",
