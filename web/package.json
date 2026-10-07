@@ -8,6 +8,7 @@
     "check:types": "node scripts/generate-types.mjs --check",
     "fixtures": "node scripts/build-synthetic-fixtures.mjs",
     "dev": "vite",
+    "dev:synthetic": "npm run fixtures && VITE_SYNTHETIC_FIXTURES=1 vite",
     "build": "npm run check:types && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "test": "npm run check:types && vitest run"

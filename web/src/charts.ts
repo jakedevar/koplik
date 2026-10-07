@@ -39,7 +39,7 @@ export function caseChart(rows: WeeklyCaseCount[], year: number): SVGSVGElement 
   for (const row of selected) {
     if (row.confirmed.status !== 'reported') continue;
     const bar = svgElement('rect', { x: x(row.week.week) - 3, y: y(row.confirmed.count, max), width: 6,
-      height: Math.max(1, 170 - y(row.confirmed.count, max)), class: 'case-bar', 'data-week': row.week.week });
+      height: 170 - y(row.confirmed.count, max), class: 'case-bar', 'data-week': row.week.week });
     const title = svgElement('title', {});
     title.textContent = `Week ${row.week.week}: ${row.confirmed.count} confirmed cases`;
     bar.append(title);

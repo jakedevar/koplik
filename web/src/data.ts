@@ -29,6 +29,10 @@ export interface Value {
 
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
+for (const [format, maximum] of [['uint8', 255], ['uint16', 65535], ['uint32', 4294967295]] as const) {
+  ajv.addFormat(format, { type: 'number', validate: (value: number) => Number.isInteger(value) && value >= 0 && value <= maximum });
+}
+ajv.addFormat('double', { type: 'number', validate: Number.isFinite });
 const validators = {
   geographies: ajv.compile(geographySchema),
   cases: ajv.compile(casesSchema),
@@ -40,19 +44,22 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
   if (!Array.isArray(input)) throw new Error(`${kind}: expected an array of v1 rows`);
   const validate = validators[kind];
   const keys = new Set<string>();
-  for (const row of input) {
-    if (!validate(row)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validate.errors)}`);
-    if (kind === 'geographies' && (row.level !== (row.id.length === 2 ? 'state' : 'county') || !row.name.trim())) {
-      throw new Error('geographies: invalid level or empty name');
+  for (const inputRow of input) {
+    if (!validate(inputRow)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validate.errors)}`);
+    if (kind === 'geographies') {
+      const row = inputRow as unknown as Geography;
+      if (row.level !== (row.id.length === 2 ? 'state' : 'county') || !row.name.trim()) throw new Error('geographies: invalid level or empty name');
     }
     if (kind === 'rt') {
+      const row = inputRow as unknown as RtEstimate;
       const bounds = [row.mean, row.lower, row.upper];
       if (row.status === 'insufficient_data' ? bounds.some((x) => x != null) :
-        bounds.some((x) => typeof x !== 'number' || !Number.isFinite(x)) || row.lower > row.upper) {
+        bounds.some((x) => typeof x !== 'number' || !Number.isFinite(x)) || row.lower! > row.upper!) {
         throw new Error('rt: status and bounds disagree');
       }
     }
     if (kind === 'coverage') {
+      const row = inputRow as unknown as KindergartenMmrCoverage;
       const start = Number(row.school_year.slice(0, 4));
       if (start < 1900 || start > 2199 || row.school_year.slice(5) !== String((start + 1) % 100).padStart(2, '0')) {
         throw new Error('coverage: invalid school year');
@@ -61,7 +68,8 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
         throw new Error('coverage: inconsistent imputation metadata');
       }
     }
-    const key = kind === 'geographies' ? row.id : `${row.geography}:${kind === 'coverage' ? row.school_year : `${row.week.year}:${row.week.week}`}`;
+    const weekly = inputRow as unknown as WeeklyCaseCount;
+    const key = kind === 'geographies' ? (inputRow as unknown as Geography).id : `${weekly.geography}:${kind === 'coverage' ? (inputRow as unknown as KindergartenMmrCoverage).school_year : `${weekly.week.year}:${weekly.week.week}`}`;
     if (keys.has(key)) throw new Error(`${kind}: duplicate row ${key}`);
     keys.add(key);
   }
@@ -102,6 +110,9 @@ export async function loadDataset(base: string, synthetic = false, read: typeof 
     states: parseBoundaries(states, 'state'), counties: parseBoundaries(counties, 'county'), synthetic,
   };
   const ids = new Set(result.geographies.map((g) => g.id));
+  for (const feature of [...result.states.features, ...result.counties.features]) {
+    if (!ids.has(feature.properties.GEOID)) throw new Error(`Boundary has unknown geography ${feature.properties.GEOID}`);
+  }
   for (const row of [...result.cases, ...result.coverage, ...result.rt]) {
     if (!ids.has(row.geography)) throw new Error(`Unknown geography ${row.geography}`);
   }
@@ -123,7 +134,7 @@ export function metricValue(data: Dataset, id: string, metric: Metric): Value {
   const year = metric === 'cases-2025' ? 2025 : 2026;
   const rows = data.cases.filter((r) => r.geography === id && r.week.year === year).sort(compareWeeks);
   // An incomplete series is never silently converted into an annual total.
-  if (!rows.length || rows.some((r) => r.confirmed.status === 'missing')) return { value: null, label: 'No data', detail: 'Missing or incomplete weekly reports' };
+  if (!rows.length || rows.some((r) => r.confirmed.status === 'missing') || rows.at(-1)!.week.week - rows[0].week.week + 1 !== rows.length) return { value: null, label: 'No data', detail: 'Missing or incomplete weekly reports' };
   const total = rows.reduce((sum, r) => sum + (r.confirmed.status === 'reported' ? r.confirmed.count : 0), 0);
   return { value: total, label: total.toLocaleString('en-US'),
     detail: `Reported weeks ${rows[0].week.week}–${rows.at(-1)!.week.week}, MMWR ${year} (${rows.length} weeks); not a full-year total` };

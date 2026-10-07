@@ -20,13 +20,13 @@ determinism:
 	@echo "make determinism: not implemented yet" >&2; exit 1
 
 web-test:
-	@echo "make web-test: not implemented yet" >&2; exit 1
+	cd web && npm test
 
 pipeline:
 	@echo "make pipeline: not implemented yet" >&2; exit 1
 
 serve:
-	@echo "make serve: not implemented yet" >&2; exit 1
+	cd web && npm run build && npm run preview
 
 publish:
 	@echo "make publish: not implemented yet" >&2; exit 1
