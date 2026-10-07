@@ -108,10 +108,14 @@ test('failure RPC has no token in params; RPC refusal and no-token runs persist 
 });
 
 test('full refresh in temporary clone: green, QA red and path-guard red; no live commands or real origin', async () => {
-  for (const scenario of ['green', 'qa-red', 'path-red']) {
+  for (const scenario of ['green', 'publish-green', 'qa-red', 'path-red']) {
     const context = await repository();
     const effects = [];
     const run = async (program, args, cwd, env) => {
+      if (program.endsWith('/tools/offline-test.sh')) {
+        assert.deepEqual(args, ['make', 'publish']);
+        program = 'make'; args = ['publish'];
+      }
       if (program === 'make') {
         effects.push({ args, dry: env.PUBLISH_DRY_RUN, cwd });
         assert.equal(args[0], 'publish');
@@ -123,7 +127,7 @@ test('full refresh in temporary clone: green, QA red and path-guard red; no live
     };
     let observedWork;
     try {
-      const options = { ...context, run, dryRun: true, build: fakeBuild,
+      const options = { ...context, run, dryRun: scenario !== 'publish-green', build: fakeBuild,
         scan: async (...args) => { try { return await scanHistory(...args); } catch (error) { console.log(error.message); throw error; } },
         ingest: async (args) => {
           observedWork = args.work;
@@ -135,15 +139,20 @@ test('full refresh in temporary clone: green, QA red and path-guard red; no live
           if (scenario === 'qa-red') throw new Error('QA failure');
         },
       };
-      if (scenario === 'green') {
+      if (['green', 'publish-green'].includes(scenario)) {
         const result = await refresh(options);
         assert.equal(result.receipt.scans.personal_matches, 0);
         assert.equal(result.receipt.scans.secret_matches, 0);
         assert.equal(git(result.work, 'status', '--porcelain'), '');
         const paths = git(result.work, 'diff', '--name-only', context.base, result.sha).split('\n');
         assert.ok(paths.every((path) => path.startsWith('data/release/')));
-        assert.equal(effects.length, 1);
+        assert.equal(effects.length, scenario === 'publish-green' ? 2 : 1);
         assert.equal(effects[0].dry, '1');
+        if (scenario === 'publish-green') {
+          assert.equal(effects[1].dry, '0');
+          assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), result.sha);
+          assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), result.sha);
+        }
       } else {
         await assert.rejects(refresh(options), scenario === 'qa-red' ? /failed at qa/ : /failed at integrity/);
         assert.equal(effects.length, 0);
@@ -151,10 +160,12 @@ test('full refresh in temporary clone: green, QA red and path-guard red; no live
         assert.equal(failures.length, 1);
       }
       assert.ok(observedWork.startsWith(context.state));
-      assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), context.base);
-      assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), context.base);
+      if (scenario !== 'publish-green') {
+        assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), context.base);
+        assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), context.base);
+      }
       assert.equal(git(context.origin, 'for-each-ref', '--format=%(refname)').split('\n').length, 2);
-      console.log(`Offline refresh scenario ${scenario}: expected decision, remote refs unchanged`);
+      console.log(`Offline refresh scenario ${scenario}: expected decision and local remote refs verified`);
     } finally { await rm(context.root, { recursive: true, force: true }); }
   }
 });

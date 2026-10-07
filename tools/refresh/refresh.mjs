@@ -137,7 +137,7 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     phase = 'publish-dry-run';
     const preview = join(state, runId, 'preview.git');
     await execute('git', ['init', '--bare', preview], state);
-    await execute('make', ['publish'], work, { ...runtime, PUBLISH_REMOTE: preview, PUBLISH_DRY_RUN: '1' });
+    await execute(join(work, 'tools/offline-test.sh'), ['make', 'publish'], work, { ...runtime, PUBLISH_REMOTE: preview, PUBLISH_DRY_RUN: '1' });
     if (await execute('git', ['for-each-ref', '--format=%(refname)'], preview)) throw new Error('Publish dry-run changed refs');
     phase = 'rolling-race';
     await git(['fetch', 'origin']);

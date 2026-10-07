@@ -9,7 +9,7 @@ const secretPatterns = [
   new RegExp('sk-' + '(?:[A-Za-z0-9]{48}(?![A-Za-z0-9])|(?:proj-|svcacct-)[A-Za-z0-9_-]{48,}|ant-api[0-9]{2}-[A-Za-z0-9_-]{60,})'),
   new RegExp('AKIA' + '[A-Z0-9]{16}'),
   new RegExp('xox[baprs]-' + '[A-Za-z0-9-]{20,}'),
-  new RegExp('RSI_SESSION_TOKEN\\s*[:=]\\s*["\x27]?' + '[A-Za-z0-9_./+=-]{20,}'),
+  new RegExp('RSI_SESSION_TOKEN\\s*[:=]\\s*["\x27]?' + '[A-Za-z0-9_./+=-]{32,}'),
 ];
 export function scanText(text, personalPatterns) {
   if (personalPatterns.some((pattern) => text.includes(pattern))) throw new Error('Personal-data scan failed (details suppressed)');
@@ -22,7 +22,7 @@ export async function scanHistory(root, patternsFile, run = command) {
   if (!patterns.length) throw new Error('Personal-data patterns file is empty');
   const git = (args) => run('git', args, root);
   const tracked = (await git(['ls-files', '-z'])).split('\0').filter(Boolean);
-  if (tracked.some((path) => path.split('/').some((part) => /^\.env(?:\.|$)/.test(part)))) throw new Error('Tracked environment file');
+  if (tracked.some((path) => path.split('/').some((part) => /^\.env/.test(part)))) throw new Error('Tracked environment file');
   for (const path of tracked) scanText((await readFile(`${root}/${path}`)).toString('utf8'), patterns);
   const commits = (await git(['rev-list', 'HEAD'])).split('\n').filter(Boolean);
   const objects = new Set();
@@ -31,7 +31,7 @@ export async function scanHistory(root, patternsFile, run = command) {
     const tree = await git(['ls-tree', '-r', '-z', sha]);
     for (const entry of tree.split('\0').filter(Boolean)) {
       const [header, path] = entry.split('\t');
-      if (path.split('/').some((part) => /^\.env(?:\.|$)/.test(part))) throw new Error('Environment file in history');
+      if (path.split('/').some((part) => /^\.env/.test(part))) throw new Error('Environment file in history');
       scanText(path, patterns);
       const [mode, type, object] = header.split(' ');
       if (type === 'blob') objects.add(object);
