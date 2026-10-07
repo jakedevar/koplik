@@ -1,5 +1,5 @@
 {
-  "contract_version": 6,
+  "contract_version": 7,
   "artifact": "weekly-cases",
   "statement": "SYNTHETIC FIXTURE. Invented projections for development; nothing here is a model run on observed counts.",
   "method": "SYNTHETIC FIXTURE: no method was run.",
