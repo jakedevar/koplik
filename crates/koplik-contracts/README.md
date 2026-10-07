@@ -55,7 +55,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5
 git add crates/koplik-contracts/schema
 ```
 

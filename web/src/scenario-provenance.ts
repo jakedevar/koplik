@@ -25,7 +25,7 @@ export function parseScenarioProvenance(raw: string, scenario: Scenario): Scenar
   if (!validate(value)) return fail(ajv.errorsText(validate.errors));
   const provenance = value as unknown as ScenarioProvenance;
   if (provenance.contract_version !== 4) fail('contract_version must be 4');
-  for (const [name, text] of [['statement', provenance.statement], ['neighbourhood_note', provenance.neighbourhood_note], ['seeding.assumption', provenance.seeding.assumption], ['seeding.start_week_basis', provenance.seeding.start_week_basis], ['seeding.limitation', provenance.seeding.limitation]] as const) {
+  for (const [name, text] of [['scenario', provenance.scenario], ['statement', provenance.statement], ['neighbourhood_note', provenance.neighbourhood_note], ['seeding.assumption', provenance.seeding.assumption], ['seeding.start_week_basis', provenance.seeding.start_week_basis], ['seeding.limitation', provenance.seeding.limitation]] as const) {
     if (blank(text)) fail(`${name} must not be empty`);
   }
   if (provenance.seed !== scenario.seed) fail('seed does not match the scenario');

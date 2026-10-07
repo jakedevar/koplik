@@ -38,7 +38,7 @@ Normal ingestion uses `fetch cdc-coverage` and `fetch texas-coverage --year 2023
 Offline fixture-seeded store and CLI parsing, including gaps reports, are exercised by:
 
 ```bash
-~/.rsi/bin/cargo-slot cargo test -p koplik-ingest --test coverage_parser --offline
+tools/cargo-test.sh -p koplik-ingest --test coverage_parser
 ```
 
 Gaps reports under `data/reports/coverage/` are derived v1 rows, not raw fixtures. That test

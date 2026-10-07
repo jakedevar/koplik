@@ -433,6 +433,7 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
     let dir = tempfile::tempdir().unwrap();
     let full = fixture_config(dir.path());
     run_all(&full);
+    let populated = tree(&full.out);
     assert!(full.work.join("validate/us-states.json").is_file());
     assert!(full.work.join("validate/dshs-vintages.json").is_file());
     // Same work and out trees, but a store with no snapshots at all.
@@ -499,11 +500,10 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
     }
     assert_hashes_match(&empty.out, &build.outputs);
     // And the other way round: the sources come back, so do the artifacts, byte-identical.
-    let before = tree(&full.out);
     for stage in [Stage::Validate, Stage::Infer, Stage::Build] {
         run_stage(stage, &full).unwrap();
     }
-    assert_ne!(before, tree(&full.out));
+    assert_eq!(populated, tree(&full.out));
     let again = run_all(&full);
     assert_eq!(
         again[&Stage::Build].outputs,

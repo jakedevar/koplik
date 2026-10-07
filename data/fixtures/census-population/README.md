@@ -22,11 +22,13 @@ records, never lossy substitution. The ZIP members are exactly
 Population is `POPESTIMATE2025` (July 1, 2025). See SOURCES.md for scope, gaps and the
 2026-10-07 `census-access` decision approving this finite public-domain named-file capture.
 
-To re-fetch, preserving pins and using the ruled contact:
+Historical capture command (2026-10-07; it used the contact shown):
 
 ```bash
 KOPLIK_CONTACT=https://github.com/jakedevar ~/.rsi/bin/cargo-slot cargo run -p koplik-ingest -- fetch census-population
 ```
+
+Future captures use the current contact configuration described in `crates/koplik-ingest/README.md`.
 
 Matching cached pins skip every request and preserve the original receipt. Different bytes
 raise a pin mismatch and are not accepted automatically. Pin discovery used the same
