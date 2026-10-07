@@ -1,5 +1,5 @@
 //! No I/O, ambient entropy or engine changes: v1 scenario JSON in, v2 result JSON out.
-use koplik_contracts::{CONTRACT_VERSION, v1::ScenarioInput, v2::*};
+use koplik_contracts::{v1::ScenarioInput, v2::*};
 use koplik_epi::{Band, Trajectory, simulate_ensemble, simulate_member};
 use wasm_bindgen::prelude::*;
 
@@ -27,7 +27,7 @@ pub fn trajectory_json(input_json: &str, member: u32) -> Result<String, String> 
     let input: ScenarioInput = serde_json::from_str(input_json).map_err(|e| e.to_string())?;
     let output = simulate_member(&input, member).map_err(|e| e.to_string())?;
     let result = TrajectoryResult {
-        contract_version: CONTRACT_VERSION,
+        contract_version: SIMULATION_CONTRACT_VERSION,
         scenario_json: input_json.to_owned(),
         seed: input.seed.to_string(),
         parameters: input.parameters,
@@ -58,7 +58,7 @@ pub fn ensemble_json(input_json: &str) -> Result<String, String> {
     let input: ScenarioInput = serde_json::from_str(input_json).map_err(|e| e.to_string())?;
     let output = simulate_ensemble(&input).map_err(|e| e.to_string())?;
     let result = EnsembleResult {
-        contract_version: CONTRACT_VERSION,
+        contract_version: SIMULATION_CONTRACT_VERSION,
         scenario_json: input_json.to_owned(),
         seed: input.seed.to_string(),
         parameters: input.parameters,

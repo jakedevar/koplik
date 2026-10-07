@@ -4,6 +4,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const VERSION: &str = "v2";
+/// Stable output tag; adding a newer contract must not retag v2 results.
+pub const SIMULATION_CONTRACT_VERSION: u32 = 2;
 
 /// Equal-tail predictive bands, Hyndman-Fan type 7; not median confidence intervals.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, JsonSchema)]
