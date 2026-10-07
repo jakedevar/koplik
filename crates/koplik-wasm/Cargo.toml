@@ -1,0 +1,21 @@
+[package]
+name = "koplik-wasm"
+version = "0.1.0"
+description = "JSON and wasm-bindgen facade over Koplik's deterministic SEIR engine"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+koplik-contracts = { path = "../koplik-contracts" }
+koplik-epi = { path = "../koplik-epi" }
+serde_json.workspace = true
+wasm-bindgen = "0.2"
+
+[dev-dependencies]
+sha2.workspace = true
+hex.workspace = true
