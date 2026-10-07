@@ -15,16 +15,18 @@ use std::process::ExitCode;
 use std::time::Duration;
 
 use chrono::{Datelike, Utc};
-use koplik_ingest::cdc;
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
 use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
 use koplik_ingest::source::fetch_to_store;
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
+use koplik_ingest::{cdc, census_boundaries};
 
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+  koplik-ingest fetch census-boundaries [--store DIR]
+  koplik-ingest parse census-boundaries [--store DIR] --out DIR
   koplik-ingest list [--store DIR] [--source ID]";
 
 /// Largest response body accepted (the CDC measles query is about 1 MB).
@@ -127,6 +129,31 @@ fn run(args: Vec<String>) -> Result<()> {
                     Ok(())
                 }
             }
+        }
+        ("fetch", Some("census-boundaries")) => {
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+            let mut fetcher =
+                PoliteFetcher::new(client, SystemTimekeeper::new(), PoliteConfig::default());
+            for retrieval in census_boundaries::fetch(&mut fetcher, &store)? {
+                println!(
+                    "{}",
+                    serde_json::to_string(&retrieval).expect("Retrieval serialises")
+                );
+            }
+            Ok(())
+        }
+        ("parse", Some("census-boundaries")) => {
+            let out = flags
+                .take("--out")?
+                .ok_or_else(|| IngestError::Invalid("census-boundaries needs --out DIR".into()))?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            for retrieval in census_boundaries::write_latest(&store, &out)? {
+                eprintln!("converted Census snapshot {}", retrieval.sha256);
+            }
+            Ok(())
         }
         ("list", None) => {
             let src = flags.take("--source")?;
