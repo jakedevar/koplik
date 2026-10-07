@@ -1,0 +1,31 @@
+User-agent: *
+
+User-agent: RavenCrawler
+Disallow: /
+
+User-agent: MegaIndex
+Disallow: /
+
+User-agent: MegaIndex.ru/2.0
+Disallow: /
+
+User-agent: BLP_bbot/0.1
+Disallow: /
+
+User-agent: BLP_bbot
+Disallow: /
+
+User-agent: TweetmemeBot 
+Disallow: /
+
+User-agent: Applebot 
+Crawl-delay: 30 
+
+User-agent: Googlebot
+Crawl-delay: 30
+
+User-agent: Yahoo! Slurp
+Crawl-delay: 30
+
+User-agent: bingbot
+Crawl-delay: 30

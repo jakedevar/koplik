@@ -9,11 +9,14 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | source_id | Source | Exact URL (as recorded in provenance) | Licence id | Cadence | Last verified |
 | --- | --- | --- | --- | --- | --- |
 | `cdc-nndss-weekly-measles` | CDC NNDSS Weekly Data, measles rows (data.cdc.gov dataset `x9gk-5huc`) | see "CDC NNDSS query" below | `cdc-open-data-terms-unconfirmed` | Weekly (CDC republishes the weekly tables; dataset last updated 2026-09-30) | 2026-10-07 |
+| `census-cb-2024-states-20m` | US Census Bureau, 2024 cartographic state boundaries, 1:20m | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip | `us-census-public-domain` | Annual vintage; pinned to 2024 | 2026-10-07 (catalog verified; live ZIP blocked by robots) |
+| `census-cb-2024-counties-20m` | US Census Bureau, 2024 cartographic county boundaries, 1:20m; derived output filters STATEFP=48 | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_20m.zip | `us-census-public-domain` | Annual vintage; pinned to 2024 | 2026-10-07 (catalog verified; live ZIP blocked by robots) |
 
 ## Licences and terms
 
 | licence_id | Terms | Status |
 | --- | --- | --- |
+| `us-census-public-domain` | US Census Bureau geographic materials are public domain US government works. [2024 technical documentation, §1.2](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf) states Census materials may be reproduced and requests source attribution. Boundaries are statistical depictions, not legal land descriptions (§1.1). | Public domain; cite the US Census Bureau in provenance and display attribution. |
 | `cdc-open-data-terms-unconfirmed` | The dataset page and its metadata name no licence (`license: null`); the publisher is CDC's Office of Public Health Data, Surveillance, and Technology (contact `NNDSSWeb@cdc.gov`). CDC data is a US federal agency product, but nobody has confirmed the reuse terms for this dataset. The dataset's own notes say counts are provisional, subject to ongoing revision, and "presented as published each week". | **Operator decision required before publishing.** Koplik shows the figures only with their provenance and the demonstration disclaimer; confirm the terms (or ask CDC) before the site goes public. |
 
 ## CDC NNDSS weekly measles cases by state (`cdc-nndss-weekly-measles`)
@@ -68,3 +71,57 @@ number). `m1` ("current week") is not used.
 **Fixture.** `data/fixtures/cdc/nndss-measles-weekly.json` is the unmodified response retrieved
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
 (see `data/fixtures/cdc/README.md`).
+
+
+## Census cartographic boundaries (`census-cb-2024-states-20m`, `census-cb-2024-counties-20m`)
+
+**Vintage and scale.** Pin 2024 to use one published vintage preceding the 2025 outbreak,
+rather than silently follow annual geographic changes. The [Census 2024 naming guide](https://www2.census.gov/geo/tiger/GENZ2024/2024_file_name_def.pdf)
+and [primary file listing](https://www2.census.gov/geo/tiger/GENZ2024/shp/) identify the two
+national 1:20,000,000 shapefile ZIPs. Choose 1:20m for small national/state overview maps;
+it is already generalized and needs no tiles, credentials, GDAL, or a separate HTTP client.
+It is not suitable for parcel-level analysis. The raw county snapshot remains national;
+only derived GeoJSON filters `STATEFP=48`. States retain all features supplied at this scale;
+geographies absent from a source remain absent.
+
+**Deterministic display conversion.** `koplik_ingest::census_boundaries::convert` reads SHP
+and DBF in Rust, checks record counts and FIPS fields, assigns holes by containment, and
+sorts features by string `GEOID` (also their feature `id`). `NAME` is the source display name.
+Every feature carries an array of contracts v1 provenance records (hash → exact ZIP URL →
+retrieval time). The byte digest must agree with the retrieval even for direct converter calls.
+The source projection must be unprojected NAD83 degrees. This overview conversion uses NAD83
+longitude/latitude as an approximate WGS84 position, without a high-accuracy datum/grid
+transformation; do not use this output as survey coordinates.
+
+Apply Visvalingam-Whyatt simplification with a fixed triangle-area tolerance of 0.000001
+square degrees, then round longitude/latitude to four decimal places. This is a display
+policy, not a scientific parameter; [the algorithm's documentation](https://docs.rs/geo/0.33.1/geo/algorithm/simplify_vw/trait.SimplifyVwPreserve.html)
+defines the tolerance in triangle-area units. Validate geometry after both operations.
+If simplification yields invalid geometry, keep the rounded original; if rounding itself
+invalidates the source, fail explicitly. No island or hole is intentionally dropped.
+Normalize exterior rings counterclockwise and holes clockwise for RFC 7946, preserve
+source component order, emit compact JSON, and reject artifacts above 1,000,000 bytes.
+This bounds output without silently removing data. **Full-file sizes have not been measured**
+because no boundary ZIP was retrieved in this worker session.
+
+**Pipeline entry points.** `fetch(&mut polite_fetcher, &store)` stores both ZIPs with the
+existing write-once snapshot store. `write_latest(&store, output_dir)` converts both verified
+latest snapshots before writing `states.geojson` and `tx-counties.geojson`; the pipeline
+should pass `web/public/data/geo/` as the directory. For a historical build use a store
+containing the selected retrievals (conversion is deterministic for identical bytes and
+retrieval metadata; a new retrieval time correctly changes provenance).
+
+```
+~/.rsi/bin/cargo-slot cargo run -p koplik-ingest -- fetch census-boundaries
+~/.rsi/bin/cargo-slot cargo run -p koplik-ingest -- parse census-boundaries --out web/public/data/geo
+```
+
+**Current capture blocker (#1373).** On 2026-10-07 the live fetcher refused the ZIPs. The
+unmodified robots response at `data/fixtures/census/robots.txt` starts with an empty
+`User-agent: *` followed by `User-agent: RavenCrawler` and `Disallow: /`. Under
+[RFC 9309 §2.1–2.2](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.2), consecutive
+user-agent lines share rules and intervening blank lines do not separate groups. Thus the
+wildcard disallows the download. No transport override, crawler impersonation, or fabricated
+boundary fixture is supplied. Real boundary fixture tests and full-file byte measurements
+remain required once permitted primary source bytes are available; the diagnostic robots
+fixture is **not** a substitute for that acceptance criterion.

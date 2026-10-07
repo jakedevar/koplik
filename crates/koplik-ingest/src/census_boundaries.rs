@@ -307,3 +307,114 @@ pub fn write_latest(store: &SnapshotStore, output_dir: impl AsRef<Path>) -> Resu
     }
     Ok(retrieved)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shapefile::{Point, PolygonRing};
+
+    use crate::polite::PoliteConfig;
+    use crate::polite::fakes::{FakeClient, FakeTime};
+    const ROBOTS: &[u8] = include_bytes!("../../../data/fixtures/census/robots.txt");
+
+    #[test]
+    fn real_census_robots_policy_blocks_fetch_before_any_zip_or_snapshot() {
+        let client = FakeClient::default();
+        client.on("https://www2.census.gov/robots.txt", FakeClient::ok(ROBOTS));
+        let mut fetcher =
+            PoliteFetcher::new(client.clone(), FakeTime::default(), PoliteConfig::default());
+        let temp = tempfile::tempdir().unwrap();
+        let store = SnapshotStore::open(temp.path()).unwrap();
+        assert!(matches!(
+            fetch(&mut fetcher, &store),
+            Err(IngestError::RobotsDisallowed { .. })
+        ));
+        assert_eq!(client.calls.borrow().len(), 1);
+        assert_eq!(
+            client.calls.borrow()[0].0,
+            "https://www2.census.gov/robots.txt"
+        );
+        assert!(store.retrievals(None).unwrap().is_empty());
+    }
+
+    // Mathematical geometries for algorithm invariants, not Census observations or fixtures.
+    fn rectangle(x: f64, y: f64, width: f64) -> Vec<Point> {
+        vec![
+            Point::new(x, y),
+            Point::new(x + width, y),
+            Point::new(x + width, y + width),
+            Point::new(x, y + width),
+            Point::new(x, y),
+        ]
+    }
+
+    #[test]
+    fn holes_are_associated_by_containment_even_when_rings_are_not_grouped() {
+        let source = shapefile::Polygon::with_rings(vec![
+            PolygonRing::Inner(rectangle(1.0, 1.0, 1.0)),
+            PolygonRing::Outer(rectangle(10.0, 10.0, 4.0)),
+            PolygonRing::Outer(rectangle(0.0, 0.0, 4.0)),
+        ]);
+        let geometry = polygons(source).unwrap();
+        assert_eq!(geometry.0.len(), 2);
+        assert_eq!(geometry.0[0].interiors().len(), 0);
+        assert_eq!(geometry.0[1].interiors().len(), 1);
+        let bytes = serde_json::to_vec(&geometry_json(geometry.clone()).unwrap()).unwrap();
+        assert_eq!(
+            bytes,
+            serde_json::to_vec(&geometry_json(geometry).unwrap()).unwrap()
+        );
+        let value: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(value["coordinates"][1].as_array().unwrap().len(), 2);
+        for polygon in value["coordinates"].as_array().unwrap() {
+            for (i, ring) in polygon.as_array().unwrap().iter().enumerate() {
+                let points = ring.as_array().unwrap();
+                assert_eq!(points.first(), points.last());
+                let signed: f64 = points
+                    .windows(2)
+                    .map(|p| {
+                        p[0][0].as_f64().unwrap() * p[1][1].as_f64().unwrap()
+                            - p[1][0].as_f64().unwrap() * p[0][1].as_f64().unwrap()
+                    })
+                    .sum();
+                assert_eq!(signed > 0.0, i == 0);
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_orphaned_holes_and_out_of_range_coordinates() {
+        let orphan = shapefile::Polygon::new(PolygonRing::Inner(rectangle(0.0, 0.0, 1.0)));
+        assert!(polygons(orphan).is_err());
+        let invalid = shapefile::Polygon::new(PolygonRing::Outer(rectangle(180.0, 0.0, 1.0)));
+        assert!(polygons(invalid).is_err());
+    }
+
+    #[test]
+    fn deterministic_rounding_and_simplification_preserve_closed_rings() {
+        let source = Polygon::new(
+            LineString::from(vec![
+                (0.123456, 0.123456),
+                (0.623456, 0.123456),
+                (1.123456, 0.123456),
+                (1.123456, 1.123456),
+                (0.123456, 1.123456),
+                (0.123456, 0.123456),
+            ]),
+            vec![],
+        );
+        let value = geometry_json(MultiPolygon(vec![source])).unwrap();
+        let ring = value["coordinates"][0][0].as_array().unwrap();
+        assert_eq!(ring.len(), 5);
+        assert_eq!(ring.first(), ring.last());
+        assert_eq!(ring[0], json!([0.1235, 0.1235]));
+        for point in ring {
+            for coordinate in point.as_array().unwrap() {
+                let number = coordinate.as_f64().unwrap();
+                assert!(
+                    (number * COORDINATE_SCALE - (number * COORDINATE_SCALE).round()).abs() < 1e-8
+                );
+            }
+        }
+    }
+}

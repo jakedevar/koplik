@@ -3,12 +3,15 @@
 //! ```text
 //! koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
 //! koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+//! koplik-ingest fetch census-boundaries [--store DIR]
+//! koplik-ingest parse census-boundaries [--store DIR] --out DIR
 //! koplik-ingest list [--store DIR] [--source ID]
 //! ```
 //!
 //! `fetch` is the only command that uses the network. `parse` is offline: it reads the latest
 //! stored CDC snapshot (re-verifying its SHA-256) and writes contracts v1 weekly-case rows as
-//! JSON (stdout, or `--out`). Set `KOPLIK_CONTACT` to a repository URL or contact address to
+//! JSON (stdout, or `--out`). Census parsing writes both GeoJSON files to `--out DIR`.
+//! Set `KOPLIK_CONTACT` to a repository URL or contact address to
 //! identify the client to the data hosts.
 
 use std::process::ExitCode;
