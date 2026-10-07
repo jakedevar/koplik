@@ -167,7 +167,7 @@ at day 180: 266 of 1000 runs ended with fewer than 10 infections beyond the intr
 
 Reading it, as measured and nothing more: the introduction fizzles out in 266 of the 1,000 runs
 (fewer than 10 infections beyond the introduced person). In the others it grows to the
-coverage-derived susceptible pool of about 4,800 people (about 20% of the county), which is why
+coverage-derived susceptible pool of 4,909 people (about 20% of the county; the largest run reaches 4,827), which is why
 the median at day 180 (4,604) sits near the top of the range while the 50% band's lower end stays
 at 3. The scenario starts from one assumed person, mixes the county homogeneously and treats
 kindergarten coverage as every resident's immunity; it says what this simple model does under those
