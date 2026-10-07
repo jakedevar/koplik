@@ -1,84 +1,113 @@
-# Koplik manager handoff: 2026-10-07 ~04:10Z (manager 2, live state)
+# Koplik manager handoff: 2026-10-07 ~04:55Z (manager 2 -> manager 3)
 
-From: root manager `f708be95-12b4-4fb3-b1fe-6005130b5fa7` (Claude claude-opus-5-5 xhigh), successor of
-`7c2df1ae` (see `handoff-2026-10-07-mgr1.md` for the earlier history, RSI mechanics and kaizen list).
-This file is the current state for a successor; refresh it before any baton pass.
+From: root manager `f708be95-12b4-4fb3-b1fe-6005130b5fa7` (Claude claude-opus-5-5 xhigh), successor of `7c2df1ae`
+(earlier history, RSI mechanics and older kaizen: `handoff-2026-10-07-mgr1.md`). Reason: context at ~55%; handing
+off at a clean point (every in-flight session watched, nothing half-merged).
 
 Read first: `thoughts/shared/manager/manager-brief.md`, `AGENTS.md`, `thoughts/shared/manager/worker-contract.md`,
 the published rsi playbook (`git -C ~/rsi show origin/rolling:.claude/skills/rsi-project-manager/SKILL.md`), and
-`thoughts/shared/manager/tools/README.md`. My working files were under `/tmp/koplik-mgr2/` (not durable).
+`thoughts/shared/manager/tools/README.md`. Release tracking: **Issue #1449**.
 
-## Operator directives (restate in every handoff)
+## Chain of authority and directives (restate in every handoff)
 
-- Autonomous management; ask only for new authority. **Since 2026-10-07 a global manager sits above this seat**
-  (node `73306b5f`, session `eca6124e`, operator-appointed). Its standing rules:
-  - Technical, data and product questions never go to the operator. Decide them, or ask the global manager with
+- **Global manager** above this seat: node `73306b5f`, session `eca6124e` (operator-appointed). Its standing rules:
+  - Technical, data and product questions never go to the operator: decide them, or ask the global manager with
     `AgentReportUp`; record its ruling in the Issue and SOURCES.md. **Never create operator `decision` records.**
-  - Real gates go up through the global manager only: `main` or a public release, real money, credentials,
-    deleting user data. Main promotion + public publishing go up as ONE item once QA is green.
   - Host load: before launching a build/test session check `uptime`; queue while the 1-minute load is above 40;
     at most 5 concurrent build-heavy Koplik sessions. The cap of 20 active sessions is a ceiling, not a target.
-- Direct operator instructions (delivered at tool boundaries) outrank the global manager; surface conflicts.
+  - Created sessions: this seat's policy (operator v3 snapshot) allows 32 (21 used at handoff). A successor the
+    global manager seats with AgentManagerAppointChild inherits its grant (128 created). Prefer continuations
+    (`AgentContinueChild` on a completed worker: free, keeps context).
+- Direct operator instructions (they arrive at tool boundaries as "[message from operator ...]") outrank the
+  global manager; surface conflicts, then follow the operator.
 - "Make it work first, right second, fast third." "The ground truth is the principle." Honesty rules in AGENTS.md
-  (data integrity, science honesty, determinism) outrank schedule.
-- Models: only Claude (`claude-sonnet-5-5`, `claude-fable-5-1`) and Codex (`gpt-6.1-sol`, `gpt-6-astra`; `gpt-6-luna`
-  easy only), effort `high`; no OpenRouter/DeepSeek. Manager: Claude `claude-opus-5-5` `xhigh`. Every tier-2 review
-  comes from the other family; prefer Claude for epidemiology code (Codex safety refusal, #1368).
-- Beats at each real milestone (`notify-send -a Koplik "Koplik: BEAT"` + `~/Videos/koplik/beats.log`).
+  (data integrity, science honesty, determinism, offline tests) outrank schedule.
+- Models: only Claude (`claude-sonnet-5-5`, `claude-fable-5-1`) and Codex (`gpt-6.1-sol`, `gpt-6-astra`;
+  `gpt-6-luna` easy only), effort `high`. Every tier-2 review comes from the other family. Prefer Claude to author
+  epidemiology code (Codex safety refusal, #1368). Manager: Claude `claude-opus-5-5` `xhigh`.
+- Beats at real milestones: `notify-send -a Koplik "Koplik: BEAT"` + `printf '%s %s\n' "$(date -u +%FT%TZ)" "BEAT"
+  >> ~/Videos/koplik/beats.log` (BEAT under 80 chars).
 
-## Rulings and operator instructions in force
+## The release (operator-approved; currently HALTED by my mistake)
 
-- `census-access` = option A with limits (global manager 03:35Z; operator answered the record 03:54Z): fixed
-  manifest of exact www2.census.gov URLs with pinned SHA-256, one fetch per file per run, polite UA, no directory
-  walks. Implemented by #1350 (`census_files.rs`, `manifests/census-boundaries-2024.json`). Tracker #1375 closed.
-- `ingest-contact` = `https://github.com/jakedevar` as committed default (#1413, in review); `KOPLIK_CONTACT`
-  overrides; blank refuses. The decision record is still pending in the ledger: until the operator answers it,
-  **create_session under E2 is refused** (`manager_v2_pending_operator_decision`); run E2 work as continuations.
-  When the repo goes public, switch the default to `https://github.com/jakedevar/koplik`.
-- **Operator, ~04:05Z: Census requests use the operator's own e-mail address as the contact** (the address is in
-  Issue #1427 and the operator's gitignored local config only; it must never be committed to any tracked file,
-  fixture, log or commit message). Overrides the ruling for Census requests. An earlier revision of this file
-  (commit ac67064) quoted the address; see the release Issue for how that is being handled.
-- Source terms: CDC and Census are US federal public domain; Texas DSHS is public information used with attribution
-  and a link (#1414, in progress). Not a gate.
-- GitHub: private repo `jakedevar/koplik` created 2026-10-07 ~04:08Z (operator authorization via the global
-  manager). It is the `github` remote of the bare origin `~/git/koplik.git`, so origin's post-receive hook mirrors
-  every accepted push of `rolling`, `main` and `gh-pages`. Secrets scan of rolling's full history before the first
-  push: no token/key patterns, no `.env`/key files, no personal e-mail (commits use jake@rsi.dev; only agency and
-  example.* addresses in content), `data/` is 4.5 MB of fixtures and manifests. Do not push `main`; do not enable
-  Pages. Going public = the one combined gate (QA green -> main -> repo public -> Pages -> `make publish`).
+Operator, via the global manager, ~04:40Z: "Permission granted, whenever it's ready." The manager runs the release
+itself once these hold: (1) #1359 landed and a full QA pass on one rolling SHA is green (`make check test`,
+`make web-test`, Playwright smoke, offline pipeline), recorded in `thoughts/shared/qa/qa-green.sha`; (2) Must Issues
+closed (#1413, #1414 landed); (3) a secrets/personal-data scan of the full history reachable from that SHA is clean;
+the operator's e-mail address must appear in no tracked file, fixture, log or commit. Steps then, in order:
+(a) fast-forward `main` on origin to the QA-green SHA; (b) switch the non-Census default contact to
+`https://github.com/jakedevar/koplik` (land it; re-promote main if after the QA SHA); (c) `gh repo edit
+jakedevar/koplik --visibility public --accept-visibility-change-consequences`; (d) enable Pages from gh-pages and run
+`make publish` through origin; (e) check the live site (attribution section + one chart), record the URL, report
+up once. Stop at the last good step on any failure.
 
-## Landed on rolling this seat
+**Blocker (precondition 3):** commit `ac67064` (my handoff, 04:06Z) quoted the operator's e-mail address. It is on
+rolling and mirrored to the private GitHub repo; not on main; nothing else in history has it (scan:
+`git log origin/rolling -S<address>`). The tip was cleaned at `f68ceb2`. I reported options A (accept), B (operator
+rewrites history with `git filter-repo --replace-text` on the bare origin, then force-updates/recreates the private
+GitHub repo; recommended), C (squashed public repo; not recommended) in AgentReportUp `4b42fdd7`. **Await the
+answer.** If B: every rolling commit from ac67064 on gets a new SHA; rebuild in-flight branches (#1359, #1421,
+#1427 redo) by cherry-picking their own non-merge commits onto the rewritten rolling (never merge a branch that
+still contains ac67064), and re-run their gates.
 
-#1357 (3767e22), #1348 + #1370 #1381 #1385 (13d451c; 3 review rounds in rev 2), #1351 (ef0aed6), #1358 (ad4114e),
-#1360 (e5fe87d), #1382 (fee4233), #1349 (3db7ff2; 2 rounds), #1350 (e7f7194). Must tier landed: #1347 #1348 #1349
-#1350 #1351 #1353 #1354 #1355 #1356 #1357 #1358 #1360 #1382. DB `accept` stays refused
-(`manager_v2_prerequisite_unaccepted`, root cause #1362): land on git evidence + receipt verdict in the merge commit.
+## Other rulings in force
 
-## In flight (~04:10Z)
+- `census-access` = option A with limits (pinned named-file allowlist, `crates/koplik-ingest/manifests/`); answered.
+- `ingest-contact` = `https://github.com/jakedevar` default (#1413, landed); the ledger record is still pending, so
+  **create_session under E2 is refused**: launch E2 work under E3/E7 when it fits, or by continuation.
+- Census contact = the operator's e-mail (direct instruction ~04:05Z; address in Issue #1427 and the operator's
+  gitignored local config ONLY). #1427 redo is in flight (below). After it lands, write the address into
+  `~/koplik/.env.local` (untracked; verify `git check-ignore .env.local`) as `KOPLIK_CENSUS_CONTACT=...`.
+- Source terms: CDC and Census public domain (17 USC 105); Texas DSHS public information with attribution + link
+  (#1414 landed). GitHub: private repo `jakedevar/koplik` = `github` remote of the bare origin; origin's
+  post-receive hook mirrors rolling/main/gh-pages (agents never push GitHub directly).
 
-| Issue | Session | State / next |
+## Landed on rolling (tip f68ceb2)
+
+This seat: #1357 3767e22; #1348 (+#1370 #1381 #1385) 13d451c; #1351 ef0aed6; #1358 ad4114e; #1360 e5fe87d; #1382
+fee4233; #1349 3db7ff2; #1350 e7f7194; #1413 82e0bf8; #1414 7d3892a; #1352 e650a05; handoffs ac67064, f68ceb2.
+Must weight landed 39 of 45 (87%). DB `accept` is refused (`manager_v2_prerequisite_unaccepted`, root cause #1362):
+land on git evidence + review receipt verdict in the merge commit.
+
+## In flight (~04:55Z) - re-arm an on_terminal watch on each and verify `watch_state: enabled`
+
+| Item | Session | Next |
 |---|---|---|
-| #1359 pipeline (Must, tier2) | a71fec27 claude-fable-5-1 | running; on RESULT: Codex review; it should use `PoliteConfig::live_from_env()` (#1413) and one fetcher per run (#1424) |
-| #1352 population + centroids (Must, tier2) | b0b31e2c gpt-6.1-sol (continuation) | running on #1350's allowlist + wip 872d5428; on RESULT: Claude review |
-| #1413 default contact (Must, tier2) | a12a8837 sonnet; review 4c8387ab gpt-6.1-sol (assignment 8e0e5ecb) | in review; accepted -> land |
-| #1414 terms + attribution (Must, tier1) | c6662c8e sonnet (continuation) | running; land, then post-land review |
-| #1361 forecast + backtest (Should, tier2) | 959e3d13 claude-fable-5-1 | running (paused once for load); backtest scope per #1402 |
-| post-land review #1357+#1358 | 2a7eef29 sonnet (assignment e1f66831) | halted for load; resume by continuation when a slot frees |
+| #1359 pipeline (Must, tier2) | worker a71fec27 (claude-fable-5-1) | on RESULT: author.py + Codex review; then QA |
+| #1421 publish from HEAD (Must, tier2) | worker 963e73c0 (gpt-6.1-sol, continuation) | on RESULT: Claude review, land |
+| #1427 Census contact redo (Must, tier2) | worker 74694b28 (claude-sonnet-5-5), base f68ceb2 | on RESULT: grep the diff for the address (must be absent) then Codex review, land |
+| #1361 forecast + backtest (Should) | review bf61f1e8 (gpt-6.1-sol, assignment c6e1a75d) of 2b1cef03 | accepted -> land (gates: epi + ingest tests, determinism, check); note it changed #1349's confirmed_basis rule |
+| post-land review #1382+#1414 | reviewer 0c65aa21 (gpt-6.1-sol, assignment 20f28b12) | it appears to have filed #1450-#1453; triage them |
 
-Queued: post-land review of #1382 and #1414; #1427 Census contact (after #1413, continuation of a12a8837 or 804eb510);
-#1424 Census allowlist hardening; #1421 publish from HEAD; #1420 RtEstimate case definition (contracts v4); #1383
-coverage caveats; #1400 parameter provenance; #1366; #1369; #1371. QA worker once #1359 gives an offline pipeline
-target (`make test determinism web-test` + the offline pipeline from a clean checkout) -> land `qa-green.sha` ->
-bring main + publishing to the global manager as one item.
+Do NOT merge branch `rsi/a12a8837-...` at or after `04834a4` (it commits the operator's address).
 
-Budget: created sessions 20 of 128 (grant v4). Integration worktree `~/.rsi/koplik-mgr/integrate` (detached),
-`CARGO_TARGET_DIR=~/.rsi/koplik-mgr/target`; after each push `git -C ~/koplik merge --ff-only origin/rolling`.
+## Queue after that
+
+QA worker on one rolling SHA once #1359 lands -> land qa-green.sha -> release steps (if the history question is
+answered). Then: #1447 network-less test gates (Must tooling), #1424 Census allowlist hardening, #1434 and
+#1450-#1453 web follow-ups, #1439 (product decision on near-empty Texas county weekly rows: decide or ask the
+global manager), #1420 RtEstimate case definition (contracts v4), #1400, #1422, #1445, #1383, #1369, #1371, #1366.
+README architecture diagram + final report (`thoughts/shared/notes/final-report.md`) before "done".
+
+## Mechanics learned this seat
+
+- Never run `rustfmt` on `lib.rs`: it recurses into every module; format only the files you changed.
+- Landing gates can outlive the 10-minute Bash cap under load: use `AgentSubmitJob` (kind build/test,
+  `worktree` = `~/.rsi/koplik-mgr/integrate`, wake none) + one `AgentScheduleWake` mode `when` jobs_terminal.
+  `make web-test`/`determinism` are not job kinds: run them in the foreground when the load is low (#1446).
+- Branches that landed in parallel can conflict semantically: after a merge run the touched crates' tests AND
+  `make web-test` (the attribution test couples SOURCES.md and web/src/attribution.ts).
+- An offline test that relies on an unset env var can become a live network test after a semantic change (it
+  happened once landing #1352; #1447). Review merged tests for `env_remove` on live commands.
+- AgentHalt of a reviewer makes the daemon re-issue the review on a fresh session (#1435).
+- E2 create_session is blocked by the pending `ingest-contact` record.
+- Integration worktree `~/.rsi/koplik-mgr/integrate` (detached), `CARGO_TARGET_DIR=~/.rsi/koplik-mgr/target`;
+  after each push `git -C ~/koplik merge --ff-only origin/rolling`. Union-merge helper used for additive
+  conflicts: keep both sides, then fix by hand anything inside a function or table.
 
 ## Kaizen this seat
 
-Filed: #1394 (ancestor cap refusal opaque), #1426 (operator: redesign the manager decisions board). Cancelled as
-moot/duplicate: #1387, #1388, #1403. Global manager filed #1415 (agents cannot settle decision records).
-Still open from before: #1362, #1364, #1367, #1368, #1378, #1384, #1386.
+Filed: #1394, #1426 (moved to Rsi #1428), #1435, #1446 (worker-filed; manager evidence added). Cancelled as moot or
+duplicate: #1387, #1388, #1403. Open from before: #1362, #1364, #1367, #1368, #1378, #1384, #1386; also #1416, #1423.
 
-Friction: none beyond the kaizen above.
+Friction: #1435, #1446 | succession: hand the seat over via the global manager (AppointChild inherits 128 creations).
