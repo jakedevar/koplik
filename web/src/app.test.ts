@@ -1,18 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
-import { fixtureDataset } from './fixtures.test-utils';
+import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 import { mapFeatures } from './map';
 
 // MapLibre needs a real browser/WebGL. Test the UI through its injected map adapter.
 vi.mock('maplibre-gl', () => ({ default: {} }));
 
 afterEach(() => document.body.replaceChildren());
-function mount() {
+function mount(data = fixtureDataset()) {
   const root = document.createElement('div');
   document.body.append(root);
   const map = { update: vi.fn(), destroy: vi.fn() };
   const factory = vi.fn<MapFactory>(() => map);
-  const cleanup = mountDashboard(root, fixtureDataset(), factory);
+  const cleanup = mountDashboard(root, data, factory);
   return { root, map, factory, cleanup };
 }
 function select(id: string, value: string) {
@@ -22,13 +22,23 @@ function select(id: string, value: string) {
 }
 
 describe('dashboard', () => {
+  it('shows every supplied R_t interval level in the exact report table', () => {
+    const data = fixtureDataset();
+    data.rt = pairedRtRows();
+    const { root } = mount(data);
+    const reports = [...root.querySelectorAll('tr[data-week="2025-2"] [data-interval-level]')];
+    expect(reports.map((report) => report.getAttribute('data-interval-level'))).toEqual(['0.5', '0.95']);
+    expect(reports[0].textContent).toContain('50% interval');
+    expect(reports[1].textContent).toContain('95% interval');
+    expect(reports.every((report) => report.textContent?.includes('Mean 1.2'))).toBe(true);
+  });
   it('shows synthetic labels, disclaimer, exact reports and distinctly labelled R_t quality', () => {
     const { root } = mount();
     expect(root.querySelector('.synthetic')?.textContent).toContain('SYNTHETIC TEST DATA');
     expect(root.querySelector('footer')?.textContent).toBe(disclaimer);
     expect(root.querySelector('h2')?.textContent).toBe('Texas');
     expect(root.querySelector('.headline-value')?.textContent).toBe('32');
-    expect(root.querySelector('.insufficient')?.textContent).toBe('Insufficient data');
+    expect(root.querySelector('.insufficient')?.textContent).toContain('Insufficient data');
     expect(root.querySelector('.provisional')?.textContent).toContain('Provisional');
     expect(root.querySelector('tr[data-week="2025-2"]')?.textContent).toContain('Mean 1.2; 90% interval 0.7–1.8');
     expect(root.querySelector('label[for="geography"]')?.textContent).toContain('keyboard accessible');

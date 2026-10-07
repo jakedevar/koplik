@@ -1,7 +1,7 @@
 [package]
 name = "koplik-epi"
 version = "0.1.0"
-description = "Pure, seeded epidemic models for Koplik"
+description = "Koplik epidemic engine and inference: SEIR, R_t, nowcast, backtest scoring. Pure: no I/O."
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -17,6 +17,7 @@ rand_chacha = { version = "0.9", default-features = false }
 rand_core = { version = "0.9", default-features = false }
 
 [dev-dependencies]
+serde.workspace = true
 serde_json.workspace = true
 
 [[bench]]

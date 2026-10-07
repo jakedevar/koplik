@@ -321,6 +321,9 @@ fn fingerprint_has_specified_byte_order_and_includes_initial_state() {
 /// Golden fingerprint of the synthetic fixture's member 0. Any change to the
 /// seeded path (RNG mapping, sampler, step order, seed derivation) changes this
 /// value and must be deliberate; the same value must appear on wasm32.
+/// Re-derived after the BTPE step 5.3 correction (#1379): member 0 is
+/// unchanged (none of its draws reached a step 5.3 decision that the corrected
+/// bound flips); 14 of the 1,000 fixture members changed, member 28 among them.
 #[test]
 fn fixture_member_zero_fingerprint_is_stable() {
     let member = simulate_member(&fixture(), 0).unwrap();
@@ -329,6 +332,36 @@ fn fixture_member_zero_fingerprint_is_stable() {
         "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb"
     );
     assert_eq!(member.steps.len(), 181);
+}
+
+/// Member 28 reaches BTPE step 5.3 on a knife-edge draw (I->R on day 77 of
+/// county 48165): the misprinted bound gave
+/// a455053b96fc8e742c101eae54eae95472f6775cda1514fa9cf8e02197b3893f; the
+/// corrected bound (#1379) gives this value.
+#[test]
+fn fixture_member_28_fingerprint_exercises_btpe_step_53() {
+    assert_eq!(
+        simulate_member(&fixture(), 28).unwrap().fingerprint,
+        "54c2d51994528d77185a9003d90a352ceb71b14e7ac875911a0a29a5cfabae52"
+    );
+}
+
+/// Golden digest of the whole fixture ensemble: SHA-256 over the 1,000 member
+/// fingerprint hex strings in member order (the benchmark prints the same
+/// value). Pins the entire seeded stream, not only member 0. Before #1379 it was
+/// 9b5b56e652286c96f965148d9a7766c1b7ccb16d5e7aad79c6683d69b1608b7b.
+#[test]
+fn fixture_ensemble_digest_is_stable() {
+    let output = simulate_ensemble(&fixture()).unwrap();
+    assert_eq!(output.members.len(), 1000);
+    let mut digest = Sha256::new();
+    for member in &output.members {
+        digest.update(member.fingerprint.as_bytes());
+    }
+    assert_eq!(
+        hex::encode(digest.finalize()),
+        "8cd5953a62e7d5947885a1375793c3aca1837239a550ad26d9a79da7bb3dc446"
+    );
 }
 
 #[test]
