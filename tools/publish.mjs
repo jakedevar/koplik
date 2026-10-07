@@ -16,9 +16,9 @@ function run(command, args, cwd, options = {}) {
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${result.stdout}${result.stderr}`);
+    throw new Error(`${command} ${args.join(' ')} failed (${result.status})\n${result.stdout || ''}${result.stderr || ''}`);
   }
-  return result.stdout.trim();
+  return (result.stdout || '').trim();
 }
 
 const root = run('git', ['rev-parse', '--show-toplevel'], process.cwd());
