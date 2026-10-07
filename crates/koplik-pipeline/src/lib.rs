@@ -11,6 +11,7 @@
 //!                                                                 <work>/scenarios/gaines-2025{,.provenance}.json
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
 //! forecast  <work>/validate/weekly-cases.json                  -> <work>/forecast/forecast{,.provenance}.json
+//!                                                                 <work>/forecast/withheld.json (audit only, never published)
 //!           + the committed backtest reports in <reports>         <work>/forecast/backtest-{west-texas-2025,cdc-states}.json
 //! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v6/*.json, <out>/scenarios/*.json,
 //!                                                                 <out>/forecasts/*.json, <out>/manifest.json
@@ -1335,6 +1336,9 @@ fn infer(config: &Config) -> Result<Manifest> {
 
 /// Work-directory paths of the forecast stage's outputs.
 const FORECAST_ROWS_REL: &str = "forecast/forecast.json";
+/// The forecasts the publication policy withheld, kept for audit in the work directory. `build`
+/// never copies it: a withheld forecast is never published.
+const FORECAST_WITHHELD_REL: &str = "forecast/withheld.json";
 const FORECAST_PROVENANCE_REL: &str = "forecast/forecast.provenance.json";
 const FORECAST_BACKTEST_REL: &str = "forecast/backtest-west-texas-2025.json";
 const FORECAST_SERIES_BACKTEST_REL: &str = "forecast/backtest-cdc-states.json";
@@ -1436,18 +1440,30 @@ fn forecast(config: &Config) -> Result<Manifest> {
                 .iter()
                 .filter(|s| s.status == v7::ForecastStatus::InsufficientData)
                 .count();
+            let withheld = p
+                .series
+                .iter()
+                .filter(|s| s.status == v7::ForecastStatus::Withheld)
+                .count();
             m.notes.push(format!(
-                "origin MMWR {} (latest week with data {}); seed {}; {} series forecast, {} insufficient data; the pre-registered method and defaults of koplik_epi::forecast, unchanged",
+                "origin MMWR {} (latest week with data {}); seed {}; {} series published, {} withheld by the publication policy, {} insufficient data; the pre-registered method and defaults of koplik_epi::forecast, unchanged",
                 p.origin_week,
                 p.latest_data_week,
                 p.seed,
-                p.series.len() - insufficient,
+                p.series.len() - insufficient - withheld,
+                withheld,
                 insufficient
             ));
             m.outputs.push(write_file(
                 &config.work,
                 FORECAST_ROWS_REL,
                 &json_bytes(&built.rows),
+            )?);
+            // The withheld forecasts stay in the work directory for audit; `build` never reads or copies them.
+            m.outputs.push(write_file(
+                &config.work,
+                FORECAST_WITHHELD_REL,
+                &json_bytes(&built.withheld_rows),
             )?);
             m.outputs.push(write_file(
                 &config.work,
