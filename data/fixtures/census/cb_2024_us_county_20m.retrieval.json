@@ -1,0 +1,10 @@
+{
+  "source_id": "census-cb-2024-counties-20m",
+  "url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_20m.zip",
+  "retrieved_at": "2026-10-07T03:45:27Z",
+  "sha256": "c9a54fd95422436b8822e0b070a45a9bc3de08eb13f943cdba66e7a9c2a135ff",
+  "licence_id": "us-census-public-domain",
+  "http_status": 200,
+  "content_type": "application/zip",
+  "bytes": 900230
+}

@@ -1,8 +1,12 @@
 //! Polite fetching: identifying User-Agent, robots.txt honoured, at least one second between
 //! requests to one host (more if robots.txt asks), bounded retries with exponential backoff,
+//! with the explicit pinned Census named-file exception in `fetch_census_file`,
 //! manual redirect following (each hop re-checked), and no credentials of any kind.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
+
+use crate::census_files::NamedFileAllowlist;
+use crate::store::sha256_of;
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
@@ -151,6 +155,8 @@ pub struct PoliteFetcher<C: HttpClient, T: Timekeeper> {
     last_request: HashMap<String, Duration>,
     /// robots.txt rules per origin (`scheme://authority`); throttling is per host.
     robots: HashMap<String, Robots>,
+    /// Attempts, including failures, for this pipeline-run fetcher. Never retry named files.
+    census_attempted: BTreeSet<String>,
 }
 
 /// A parsed http(s) URL without credentials.
@@ -207,7 +213,59 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             cfg,
             last_request: HashMap::new(),
             robots: HashMap::new(),
+            census_attempted: BTreeSet::new(),
         }
+    }
+
+    /// Operator-approved `census-access` exception, 2026-10-07 (option A with limits).
+    /// www2.census.gov's empty wildcard agent group inherits RavenCrawler's Disallow: /
+    /// under RFC 9309. The decision permits fixed, named public-domain file downloads,
+    /// not crawling. Exact validated manifest pins alone bypass robots; every other URL
+    /// still uses `fetch`. Preserve pacing/identity, make only one attempt per URL per
+    /// fetcher/run, follow no redirects, and reject changed bytes before storing them.
+    pub fn fetch_census_file(
+        &mut self,
+        url: &str,
+        manifest: &NamedFileAllowlist,
+    ) -> Result<Fetched> {
+        let Some(pin) = manifest.pin(url) else {
+            return self.fetch(url);
+        };
+        let target = split_url(url)?;
+        if target.host != "www2.census.gov" || target.scheme != "https" {
+            return Err(IngestError::Invalid(format!(
+                "not an approved Census host: {url}"
+            )));
+        }
+        if !self.census_attempted.insert(url.to_owned()) {
+            return Err(IngestError::NamedFileAlreadyRequested(url.to_owned()));
+        }
+        let interval = self.host_interval(&target.host)?;
+        self.throttle(&target.host, interval);
+        // No request() retry loop and no redirect following: at most one GET per file/run.
+        let response = self.client.get(url, &self.cfg.user_agent)?;
+        if !(200..=299).contains(&response.status) {
+            return Err(IngestError::BadStatus {
+                status: response.status,
+                url: url.to_owned(),
+            });
+        }
+        let actual = sha256_of(&response.body);
+        if actual != *pin {
+            return Err(IngestError::PinMismatch {
+                url: url.to_owned(),
+                expected: pin.to_string(),
+                actual: actual.to_string(),
+            });
+        }
+        Ok(Fetched {
+            url: url.to_owned(),
+            final_url: url.to_owned(),
+            status: response.status,
+            content_type: response.content_type,
+            body: response.body,
+            retrieved_at: self.time.utc_now(),
+        })
     }
 
     pub fn user_agent(&self) -> &str {

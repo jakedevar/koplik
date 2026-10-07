@@ -1,0 +1,10 @@
+{
+  "source_id": "census-robots-diagnostic",
+  "url": "https://www2.census.gov/robots.txt",
+  "retrieved_at": "2026-10-07T02:30:41Z",
+  "sha256": "d85e1ad2100fdc145e5b2c35553488738d62d57fb9da34c5322f8d63757195a1",
+  "licence_id": "us-census-public-domain",
+  "http_status": 200,
+  "content_type": "text/plain",
+  "bytes": 398
+}

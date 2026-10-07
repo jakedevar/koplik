@@ -1,0 +1,10 @@
+{
+  "source_id": "census-cb-2024-states-20m",
+  "url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip",
+  "retrieved_at": "2026-10-07T03:45:26Z",
+  "sha256": "7bc773d83c01b6df69b8aada9c2b5983d97f22f4551947cc5c00b87c663223ef",
+  "licence_id": "us-census-public-domain",
+  "http_status": 200,
+  "content_type": "application/zip",
+  "bytes": 187671
+}

@@ -3,6 +3,8 @@
 //! ```text
 //! koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
 //! koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+//! koplik-ingest fetch census-boundaries [--store DIR]
+//! koplik-ingest parse census-boundaries [--store DIR] --out DIR
 //! koplik-ingest list [--store DIR] [--source ID]
 //! ```
 //!
@@ -11,13 +13,14 @@
 //! sent in the User-Agent; nothing is ever invented. `parse` and `list` are offline and need no
 //! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
 //! contracts v3 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
-//! as JSON (stdout, or `--out`).
+//! as JSON (stdout, or `--out`). Census parsing writes both GeoJSON files to `--out DIR`.
 
 use std::process::ExitCode;
 use std::time::Duration;
 
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
+use koplik_ingest::census_boundaries;
 use koplik_ingest::census_counties;
 use koplik_ingest::coverage;
 use koplik_ingest::dshs_series;
@@ -31,6 +34,8 @@ use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+  koplik-ingest fetch census-boundaries [--store DIR]
+  koplik-ingest parse census-boundaries [--store DIR] --out DIR
   koplik-ingest fetch census-counties [--store DIR] [--direct 1]
   koplik-ingest fetch dshs-live [--store DIR]
   koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD] [--interval-secs N]
@@ -365,6 +370,31 @@ fn run(args: Vec<String>) -> Result<()> {
                 built.series.unmapped.len(),
                 built.failures.len()
             );
+            Ok(())
+        }
+        ("fetch", Some("census-boundaries")) => {
+            flags.done()?;
+            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+            let mut fetcher = PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
+            for retrieval in census_boundaries::fetch(&mut fetcher, &store)? {
+                println!(
+                    "{}",
+                    serde_json::to_string(&retrieval).expect("Retrieval serialises")
+                );
+            }
+            Ok(())
+        }
+        ("parse", Some("census-boundaries")) => {
+            let out = flags
+                .take("--out")?
+                .ok_or_else(|| IngestError::Invalid("census-boundaries needs --out DIR".into()))?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            for retrieval in census_boundaries::write_latest(&store, &out)? {
+                eprintln!("converted Census snapshot {}", retrieval.sha256);
+            }
             Ok(())
         }
         ("list", None) => {
