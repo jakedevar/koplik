@@ -1,3 +1,4 @@
+import { expandRowArtifact } from './row-artifact';
 import forecastSchema from '../../crates/koplik-contracts/schema/v1/Forecast.schema.json';
 import provenanceSchema from '../../crates/koplik-contracts/schema/v5/ForecastProvenance.schema.json';
 import type { Forecast } from './generated/Forecast';
@@ -64,6 +65,7 @@ export function mismatch(rows: Forecast[], provenance: ForecastProvenance): stri
 }
 
 export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, synthetic = false): PublishedForecast {
+  if (rowsRaw && typeof rowsRaw === 'object' && 'contract_version' in rowsRaw) rowsRaw = expandRowArtifact('forecast', rowsRaw);
   if (!Array.isArray(rowsRaw)) return fail('expected an array of forecast rows');
   for (const raw of rowsRaw) {
     if (!validateRow(raw)) return fail(`invalid v1 row: ${ajv.errorsText(validateRow.errors)}`);
