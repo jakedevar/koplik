@@ -165,6 +165,10 @@ fixture ingest: 22 raw snapshots and original retrieval receipts, with all
 12 v6 pipeline artifacts byte-identical to the fixture build.
 `make pipeline-release` uses the same selection locally. `make refresh-test`
 exercises fake ingest, fake QA and temporary repositories inside the offline
-gate; no timer installation, live request or real-origin push is part of tests.
+gate, including an offline-prepared live-mode candidate through the real QA
+commands. Test stores are seeded by offline fixture ingest rather than copied
+from mutable publication data. A separate initial-seed reproduction proof
+prints a skip reason once the committed release manifest has mode `live`.
+No timer installation, live request or real-origin push is part of tests.
 `--dry-run` on the refresh suppresses promotion/publication but **still performs
 live ingest**; it is for the manager's reviewed manual run, not an offline test.

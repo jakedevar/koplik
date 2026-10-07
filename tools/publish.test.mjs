@@ -8,6 +8,8 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { publishSite } from './publish.mjs';
+import { buildData } from './refresh/data.mjs';
+import { fixturePipeline, seedFixtureStore } from './refresh/fixture-store.mjs';
 
 const project = fileURLToPath(new URL('../', import.meta.url));
 function command(args, cwd, env = {}) {
@@ -19,19 +21,23 @@ function command(args, cwd, env = {}) {
   return result.stdout.trim();
 }
 
-test('publish builds Pages offline, preserves the caller and only fast-forwards gh-pages', async () => {
+test('offline-prepared live release builds Pages offline, preserves the caller and only fast-forwards gh-pages', async () => {
   assert.ok(existsSync(join(project, 'pkg/web/koplik_wasm.js')), 'run make wasm before the publishing test');
   const scratch = await mkdtemp(join(tmpdir(), 'koplik-publish-test-'));
   try {
     const caller = join(scratch, 'caller');
     const remote = join(scratch, 'origin.git');
     await mkdir(caller);
-    for (const path of ['web', 'crates', 'data/fixtures', 'data/release', 'data/reports', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
+    for (const path of ['web', 'crates', 'data/fixtures', 'data/reports', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
       await cp(join(project, path), join(caller, path), {
         recursive: true,
         filter: (path) => !['node_modules', 'dist', 'test-results', 'playwright-report', 'public'].includes(basename(path)),
       });
     }
+    await seedFixtureStore({ store: join(caller, 'data/release'), work: join(scratch, 'fixture-ingest') });
+    await seedFixtureStore({ store: join(caller, 'data/release'), work: join(scratch, 'live-ingest'), mode: 'live' });
+    const recordedMode = JSON.parse(await readFile(join(caller, 'data/release/ingest.manifest.json'))).mode;
+    assert.equal(recordedMode, 'live');
     // Copy only a build tool; both CLI test runs compile the actual WASM in scratch.
     await mkdir(join(caller, 'target/tools/bin'), { recursive: true });
     await cp(join(project, 'target/tools/bin/wasm-bindgen'), join(caller, 'target/tools/bin/wasm-bindgen'));
@@ -113,7 +119,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
 
     const started = performance.now();
     await successfulPublish({ PUBLISH_REMOTE: 'origin' });
-    console.log(`Measured fixture publish: ${((performance.now() - started) / 1000).toFixed(2)} seconds`);
+    console.log(`Measured offline live-mode publish: ${((performance.now() - started) / 1000).toFixed(2)} seconds`);
     const first = pages();
     assert.equal(git('--git-dir', remote, 'rev-list', '--parents', '-n', '1', first), first);
     assert.equal(git('--git-dir', remote, 'show', `${first}:.nojekyll`), '');
@@ -131,7 +137,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
         'published JavaScript comes from the fresh package');
     }
     const manifest = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/manifest.json`));
-    assert.equal(manifest.mode, 'fixtures');
+    assert.equal(manifest.mode, recordedMode);
     const publication = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/publication.json`));
     assert.equal(publication.source, 'data/release');
     assert.deepEqual(Object.keys(manifest.stages).sort(), ['forecast', 'infer', 'ingest', 'validate']);
@@ -318,4 +324,32 @@ if (process.env.TEST_INTERRUPT_STAGE === 'build') {
   } finally {
     await rm(scratch, { recursive: true, force: true, maxRetries: 3 });
   }
+});
+
+
+test('offline fixture-ingested bundles preserve their recorded mode in both modes', async () => {
+  const scratch = await mkdtemp(join(tmpdir(), 'koplik-publish-modes-'));
+  try {
+    const { env, run } = await fixturePipeline();
+    const root = join(scratch, 'data-source');
+    await mkdir(root);
+    await cp(join(project, 'data/reports'), join(root, 'data/reports'), { recursive: true });
+    const target = join(scratch, 'origin.git');
+    command(['git', 'init', '--bare', target], root);
+    const store = join(root, 'data/release');
+    for (const mode of ['fixtures', 'live']) {
+      await seedFixtureStore({ store, work: join(scratch, `ingest-${mode}`), mode });
+      const dist = join(scratch, `dist-${mode}`);
+      await buildData({ root, work: join(scratch, `work-${mode}`), out: join(dist, 'data'), env, run });
+      const phase = join(scratch, `publish-${mode}`);
+      await mkdir(phase);
+      await publishSite({ scratch: phase, dist, target, source: 'offline-mode-test',
+        identity: ['', 'Publish test', 'publish-test@example.invalid'], dryRun: '1' });
+      const commit = command(['git', '--git-dir', join(phase, 'publish.git'), 'rev-parse', 'HEAD'], root);
+      const bundle = JSON.parse(command(['git', '--git-dir', join(phase, 'publish.git'), 'show', `${commit}:data/manifest.json`], root));
+      assert.equal(bundle.mode, JSON.parse(await readFile(join(store, 'ingest.manifest.json'))).mode);
+      assert.equal(bundle.mode, mode);
+      assert.equal(command(['git', '--git-dir', target, 'for-each-ref', '--format=%(refname)'], root), '');
+    }
+  } finally { await rm(scratch, { recursive: true, force: true }); }
 });

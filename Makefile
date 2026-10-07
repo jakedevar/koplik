@@ -69,7 +69,7 @@ pipeline-release:
 	node tools/refresh/data.mjs . data/pipeline web/public/data
 
 refresh-test:
-	tools/offline-test.sh node --test tools/refresh/refresh.test.mjs tools/refresh/data.test.mjs
+	tools/offline-test.sh node --test tools/refresh/refresh.test.mjs tools/refresh/data.test.mjs tools/refresh/live-gate.test.mjs
 
 # Manager/operator only, after tier2 review; never run from an agent sandbox.
 install-refresh-timer:

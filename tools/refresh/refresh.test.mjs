@@ -3,14 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { publishSite } from '../publish.mjs';
 import { command, digest } from './data.mjs';
+import { seedFixtureStore } from './fixture-store.mjs';
 import { failure, ingestGreen, pathGuard, refresh } from './refresh.mjs';
 import { scanHistory, scanText } from './scans.mjs';
 
-const project = fileURLToPath(new URL('../../', import.meta.url));
 const dummyEnv = { ...process.env };
 delete dummyEnv.RSI_SESSION_TOKEN;
 for (const key of Object.keys(dummyEnv)) if (key.startsWith('GIT_')) delete dummyEnv[key];
@@ -26,7 +25,7 @@ async function repository({ pages = false } = {}) {
   git(shared, 'init', '--initial-branch=rolling');
   git(shared, 'config', 'user.name', 'Refresh test');
   git(shared, 'config', 'user.email', 'refresh-test@example.invalid');
-  await cp(join(project, 'data/release'), join(shared, 'data/release'), { recursive: true });
+  await seedFixtureStore({ store: join(shared, 'data/release'), work: join(root, 'ingest') });
   await writeFile(join(shared, '.gitignore'), 'target/\ndata/pipeline/\n.env*\n');
   await writeFile(join(shared, 'code.txt'), 'Code unchanged\n');
   git(shared, 'add', '--', 'data/release', '.gitignore', 'code.txt');
@@ -43,19 +42,20 @@ async function repository({ pages = false } = {}) {
   await writeFile(patterns, 'private-contact-sentinel\n');
   return { root, shared, origin, base, patterns, state: join(root, 'state'), env: dummyEnv };
 }
-async function fixtureIngest({ release, stageWork, env }) {
+async function fixtureIngest({ release, stageWork, env }, mode = 'fixtures') {
   assert.equal(env.KOPLIK_CENSUS_CONTACT, undefined);
   assert.ok(env.KOPLIK_ENV_LOCAL.endsWith('/shared/.env.local'));
-  await mkdir(stageWork, { recursive: true });
-  const manifest = JSON.parse(await readFile(join(release, 'ingest.manifest.json'), 'utf8'));
+  await seedFixtureStore({ store: release, work: stageWork, mode });
+  const manifest = JSON.parse(await readFile(join(stageWork, 'ingest.manifest.json'), 'utf8'));
   // The fixture seed has a deliberately unavailable direct county-code source;
   // the fake completed live ingest reports only the actual present captures.
   for (const [id, item] of Object.entries(manifest.items)) if (item.status === 'missing') delete manifest.items[id];
   await writeFile(join(stageWork, 'ingest.manifest.json'), `${JSON.stringify(manifest)}\n`);
 }
-const fakeBuild = async ({ out }) => {
+const fakeBuild = async ({ root, out }) => {
   await mkdir(join(out, 'v6'), { recursive: true });
-  const manifest = '{"mode":"fixtures"}\n';
+  const mode = JSON.parse(await readFile(join(root, 'data/release/ingest.manifest.json'))).mode;
+  const manifest = `${JSON.stringify({ mode })}\n`;
   await writeFile(join(out, 'manifest.json'), manifest);
   for (const name of ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases']) {
     await writeFile(join(out, 'v6', `${name}.json`), '{"fixture":true}\n');
@@ -120,12 +120,14 @@ test('failure RPC has no token in params; RPC refusal and no-token runs persist 
 
 test('temporary-clone refresh prepares exact Pages objects and releases all refs or none', async () => {
   const scenarios = ['green', 'publish-green', 'qa-red', 'path-red', 'publish-red',
-    'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages'];
+    'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages', 'live-green', 'live-qa-red', 'live-atomic-reject-gh-pages'];
   for (const scenario of scenarios) {
-    const context = await repository({ pages: scenario !== 'green' });
+    const decision = scenario.replace(/^live-/, '');
+    const mode = scenario.startsWith('live-') ? 'live' : 'fixtures';
+    const context = await repository({ pages: decision !== 'green' });
     const originalRefs = git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)');
-    if (scenario.startsWith('atomic-reject-')) {
-      const ref = scenario.slice('atomic-reject-'.length);
+    if (decision.startsWith('atomic-reject-')) {
+      const ref = decision.slice('atomic-reject-'.length);
       await writeFile(join(context.origin, 'hooks/update'), `#!/bin/sh
 if [ "$1" = "refs/heads/${ref}" ]; then exit 1; fi
 exit 0
@@ -166,20 +168,20 @@ exit 0
     };
     let observedWork;
     try {
-      const options = { ...context, run, dryRun: scenario === 'green', build: fakeBuild,
+      const options = { ...context, run, dryRun: decision === 'green', build: fakeBuild,
         ingest: async (args) => {
           observedWork = args.work;
-          await fixtureIngest(args);
+          await fixtureIngest(args, mode);
           if (scenario === 'path-red') await writeFile(join(args.work, 'code.txt'), 'Changed\n');
         },
         qa: async ({ work, gates }) => {
           assert.deepEqual(gates, ['check', 'test', 'web-test', 'determinism']);
           assert.equal(git(work, 'status', '--porcelain'), '', 'QA runs on committed D');
           assert.notEqual(git(work, 'rev-parse', 'HEAD'), context.base);
-          if (scenario === 'qa-red') throw new Error('QA failure');
+          if (decision === 'qa-red') throw new Error('QA failure');
         },
       };
-      if (['green', 'publish-green'].includes(scenario)) {
+      if (['green', 'publish-green'].includes(decision)) {
         const result = await refresh(options);
         assert.equal(result.receipt.scans.personal_matches, 0);
         assert.equal(result.receipt.scans.secret_matches, 0);
@@ -188,8 +190,10 @@ exit 0
         assert.ok(paths.every((path) => path.startsWith('data/release/')));
         assert.equal(effects.length, scenario === 'publish-green' ? 2 : 1);
         assert.equal(effects[0].dry, '1');
+        assert.equal(JSON.parse(await readFile(join(result.work, 'data/release/ingest.manifest.json'))).mode, mode);
+        assert.equal((await readFile(join(result.work, 'data/release/retrievals.jsonl'), 'utf8')).trim().split('\n').length, mode === 'live' ? 44 : 22);
         assert.equal(git(result.work, 'rev-list', '--parents', '-n', '1', result.pages),
-          scenario === 'green' ? result.pages : `${result.pages} ${context.base}`);
+          decision === 'green' ? result.pages : `${result.pages} ${context.base}`);
         assert.ok(git(result.work, 'ls-tree', '-r', '--name-only', result.pages).includes('data/v6/weekly-cases.json'));
         if (scenario === 'publish-green') {
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), result.sha);
@@ -197,10 +201,10 @@ exit 0
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/gh-pages'), result.pages);
         }
       } else {
-        const phase = scenario === 'qa-red' ? 'qa' : scenario === 'path-red' ? 'integrity'
+        const phase = decision === 'qa-red' ? 'qa' : scenario === 'path-red' ? 'integrity'
           : scenario === 'publish-red' ? 'publish-prepare' : 'atomic-release';
         await assert.rejects(refresh(options), new RegExp(`failed at ${phase}`));
-        assert.equal(effects.length, scenario.startsWith('atomic-reject-') ? 2 : scenario === 'publish-red' ? 1 : 0);
+        assert.equal(effects.length, decision.startsWith('atomic-reject-') ? 2 : scenario === 'publish-red' ? 1 : 0);
         const failures = (await readdir(context.state)).filter((path) => path.startsWith('FAILED-'));
         assert.equal(failures.length, 1);
         assert.ok((await readFile(join(context.state, failures[0]), 'utf8')).includes(phase));
