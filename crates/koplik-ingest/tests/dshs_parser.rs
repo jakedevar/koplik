@@ -649,3 +649,81 @@ fn derived_rows_and_the_manifest_cite_the_census_snapshot_that_keyed_the_countie
         "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"
     );
 }
+
+#[test]
+fn the_real_reports_give_a_cumulative_series_by_report_date_with_stated_gaps() {
+    use koplik_contracts::v7::{CumulativeCount, CumulativeMissingReason};
+    let (_d, store) = store_with_fixtures();
+    let lookup = CountyLookup::from_store(&store, texas()).unwrap();
+    let built = dshs_series::build_from_store(&store, &lookup).unwrap();
+    let census = retrieval("census-national_county2020.txt");
+    let gaines: Vec<_> = built
+        .series
+        .cumulative_reports
+        .iter()
+        .filter(|r| r.geography == fips(48165))
+        .collect();
+    let no_table = CumulativeCount::Missing {
+        reason: CumulativeMissingReason::NoCountyTable,
+    };
+    // Every report date held, in order: the five county tables print the cumulative; the four
+    // dashboard-period reports (2025-03-28's wording is "identified", not "confirmed") have no
+    // county table, which is said and never filled.
+    assert_eq!(
+        gaines
+            .iter()
+            .map(|r| (r.report_date.to_string(), r.cases))
+            .collect::<Vec<_>>(),
+        [
+            ("2025-03-04", CumulativeCount::Reported { count: 107 }),
+            ("2025-03-25", CumulativeCount::Reported { count: 226 }),
+            ("2025-03-28", no_table),
+            ("2025-04-22", no_table),
+            ("2025-05-30", no_table),
+            ("2025-08-12", no_table),
+            ("2025-11-24", CumulativeCount::Reported { count: 414 }),
+            ("2025-12-23", CumulativeCount::Reported { count: 414 }),
+            ("2026-01-12", CumulativeCount::Reported { count: 414 }),
+        ]
+        .map(|(d, c)| (d.to_owned(), c))
+    );
+    // Every row cites the snapshot of the report it came from and the Census file that keyed it.
+    for row in &built.series.cumulative_reports {
+        let records = row.provenance.as_slice();
+        assert_eq!(records.len(), 2);
+        assert!(records.iter().any(|r| r.sha256 == census.sha256));
+        let report = built
+            .manifest
+            .entries
+            .iter()
+            .find(|e| e.report_date == row.report_date.date())
+            .unwrap();
+        assert_eq!(records[0].sha256, report.first_snapshot.sha256);
+    }
+    // 38 counties are listed by the confirmed county tables; each has a row for each of the 9
+    // report dates, none outside them.
+    let counties: std::collections::BTreeSet<_> = built
+        .series
+        .cumulative_reports
+        .iter()
+        .map(|r| r.geography)
+        .collect();
+    assert_eq!(counties.len(), 38);
+    assert_eq!(built.series.cumulative_reports.len(), 38 * 9);
+    // The 190 printed values are exactly the pre-existing cumulative rows.
+    let printed: Vec<_> = built
+        .series
+        .cumulative_reports
+        .iter()
+        .filter(|r| r.cases.count().is_some())
+        .map(|r| (r.geography, r.report_date.date(), r.cases.count()))
+        .collect();
+    let before: Vec<_> = built
+        .series
+        .cumulative
+        .iter()
+        .map(|r| (r.geography, r.report_date, r.cases.count()))
+        .collect();
+    assert_eq!(printed, before);
+    assert_eq!(printed.len(), 190);
+}

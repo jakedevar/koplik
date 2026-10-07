@@ -96,9 +96,7 @@ impl JsonSchema for ReportDate {
 
 /// Why a report gives no usable cumulative count for a geography. None of these is zero and none
 /// is estimated: a missing count is unknown.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CumulativeMissingReason {
     /// The source published a report on this date but no readable county breakdown (for

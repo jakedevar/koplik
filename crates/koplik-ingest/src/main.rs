@@ -359,6 +359,10 @@ fn run(args: Vec<String>) -> Result<()> {
             };
             write("vintage-manifest.json", to_pretty(&built.manifest))?;
             write("cumulative.json", to_pretty(&built.series.cumulative))?;
+            write(
+                "cumulative-cases.json",
+                to_pretty(&built.series.cumulative_reports),
+            )?;
             write("intervals.json", to_pretty(&built.series.intervals))?;
             write("weekly.json", to_pretty(&built.series.weekly))?;
             write("unmapped.json", to_pretty(&built.series.unmapped))?;
