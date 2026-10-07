@@ -105,7 +105,7 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .forecast-provisional-zero { stroke: #327868; stroke-width: 3; stroke-dasharray: 2 2; }
 .forecast-headline { font-size: 17px; line-height: 1.55; max-width: 760px; }
 .forecast-evaluation p { max-width: 760px; line-height: 1.6; }
-.forecast-narrow, .forecast-no-skill { background: #fff4db; border-color: #a36e14; color: #5e3f08; }
+.forecast-narrow, .forecast-series-narrow, .forecast-no-skill { background: #fff4db; border-color: #a36e14; color: #5e3f08; }
 .forecast-insufficient { background: #eff1f0; border-color: #7c8982; color: #3f4a44; }
 .forecast-measured { background: #eaf2f7; border-color: #2f6a8a; color: #1f3e52; }
 .forecast-measured p, .forecast-evaluation .forecast-series-basis { max-width: 760px; line-height: 1.6; }

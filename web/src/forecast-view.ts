@@ -168,7 +168,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       const headline = element('p', undefined, 'forecast-series-headline');
       headline.append(provenanceNumber(words.headline, info));
       box.append(element('p', 'Measured skill for this series.'), headline, element('p', words.detail));
-      if (words.narrow) box.append(element('p', words.narrow, 'forecast-narrow'));
+      if (words.narrow) box.append(element('p', words.narrow, 'forecast-series-narrow'));
       if (words.against) box.append(element('p', words.against));
       box.append(element('p', 'The test and its scope are described under "How we evaluate forecasts" below.'));
       return box;
@@ -323,7 +323,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       const headline = element('p', undefined, 'forecast-series-headline');
       headline.append(provenanceNumber(pooled.headline, info));
       blocks.push(headline, element('p', pooled.scores));
-      if (pooled.narrow) blocks.push(element('p', pooled.narrow, 'notice forecast-narrow'));
+      if (pooled.narrow) blocks.push(element('p', pooled.narrow, 'notice forecast-series-narrow'));
     } else {
       blocks.push(element('p', 'The pooled result is below the floor for a measured skill: insufficient data.', 'notice'));
     }
