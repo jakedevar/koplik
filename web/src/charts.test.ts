@@ -20,6 +20,7 @@ describe('accessible SVG reports', () => {
       { ...rows[0], upper: 1000, week: { year: 2026, week: 1 } },
     ];
     expect(rtAxisMaximum([...rows, ...ignored], 2025)).toBe(3);
+    expect(rtAxisMaximum([rows[0], rows[39]], 2025)).toBe(3);
     expect(rtAxisMaximum(rows.map((row) => ({ ...row, upper: row.week.week <= 38 ? 6 : 100 })), 2025)).toBe(6);
     expect(rtAxisMaximum(rows, 2025, true)).toBe(66.4);
     expect(rtAxisMaximum([{ ...rows[0], mean: 80 }], 2025, true)).toBe(80);

@@ -39,6 +39,7 @@ for (const width of [390, 1280]) test(`R_t ordinary weeks remain readable and of
   const box = (await label.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(width);
+  await view.screenshot({ path: test.info().outputPath('rt-readable.png') });
   await label.click();
   const drawer = page.getByRole('dialog', { name: 'Number provenance' });
   await expect(drawer).toBeVisible();

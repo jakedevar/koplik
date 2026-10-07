@@ -73,10 +73,11 @@ export function rtLabel(row: RtEstimate): string {
 export function rtAxisMaximum(rows: RtEstimate[], year: number, fullRange = false): number {
   const published = rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok');
   if (fullRange) return Math.max(3, ...published.map((row) => Math.max(row.upper!, row.mean!)));
-  // Display choice, not a model parameter: use the nearest-rank 95th percentile
-  // of published upper bounds (at least 3) so isolated wide intervals do not flatten ordinary weeks.
+  // Display choice, not a model parameter: use the lower-order 95th percentile
+  // of published upper bounds (at least 3). Rounding the rank down also keeps
+  // a single wide interval from flattening ordinary weeks in a short series.
   const bounds = published.map((row) => row.upper!).sort((a, b) => a - b);
-  return Math.max(3, bounds[Math.ceil(bounds.length * 0.95) - 1] ?? 0);
+  return Math.max(3, bounds[Math.floor((bounds.length - 1) * 0.95)] ?? 0);
 }
 
 function offScaleLabel(row: RtEstimate, maximum: number): string | undefined {
