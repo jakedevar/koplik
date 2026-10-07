@@ -59,11 +59,10 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     await mkdir(join(caller, 'web/public'), { recursive: true });
     await writeFile(join(caller, 'web/public/untracked-asset.txt'), 'Untracked source asset\n');
     // This valid package builds successfully if reused, but ships a recognisable stale worker.
-    await mkdir(join(caller, 'pkg/web'), { recursive: true });
+    await cp(join(project, 'pkg/web'), join(caller, 'pkg/web'), { recursive: true });
     const stalePackage = 'publish_test_stale_package';
     await writeFile(join(caller, 'pkg/web/koplik_wasm.js'),
       `export default async function init() {}\nexport function runEnsemble() { return '${stalePackage}'; }\n`);
-    await cp(join(project, 'pkg/web/koplik_wasm_bg.wasm'), join(caller, 'pkg/web/koplik_wasm_bg.wasm'));
     // A missing caller fixture must not affect the archive's pipeline input.
     const fixture = join(caller, 'data/fixtures/cdc/nndss-measles-weekly.json');
     await rm(fixture);
