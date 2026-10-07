@@ -119,6 +119,10 @@ The installer copies a tiny standalone launcher to
 local bare origin into the state directory and executes the refresh script
 from the fetched `origin/rolling` tip; edits in `~/koplik` cannot change the
 weekly refresh code. The launcher removes its scratch clone after execution.
+The installed launcher is a copy: after any change to `bootstrap.mjs`, the
+manager must re-run `make install-refresh-timer` from the reviewed shared
+checkout before the next activation. Updating `rolling` alone updates refresh
+policy but does not update that installed launcher.
 The refresh creates a fresh detached clone at `origin/rolling` under
 `~/.rsi/koplik-refresh/<run-id>/worktree`, never in the shared checkout or an
 agent sandbox. Existing release blobs are immutable and the retrieval log is
@@ -128,7 +132,8 @@ unstaged, untracked and committed paths are guarded. Tests still use
 Each run first
 prunes green run directories older than the last two. Failed source trees and
 reports remain for diagnosis; compiler targets for failed, interrupted or dry
-runs are removed after 14 days. A directory lock prevents overlapping runs;
+runs are removed after 14 days. Runs without `status.json` use their directory
+mtime for this target cleanup; their source trees remain. A directory lock prevents overlapping runs;
 after a killed run, inspect the journal before removing `~/.rsi/koplik-refresh/lock`.
 
 Before installation, configure the Census contact in the shared checkout's
@@ -161,7 +166,21 @@ the web bundle, then passes the personal-data and secrets scans. Only after
 all preparation succeeds does one
 `KOPLIK_PROMOTE_MAIN=1 git push --atomic origin D:refs/heads/rolling
 D:refs/heads/main G:refs/heads/gh-pages` release all three refs. Refresh verifies
-they equal D, D and G afterward. Every update is fast-forward only.
+they equal D, D and G afterward. It then uses the operator's authenticated `gh`
+CLI to request a Pages build and polls every five seconds for up to ten minutes
+until `pages/builds/latest` reports `status=built` and `commit=G`. The repository
+comes from the local bare origin's `github` push remote (HTTPS or GitHub SSH),
+which must be configured before a release. Each API command has a 30-second
+timeout. Only then is the run green; `pages-build.json` records the verified
+commit, status and build id. Dry runs never request or poll Pages.
+Every update is fast-forward only.
+
+If Pages fails after the atomic push, the FAILED report and notification state
+that the refs moved but the site is stale, and give the exact build-request and
+verification commands to retry. The refresh leaves all refs at D, D and G;
+it never rolls them back. After a manual `make publish`, run `make pages-verify`
+from the shared checkout to request and verify the origin's current gh-pages
+commit, or `make pages-verify PAGES_COMMIT=<G>` to verify a specific publication.
 
 Any preparation failure or rejected atomic push leaves all three refs unchanged
 and publishes nothing. A concurrent advance skips or rejects the run; the next
