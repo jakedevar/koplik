@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MmwrWeek",
+  "description": "An MMWR year and week number (`week` is `1..=52` or `1..=53`).",
+  "type": "object",
+  "properties": {
+    "week": {
+      "description": "Week of the MMWR year; 1 to 52, or 53 in a 53-week year.",
+      "type": "integer",
+      "format": "uint8",
+      "maximum": 53,
+      "minimum": 1
+    },
+    "year": {
+      "description": "MMWR year (not always the calendar year of every day in the week).",
+      "type": "integer",
+      "format": "uint16",
+      "maximum": 2200,
+      "minimum": 1900
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "year",
+    "week"
+  ]
+}

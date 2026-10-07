@@ -52,11 +52,23 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   `ForecastProvenance::check_against(&[Forecast])` is the rule that forecast rows are only
   published beside a companion that describes them. The forecast rows keep their v1 shape. Every
   other type is re-exported from v4 unchanged. Schema: `schema/v5/`.
+- **v6** (`CONTRACT_VERSION` 6): v5 with a changed forecast companion (#1503). `ForecastProvenance`
+  gains `series_backtest`: a second evaluation, `SeriesBacktest`, that scores the forecast over a
+  family of series (the CDC NNDSS state series) and states its `InformationBasis` (`real-time by
+  report vintage`, or `pseudo-real-time (revised counts truncated at each forecast date)`, which a
+  protocol must say in words and which is never real-time), the floor for a measured skill (a minimum
+  of scored targets from a minimum of distinct origin weeks, fixed before any score), the pooled
+  result and one entry per series with its scores present exactly when the floor was reached. A
+  forecast series' `skill` gains `measured` and `insufficient data for a measured skill` (beside
+  v5's `backtested` and `not backtested; no measured skill`); the deserializer checks each against
+  the backtest's entry for the series. Forecast rows keep their v1 shape and the report-vintage
+  `backtest` keeps its v5 type. Every other type is re-exported from v5 unchanged. Schema:
+  `schema/v6/`.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6
 git add crates/koplik-contracts/schema
 ```
 
