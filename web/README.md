@@ -11,8 +11,26 @@ output from the committed SEIR fixture through an injected Worker adapter.
 Run `npm ci` in `web/` once. `TMPDIR=/tmp make web-test` runs Vitest and the
 Playwright smoke test offline against committed fixtures. `make serve` builds
 and previews the production site on localhost.
-`KOPLIK_BASE_PATH=/koplik/ make serve` sets the GitHub Pages path; the same variable
-applies to `npm run build` and `npm run dev`. Serve `dist/` with any static host.
+`make serve` always uses `/`. `KOPLIK_BASE_PATH=/koplik/` applies to direct
+`npm run build` and `npm run dev` commands. Serve `dist/` with any static host.
+
+`make publish` copies current sources and existing `web/public/data` to a temporary
+workspace, builds with `/koplik/`, and adds `.nojekyll`. Existing WASM bindings and
+installed dependencies are copied; missing bindings/dependencies are built/installed
+in that workspace. It creates a commit in an isolated Git repository whose parent
+is the fetched `gh-pages` tip (or a root commit on first publication), then pushes
+only `HEAD:refs/heads/gh-pages`. A rejected push refetches and retries up to three
+times. The caller's files, index, refs and branch are preserved, including dirty edits.
+No pipeline data is generated or filled in by publishing.
+
+`PUBLISH_DRY_RUN=1 make publish` builds and prints the proposed commit, parent and
+destination without pushing. `PUBLISH_REMOTE=/absolute/path/to/test.git` overrides
+the destination for offline testing; destinations must be local bare repositories.
+The default is `origin`'s single push URL. Network URLs, including direct GitHub
+destinations, are refused. Public mirroring is operator-controlled by the bare
+origin's hooks: once enabled, publishing to origin also publishes publicly.
+Workers must test against temporary bare repositories, never the real origin.
+`make web-test` includes the offline publishing test after the web tests.
 
 ## Pipeline artifact layout (contracts v1)
 

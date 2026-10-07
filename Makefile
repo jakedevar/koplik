@@ -6,6 +6,10 @@ export CARGO_TARGET_DIR
 # Koplik build targets. Cargo runs through the machine resource governor when present.
 CARGO := $(shell if [ -x $(HOME)/.rsi/bin/cargo-slot ]; then echo $(HOME)/.rsi/bin/cargo-slot cargo; else echo cargo; fi)
 
+PUBLISH_REMOTE ?= origin
+PUBLISH_DRY_RUN ?= 0
+export PUBLISH_REMOTE PUBLISH_DRY_RUN
+
 .PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline serve publish
 
 check:
@@ -41,12 +45,13 @@ web/node_modules/.package-lock.json: web/package-lock.json
 
 web-test: wasm web/node_modules/.package-lock.json
 	cd web && npm test
+	node --test tools/publish.test.mjs
 
 pipeline:
 	@echo "make pipeline: not implemented yet" >&2; exit 1
 
 serve: wasm web/node_modules/.package-lock.json
-	cd web && npm run build && npm run preview
+	cd web && KOPLIK_BASE_PATH=/ npm run build && KOPLIK_BASE_PATH=/ npm run preview
 
 publish:
-	@echo "make publish: not implemented yet" >&2; exit 1
+	node tools/publish.mjs
