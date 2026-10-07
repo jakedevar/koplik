@@ -545,4 +545,4 @@ checkout's gitignored `.env.local` for Census contact resolution at run time.
 The file and its contact value are never copied into publication snapshots.
 All source terms, parser rules and missing-data semantics above still apply.
 See README's weekly refresh instructions for the full QA gate, private scan
-pattern file, failure reports and the promotion/publication ordering limit.
+pattern file, failure reports and the atomic rolling/main/gh-pages transaction.

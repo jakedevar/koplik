@@ -31,6 +31,8 @@ test('seeded release reproduces all fixture pipeline bytes; fallback is only on 
     const release = options('release');
     assert.equal(await buildData(release), 'data/release');
     const paths = (await files(fixture.out)).filter((path) => path !== 'publication.json');
+    assert.deepEqual(paths.filter((path) => path.startsWith('v6/')),
+      ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `v6/${name}.json`).sort());
     for (const path of paths) assert.deepEqual(await readFile(join(release.out, path)), await readFile(join(fixture.out, path)), `byte-identical ${path}`);
     assert.equal(JSON.parse(await readFile(join(release.out, 'publication.json'))).source, 'data/release');
     assert.equal(JSON.parse(await readFile(join(fixture.out, 'publication.json'))).source, 'data/fixtures');
