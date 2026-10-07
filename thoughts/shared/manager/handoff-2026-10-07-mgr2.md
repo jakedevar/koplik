@@ -35,8 +35,10 @@ the published rsi playbook (`git -C ~/rsi show origin/rolling:.claude/skills/rsi
   overrides; blank refuses. The decision record is still pending in the ledger: until the operator answers it,
   **create_session under E2 is refused** (`manager_v2_pending_operator_decision`); run E2 work as continuations.
   When the repo goes public, switch the default to `https://github.com/jakedevar/koplik`.
-- **Operator, ~04:05Z: "my contact is [operator Census contact: local config] for the census stuff."** Overrides the ruling for
-  Census requests: Issue #1427. That address will be in the repo: name it explicitly in the publishing gate.
+- **Operator, ~04:05Z: Census requests use the operator's own e-mail address as the contact** (the address is in
+  Issue #1427 and the operator's gitignored local config only; it must never be committed to any tracked file,
+  fixture, log or commit message). Overrides the ruling for Census requests. An earlier revision of this file
+  (commit ac67064) quoted the address; see the release Issue for how that is being handled.
 - Source terms: CDC and Census are US federal public domain; Texas DSHS is public information used with attribution
   and a link (#1414, in progress). Not a gate.
 - GitHub: private repo `jakedevar/koplik` created 2026-10-07 ~04:08Z (operator authorization via the global
