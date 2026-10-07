@@ -1,0 +1,92 @@
+[
+  {
+    "id": "48",
+    "name": "Texas",
+    "level": "state",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "id": "40",
+    "name": "Oklahoma",
+    "level": "state",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "id": "35",
+    "name": "New Mexico",
+    "level": "state",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "id": "20",
+    "name": "Kansas",
+    "level": "state",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "id": "48165",
+    "name": "Gaines County",
+    "level": "county",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "id": "48115",
+    "name": "Dawson County",
+    "level": "county",
+    "centroid": null,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  }
+]

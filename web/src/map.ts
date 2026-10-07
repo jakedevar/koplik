@@ -1,0 +1,91 @@
+import maplibregl, { type GeoJSONSource } from 'maplibre-gl';
+import type { Dataset, Metric, Boundaries } from './data';
+import { metricValue } from './data';
+
+export interface MapView {
+  update(level: 'state' | 'county', metric: Metric, selected: string): void;
+  destroy(): void;
+}
+
+export function mapFeatures(data: Dataset, level: 'state' | 'county', metric: Metric, selected: string) {
+  const source = level === 'state' ? data.states : data.counties;
+  return {
+    ...source,
+    features: source.features.map((feature) => {
+      const value = metricValue(data, feature.properties.GEOID, level === 'county' ? 'cases-2025' : metric).value;
+      return { ...feature, properties: { ...feature.properties, value, missing: value === null, selected: feature.properties.GEOID === selected } };
+    }),
+  };
+}
+
+function bounds(source: Boundaries, id?: string): [[number, number], [number, number]] | undefined {
+  const coordinates: number[][] = [];
+  for (const feature of source.features.filter((f) => !id || f.properties.GEOID === id)) {
+    const rings = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates : feature.geometry.coordinates.flat();
+    for (const ring of rings) coordinates.push(...ring);
+  }
+  if (!coordinates.length) return;
+  return [[Math.min(...coordinates.map((p) => p[0])), Math.min(...coordinates.map((p) => p[1]))],
+    [Math.max(...coordinates.map((p) => p[0])), Math.max(...coordinates.map((p) => p[1]))]];
+}
+
+export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: string) => void, onError: () => void): MapView {
+  const map = new maplibregl.Map({
+    container,
+    style: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#f4f7f6' } }] },
+    center: [-98, 38], zoom: 3, attributionControl: false,
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  map.addControl(new maplibregl.AttributionControl({ compact: false, customAttribution: data.synthetic ? 'Synthetic test geometry' : 'US Census Bureau · public domain' }));
+  let current: ['state' | 'county', Metric, string] = ['state', 'cases-2025', '48'];
+  let ready = false;
+  let previousLevel = 'state';
+  map.on('error', onError);
+  map.on('load', () => {
+    // Local hatch image: no sprites, glyph services, tile servers or external requests.
+    const pixels = new Uint8Array(8 * 8 * 4);
+    for (let py = 0; py < 8; py++) for (let px = 0; px < 8; px++) {
+      const offset = (py * 8 + px) * 4;
+      const shade = (px + py) % 8 < 2 ? 149 : 231;
+      pixels.set([shade, shade, shade, 255], offset);
+    }
+    map.addImage('missing-hatch', { width: 8, height: 8, data: pixels });
+    map.addSource('regions', { type: 'geojson', data: mapFeatures(data, ...current) });
+    map.addLayer({ id: 'reported', type: 'fill', source: 'regions', filter: ['==', ['get', 'missing'], false],
+      paint: { 'fill-color': ['interpolate', ['linear'], ['get', 'value'], 0, '#edf4ed', 1, '#c5ddc3', 50, '#68a58d', 100, '#286e66', 500, '#123f3b'], 'fill-opacity': 0.9 } });
+    map.addLayer({ id: 'missing', type: 'fill', source: 'regions', filter: ['==', ['get', 'missing'], true], paint: { 'fill-pattern': 'missing-hatch' } });
+    map.addLayer({ id: 'outlines', type: 'line', source: 'regions', paint: { 'line-color': ['case', ['get', 'selected'], '#b84920', '#ffffff'], 'line-width': ['case', ['get', 'selected'], 3, 1] } });
+    for (const layer of ['reported', 'missing']) {
+      map.on('click', layer, (event) => {
+        const id = event.features?.[0]?.properties?.GEOID;
+        if (typeof id === 'string') onSelect(id);
+      });
+      map.on('mouseenter', layer, () => { map.getCanvas().style.cursor = 'pointer'; });
+      map.on('mouseleave', layer, () => { map.getCanvas().style.cursor = ''; });
+    }
+    ready = true;
+    update(...current);
+    if (data.synthetic) {
+      const extent = bounds(data.states);
+      if (extent) map.fitBounds(extent, { padding: 35, duration: 0 });
+    }
+  });
+  function update(level: 'state' | 'county', metric: Metric, selected: string) {
+    const oldSelection = current[2];
+    current = [level, metric, selected];
+    if (!ready) return;
+    (map.getSource('regions') as GeoJSONSource).setData(mapFeatures(data, level, metric, selected));
+    map.setPaintProperty('reported', 'fill-color', metric === 'coverage' && level === 'state' ?
+      ['interpolate', ['linear'], ['get', 'value'], 0, '#f3d9a6', 80, '#ead38a', 90, '#8db896', 95, '#357c68', 100, '#123f3b'] :
+      ['interpolate', ['linear'], ['get', 'value'], 0, '#edf4ed', 1, '#c5ddc3', 50, '#68a58d', 100, '#286e66', 500, '#123f3b']);
+    if (level !== previousLevel) {
+      const extent = bounds(level === 'state' ? data.states : data.counties);
+      if (extent) map.fitBounds(extent, { padding: 35, duration: 0 });
+    } else if (selected !== oldSelection) {
+      const extent = bounds(level === 'state' ? data.states : data.counties, selected);
+      if (extent) map.fitBounds(extent, { padding: 70, maxZoom: level === 'county' ? 9 : 6, duration: 0 });
+    }
+    previousLevel = level;
+  }
+  return { update, destroy: () => map.remove() };
+}
