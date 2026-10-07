@@ -68,7 +68,7 @@ try {
   const web = join(build, 'web');
   if (existsSync(join(root, 'web/node_modules/.package-lock.json'))) {
     await cp(await realpath(join(root, 'web/node_modules')), join(web, 'node_modules'), {
-      recursive: true, mode: constants.COPYFILE_FICLONE,
+      recursive: true, verbatimSymlinks: true, mode: constants.COPYFILE_FICLONE,
     });
   } else {
     run('npm', ['ci', '--no-audit', '--no-fund'], web, { stdio: 'inherit' });
