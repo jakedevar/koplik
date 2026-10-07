@@ -40,6 +40,7 @@ fn rows(geographies: &[&str]) -> Vec<Forecast> {
 
 fn skill() -> Value {
     json!({
+        "name": "the 2025 West Texas outbreak",
         "series": "Texas DSHS outbreak total by report date", "geography": "48",
         "case_definition": "confirmed", "protocol": "real time by report vintage",
         "seed": 20250101u64, "targets": 3, "forecast_dates": 2, "origin_weeks": 2,
@@ -170,6 +171,7 @@ fn a_series_states_its_status_and_reason_consistently() {
 fn backtest_skill_is_validated_and_only_the_scored_series_can_claim_it() {
     rejects(|v| v["backtest"]["coverage_90"] = json!(1.5), "coverage_90");
     rejects(|v| v["backtest"]["mean_crps"] = json!(-1.0), "mean_crps");
+    rejects(|v| v["backtest"]["name"] = json!(" "), "backtest.name");
     rejects(|v| v["backtest"]["targets"] = json!(0), "targets");
     rejects(
         |v| v["backtest"]["targets"] = json!(4),

@@ -24,6 +24,17 @@ export function syntheticFixtures(fixtureRoot: string, enabled: boolean): Plugin
           } catch (error) { next(error); }
           return;
         }
+        // The synthetic forecast pair, served where the loader asks for the forecast artifacts.
+        const forecastBase = `${server.config.base.replace(/\/$/, '')}/data/forecasts/`;
+        const forecastFile = { [`${forecastBase}synthetic-weekly-cases.json`]: 'synthetic-forecast.json', [`${forecastBase}synthetic-weekly-cases.provenance.json`]: 'synthetic-forecast.provenance.json' }[path];
+        if (forecastFile) {
+          try {
+            const content = await readFile(resolve(fixtureRoot, forecastFile));
+            response.setHeader('Content-Type', 'application/json');
+            response.end(content);
+          } catch (error) { next(error); }
+          return;
+        }
         const name = path.slice(base.length);
         if (!path.startsWith(base) || !names.has(name)) return next();
         try {

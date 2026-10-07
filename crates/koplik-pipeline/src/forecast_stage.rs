@@ -61,6 +61,10 @@ pub const BACKTEST_REPORT_REL: &str = "backtest/west-texas-2025.json";
 /// cases (`koplik_epi::backtest::vintages`; the report's scope says "confirmed cases").
 const BACKTESTED_CASE_DEFINITION: CaseDefinition = CaseDefinition::Confirmed;
 
+/// The backtested outbreak in a sentence ("In a backtest on the 2025 West Texas outbreak, ..."):
+/// the committed report is `west-texas-2025.json`, the Texas DSHS 2025 outbreak.
+const BACKTEST_NAME: &str = "the 2025 West Texas outbreak";
+
 /// The configuration every forecast runs with: the pre-registered defaults, unchanged.
 pub fn forecast_config() -> ForecastConfig {
     ForecastConfig::default()
@@ -477,6 +481,7 @@ pub fn skill_from_report(
         "Counts are by report date, not symptom onset: they say when the source published the cases.".to_owned(),
     ];
     Ok(BacktestSkill {
+        name: BACKTEST_NAME.to_owned(),
         // The first clause of the report's scope names the series; the rest (what was not
         // scored) is kept in full in the first limitation.
         series: report

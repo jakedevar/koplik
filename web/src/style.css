@@ -89,3 +89,18 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .attribution-ruling { font-size: 12px; color: #557069; }
 .attribution-text { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: #354b42; overflow-wrap: anywhere; }
 .legend-note { flex-basis: 100%; margin: 0; }
+
+.forecast { margin-top: 24px; padding: 22px; }
+.forecast-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 14px 0; }
+.forecast-controls label { font-size: 12px; color: #557069; width: 100%; }
+.forecast details { margin: 16px 0; }
+.forecast summary { min-height: 32px; padding: 4px 0; }
+.forecast code, .forecast a { overflow-wrap: anywhere; }
+.forecast-result svg { display: block; width: 100%; max-width: 900px; overflow: visible; }
+.forecast-origin { stroke: #8c9b94; stroke-width: 1; stroke-dasharray: 5 4; }
+.forecast-provisional-bar { fill: #fff; stroke: #327868; stroke-width: 1.5; stroke-dasharray: 3 2; }
+.forecast-provisional-zero { stroke: #327868; stroke-width: 3; stroke-dasharray: 2 2; }
+.forecast-headline { font-size: 17px; line-height: 1.55; max-width: 760px; }
+.forecast-skill p { max-width: 760px; line-height: 1.6; }
+.forecast-narrow, .forecast-not-backtested { background: #fff4db; border-color: #a36e14; color: #5e3f08; }
+.forecast-insufficient { background: #eff1f0; border-color: #7c8982; color: #3f4a44; }

@@ -87,6 +87,9 @@ pub struct SkillByHorizon {
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BacktestSkill {
+    /// Short name of what was backtested, for a sentence, e.g. `the 2025 West Texas outbreak`
+    /// (non-empty).
+    pub name: String,
     /// The series that was forecast and scored, in words (non-empty).
     pub series: String,
     /// Geography of that series.
@@ -238,6 +241,7 @@ impl<'de> Deserialize<'de> for BacktestSkill {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Raw {
+            name: String,
             series: String,
             geography: GeoId,
             case_definition: CaseDefinition,
@@ -259,6 +263,7 @@ impl<'de> Deserialize<'de> for BacktestSkill {
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
         let checked = || -> Result<(), String> {
+            non_empty("backtest.name", &r.name)?;
             non_empty("backtest.series", &r.series)?;
             non_empty("backtest.protocol", &r.protocol)?;
             non_empty("backtest.report_path", &r.report_path)?;
@@ -320,6 +325,7 @@ impl<'de> Deserialize<'de> for BacktestSkill {
         };
         checked().map_err(D::Error::custom)?;
         Ok(Self {
+            name: r.name,
             series: r.series,
             geography: r.geography,
             case_definition: r.case_definition,

@@ -1,0 +1,117 @@
+{
+  "contract_version": 5,
+  "artifact": "weekly-cases",
+  "statement": "SYNTHETIC FIXTURE. Invented projections for development; nothing here is a model run on observed counts.",
+  "method": "SYNTHETIC FIXTURE: no method was run.",
+  "origin_week": {
+    "year": 2026,
+    "week": 1
+  },
+  "latest_data_week": {
+    "year": 2026,
+    "week": 3
+  },
+  "origin_rule": "SYNTHETIC FIXTURE: the origin is the first week of 2026, two provisional weeks before the latest.",
+  "horizon_weeks": 8,
+  "run_count": 1000,
+  "seed": 1,
+  "levels": [
+    0.05,
+    0.25,
+    0.5,
+    0.75,
+    0.95
+  ],
+  "input": {
+    "artifact": "weekly-cases",
+    "sha256": "8faa649cbd45a0759356211329fd72723d0cc515cbe7d6cdc31a6a9c8bc4b602",
+    "rows": 30
+  },
+  "parameters": [
+    {
+      "parameter": "window_weeks",
+      "value": 3,
+      "source": "SYNTHETIC fixture: an invented value, not a published source",
+      "url": null,
+      "note": "Estimation window."
+    },
+    {
+      "parameter": "min_cases",
+      "value": 11,
+      "source": "SYNTHETIC fixture: an invented value, not a published source",
+      "url": null,
+      "note": "Minimum cases in the window."
+    },
+    {
+      "parameter": "provisional_weeks",
+      "value": 2,
+      "source": "SYNTHETIC fixture: an invented value, not a published source",
+      "url": null,
+      "note": "Recent weeks not used."
+    }
+  ],
+  "series": [
+    {
+      "geography": "35",
+      "case_definition": "confirmed_or_unknown_status",
+      "status": "insufficient_data",
+      "reason": "missing_count",
+      "cases_in_window": null,
+      "backtested": false
+    },
+    {
+      "geography": "40",
+      "case_definition": "confirmed_or_unknown_status",
+      "status": "insufficient_data",
+      "reason": "below_threshold",
+      "cases_in_window": 2,
+      "backtested": false
+    },
+    {
+      "geography": "48",
+      "case_definition": "confirmed_or_unknown_status",
+      "status": "forecast",
+      "reason": null,
+      "cases_in_window": 15,
+      "backtested": false
+    }
+  ],
+  "backtest": {
+    "name": "the synthetic fixture outbreak",
+    "series": "SYNTHETIC invented outbreak total",
+    "geography": "48",
+    "case_definition": "confirmed",
+    "protocol": "SYNTHETIC FIXTURE: nothing was backtested.",
+    "seed": 1,
+    "targets": 4,
+    "forecast_dates": 2,
+    "origin_weeks": 2,
+    "mean_crps": 3.5,
+    "coverage_50": 0.5,
+    "coverage_90": 0.5,
+    "mean_persistence_abs_error": 5,
+    "by_horizon": [
+      {
+        "horizon": 1,
+        "n": 2,
+        "mean_crps": 3,
+        "coverage_50": 0.5,
+        "coverage_90": 0.5
+      },
+      {
+        "horizon": 2,
+        "n": 2,
+        "mean_crps": 4,
+        "coverage_50": 0.5,
+        "coverage_90": 0.5
+      }
+    ],
+    "report_path": "data/reports/synthetic-backtest.json",
+    "report_sha256": "869abab295d243c025f46dff798f6fd124ddba380bdd4b0555b80a576c00b56e",
+    "manifest_sha256": "937a22712ea5c20073d2c8a226f1f4a9c2c30aba40a497f2412a34426f986535",
+    "limitations": [
+      "SYNTHETIC FIXTURE: every number here is invented."
+    ]
+  },
+  "scope_note": "SYNTHETIC FIXTURE: the scores describe an invented series, not the forecast beside them."
+}

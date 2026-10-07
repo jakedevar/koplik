@@ -83,5 +83,22 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await panel.locator('.parameter-citations tbody tr').first().getByRole('button').click();
   await expect(drawer).toContainText('Published source: SYNTHETIC fixture');
   await close.press('Escape');
+
+  // The forecast sits beside its measured backtest skill in plain words, with the exact values and their provenance.
+  const forecast = page.locator('.forecast');
+  await expect(forecast.getByRole('heading', { name: /Where next/ })).toBeVisible();
+  await expect(forecast.locator('svg.forecast-chart')).toBeVisible();
+  await expect(forecast.locator('.forecast-headline')).toContainText('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50% of the time');
+  await expect(forecast.locator('.forecast-not-backtested')).toContainText('was NOT backtested');
+  await expect(forecast.locator('.forecast-narrow')).toContainText('too narrow');
+  await forecast.getByText('Exact forecast values', { exact: true }).click();
+  const forecastMedian = forecast.locator('.forecast-result tbody tr').first().getByRole('button').first();
+  await forecastMedian.click(); await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText('SYNTHETIC');
+  await expect(drawer).toContainText('not a source observation');
+  await close.press('Escape'); await expect(forecastMedian).toBeFocused();
+  await forecast.getByLabel('Forecast for').selectOption('40');
+  await expect(forecast.locator('.forecast-insufficient')).toContainText('Insufficient data');
+  await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);
   expect(external).toEqual([]); expect(pageErrors).toEqual([]);
 });
