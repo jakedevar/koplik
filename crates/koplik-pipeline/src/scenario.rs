@@ -46,8 +46,8 @@
 //! * Optional ([`Neighbourhood`], default `None`): every Texas county whose Gazetteer internal
 //!   point lies within `radius_km` of Gaines' (haversine, GRS80 mean radius as in
 //!   `koplik-epi/src/gravity.rs`), coupled by the *explicit* gravity parameters the caller
-//!   supplies. Setting a neighbourhood without gravity is refused (an inert neighbourhood is
-//!   never published). A neighbour is a node only if it has a population, a Gazetteer
+//!   supplies. A neighbourhood cannot be set without gravity (the type enforces it), so an
+//!   inert neighbourhood is never published. A neighbour is a node only if it has a population, a Gazetteer
 //!   centroid **and a reported baseline coverage row**; a county missing any of them is
 //!   **excluded and listed in the provenance artifact**, never imputed. (The v1 contract can
 //!   only carry a missing coverage together with an override, which would be an invented
