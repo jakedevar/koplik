@@ -62,9 +62,10 @@ fn binomial_geometric(rng: &mut impl RngCore, n: u64, p: f64) -> u64 {
 /// BTPE (Binomial, Triangle, Parallelogram, Exponential) for n*p >= 10, p <= 1/2:
 /// Kachitvichyanukul & Schmeiser (1988), "Binomial random variate generation",
 /// Communications of the ACM 31(2):216-222, https://doi.org/10.1145/42372.42381.
-/// Steps and constants follow the paper's Algorithm BTPE (the same ones numpy and
-/// `rand_distr` implement); the squeeze in step 5.2 uses the paper's Stirling
-/// series. Exact in distribution; cost is O(1) per draw on average.
+/// Steps and constants follow the paper's Algorithm BTPE as implemented by NumPy
+/// (`random_binomial_btpe`) and `rand_distr`, including the corrected step 5.3
+/// Stirling bound (see `btpe_log_ratio_bound`). Exact in distribution; cost is
+/// O(1) per draw on average.
 fn binomial_btpe(rng: &mut impl RngCore, n: u64, p: f64) -> u64 {
     // Step 0: set-up. n <= 2^53 (populations are bounded by the engine), so n is
     // exact in f64 and every candidate y fits i64.
@@ -159,28 +160,41 @@ fn binomial_btpe(rng: &mut impl RngCore, n: u64, p: f64) -> u64 {
             continue;
         }
         // Step 5.3: final acceptance/rejection test via Stirling's formula.
-        let x1 = (y + 1) as f64;
-        let f1 = (m + 1) as f64;
-        let z = (n_i + 1 - m) as f64;
-        let w = (n_i - y + 1) as f64;
-        let x2 = x1 * x1;
-        let f2 = f1 * f1;
-        let z2 = z * z;
-        let w2 = w * w;
-        let stirling = |v: f64, v2: f64| {
-            (13680.0 - (462.0 - (132.0 - (99.0 - 140.0 / v2) / v2) / v2) / v2) / v / 166320.0
-        };
-        let bound = xm * libm::log(f1 / x1)
-            + (n_f - m as f64 + 0.5) * libm::log(z / w)
-            + (y - m) as f64 * libm::log(w * r / (x1 * q))
-            + stirling(f1, f2)
-            + stirling(z, z2)
-            + stirling(x1, x2)
-            + stirling(w, w2);
-        if big_a <= bound {
+        if big_a <= btpe_log_ratio_bound(n_i, r, m, y) {
             return y as u64;
         }
     }
+}
+
+/// Stirling-series bound on ln(f(y)/f(m)) used by BTPE step 5.3, where f is the
+/// binomial pmf with parameters (n, r) and m its mode. The corrected form: the
+/// 1988 paper misprints the leading coefficient (13680) and the signs of the y
+/// terms; the Stirling series for ln k! has remainder 1/(12k) - 1/(360k^3) +
+/// 1/(1260k^5) - 1/(1680k^7) + 1/(1188k^9), i.e. (13860 - (462 - (132 - (99 -
+/// 140/k^2)/k^2)/k^2)/k^2)/(166320 k), and ln f(y)/f(m) = ln m! + ln (n-m)! -
+/// ln y! - ln (n-y)! + ..., so the m-side terms add and the y-side terms subtract.
+/// Checked against NumPy `random_binomial_btpe` (numpy/random/src/distributions/
+/// distributions.c, main, 2026-10) which uses 13860 and signs + + - -. The
+/// regression test below compares this bound with the exact recurrence.
+fn btpe_log_ratio_bound(n: i64, r: f64, m: i64, y: i64) -> f64 {
+    let q = 1.0 - r;
+    let n_f = n as f64;
+    let xm = m as f64 + 0.5;
+    let x1 = (y + 1) as f64;
+    let f1 = (m + 1) as f64;
+    let z = (n + 1 - m) as f64;
+    let w = (n - y + 1) as f64;
+    let stirling = |v: f64| {
+        let v2 = v * v;
+        (13860.0 - (462.0 - (132.0 - (99.0 - 140.0 / v2) / v2) / v2) / v2) / v / 166320.0
+    };
+    xm * libm::log(f1 / x1)
+        + (n_f - m as f64 + 0.5) * libm::log(z / w)
+        + (y - m) as f64 * libm::log(w * r / (x1 * q))
+        + stirling(f1)
+        + stirling(z)
+        - stirling(x1)
+        - stirling(w)
 }
 
 #[cfg(test)]
@@ -248,6 +262,61 @@ mod tests {
             pmf[k as usize - 1] = pmf[k as usize] * k as f64 / (n - k + 1) as f64 * (1.0 - p) / p;
         }
         pmf
+    }
+
+    /// Exact ln(f(y)/f(m)) by the step 5.1 recurrence f(i)/f(i-1) = a/i - s.
+    fn exact_log_ratio(n: i64, r: f64, m: i64, y: i64) -> f64 {
+        let s = r / (1.0 - r);
+        let a = s * (n as f64 + 1.0);
+        let (lo, hi) = if m < y { (m + 1, y) } else { (y + 1, m) };
+        let sum: f64 = (lo..=hi).map(|i| libm::log(a / i as f64 - s)).sum();
+        if m < y { sum } else { -sum }
+    }
+
+    /// Regression for the step 5.3 bound (#1379): the misprinted 13680 / sign
+    /// form is off by about 1e-4 at (1000, 0.5, 522); the corrected bound agrees
+    /// with the exact recurrence to the Stirling remainder, far below 1e-9.
+    #[test]
+    fn btpe_step_53_bound_matches_exact_log_ratio() {
+        for (n, r, y) in [
+            (1_000_i64, 0.5, 522_i64),
+            (1_000, 0.5, 478),
+            (6_420, 0.09, 640),
+            (6_420, 0.09, 520),
+            (100_000, 0.002, 260),
+            (50_000, 0.3, 14_800),
+        ] {
+            let m = libm::floor((n as f64) * r + r) as i64;
+            let bound = btpe_log_ratio_bound(n, r, m, y);
+            let exact = exact_log_ratio(n, r, m, y);
+            assert!(
+                (bound - exact).abs() < 1e-9,
+                "n={n} r={r} m={m} y={y}: bound={bound} exact={exact}"
+            );
+        }
+        // The uncorrected form is measurably wrong at the reviewer's case.
+        let (n, r, y) = (1_000_i64, 0.5, 522_i64);
+        let m = libm::floor((n as f64) * r + r) as i64;
+        let misprinted = {
+            let st = |v: f64| {
+                let v2 = v * v;
+                (13680.0 - (462.0 - (132.0 - (99.0 - 140.0 / v2) / v2) / v2) / v2) / v / 166320.0
+            };
+            let (x1, f1, z, w) = (
+                (y + 1) as f64,
+                (m + 1) as f64,
+                (n + 1 - m) as f64,
+                (n - y + 1) as f64,
+            );
+            (m as f64 + 0.5) * libm::log(f1 / x1)
+                + (n as f64 - m as f64 + 0.5) * libm::log(z / w)
+                + (y - m) as f64 * libm::log(w * r / (x1 * (1.0 - r)))
+                + st(f1)
+                + st(z)
+                + st(x1)
+                + st(w)
+        };
+        assert!((misprinted - exact_log_ratio(n, r, m, y)).abs() > 1e-6);
     }
 
     /// Chi-square goodness of fit against the exact pmf, with both the geometric

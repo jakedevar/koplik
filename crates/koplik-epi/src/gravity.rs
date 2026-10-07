@@ -2,11 +2,15 @@
 //! metapopulation dynamics: a gravity model for epidemiological coupling and
 //! dynamics", Am. Nat. 164(2):267-281, https://doi.org/10.1086/422341. Their
 //! coupling term is theta * N_k^tau1 * sum_j I_j^tau2 / d_kj^rho (recipient k,
-//! donor j); secondary sources report their England & Wales fit as tau1 = 1,
-//! tau2 = 1 (Jandarov & Haran, arXiv:1110.6451, sec. 4) or tau2 = 1.5 (Bharti et
-//! al. 2008, PMC2275791), rho = 1. The primary PDF was not accessible to verify
-//! which; neither fit is transplanted to Texas. All four coefficients come from
-//! ScenarioInput; the engine's defaults carry no gravity (`defaults.rs`).
+//! donor j). Source status (#1353, 2026-10-07): the primary text was NOT
+//! verified (journal and PSU mirror are behind logins; follow-up #1371). The
+//! model form and the fit were read from two secondary sources, both verified:
+//! Jandarov & Haran (arXiv:1110.6451, eq. 3 and sec. 4) give the equation above
+//! and "tau1 = 1, tau2 = 1 as estimated in Xia et al. (2004)"; Bharti et al.
+//! 2008 (PMC2275791) give "rho = 1, tau1 = 1, tau2 = 1.5, theta = 4.54e-9". The
+//! two disagree on tau2; neither fit is transplanted to Texas. All four
+//! coefficients come from ScenarioInput; the engine's defaults carry no gravity
+//! (`defaults.rs`). The GRS80 radius below was verified against Moritz (2000).
 //!
 //! F_ij = scale N_i^a N_j^b / d_ij^c, with d in km (haversine on the GRS80 mean
 //! sphere). F is a contact-equivalent flow of residents of i into j, not
