@@ -274,7 +274,10 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       tr.append(name, valueCell, sourceCell); parameterBody.append(tr);
     }
     parameters.append(parameterHeader, parameterBody);
-    method.append(parameters);
+    // The table is wider than a phone: it scrolls inside its own wrapper instead of being clipped by the panel.
+    const parametersScroll = element('div', undefined, 'table-scroll');
+    parametersScroll.append(parameters);
+    method.append(parametersScroll);
     blocks.push(method);
     result.replaceChildren(...blocks);
   }
