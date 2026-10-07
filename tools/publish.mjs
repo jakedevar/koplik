@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
-import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -88,6 +88,9 @@ async function main() {
     throw new Error('Publishing requires a bare repository');
   }
   const source = await run('git', ['rev-parse', 'HEAD'], root);
+  if (await run('git', ['status', '--porcelain=v1', '--untracked-files=all'], root)) {
+    console.error(`Warning: local edits are not published; publishing ${source}`);
+  }
   const branch = await run('git', ['rev-parse', '--abbrev-ref', 'HEAD'], root);
   const session = process.env.RSI_SESSION_ID || (branch.startsWith('rsi/') ? branch.slice(4) : '');
   const identity = (await run('git', ['var', 'GIT_AUTHOR_IDENT'], root)).match(/^(.*) <([^>]+)> \d+ [+-]\d+$/);
@@ -120,21 +123,42 @@ async function main() {
       await mkdir(join(build, 'target/tools/bin'), { recursive: true });
       await cp(cli, join(build, 'target/tools/bin/wasm-bindgen'));
     }
+    const web = join(build, 'web');
+    const data = join(web, 'public/data');
+    // Rebuild even if generated data was committed; only this pipeline's output may ship.
+    await rm(data, { recursive: true, force: true, maxRetries: 3 });
+    const governor = join(homedir(), '.rsi/bin/cargo-slot');
+    const pipelineArgs = ['run', '--offline', '--locked', '--release', '-p', 'koplik-pipeline', '--',
+      'all', '--from-fixtures', '--fixtures', join(build, 'data/fixtures'),
+      '--work', join(scratch, 'work'), '--out', data];
+    console.log(`Building offline fixture data from ${source} in the temporary workspace`);
+    await run(existsSync(governor) ? governor : 'cargo',
+      existsSync(governor) ? ['cargo', ...pipelineArgs] : pipelineArgs, build, {
+        stdio: 'inherit', env: { ...environment, KOPLIK_CONTACT: '',
+          CARGO_TARGET_DIR: environment.CARGO_TARGET_DIR
+            ? resolve(root, environment.CARGO_TARGET_DIR) : join(build, 'target') },
+      });
+    if (!existsSync(join(data, 'manifest.json'))) {
+      throw new Error('Offline pipeline produced no web/public/data/manifest.json; refusing publication');
+    }
     console.log(`Building WASM from ${source} in the temporary workspace`);
     await run('make', ['wasm'], build, {
       stdio: 'inherit', env: { ...environment, CARGO_TARGET_DIR: join(build, 'target') },
     });
-    const web = join(build, 'web');
     // Install the archived lockfile; caller node_modules may also be stale or modified.
     await run('npm', ['ci', '--no-audit', '--no-fund'], web, { stdio: 'inherit' });
     await run('npm', ['run', 'build'], web, {
       stdio: 'inherit', env: { ...environment, KOPLIK_BASE_PATH: '/koplik/' },
     });
     const dist = join(web, 'dist');
+    if (!existsSync(join(dist, 'data/manifest.json'))
+      || !(await readdir(join(dist, 'data/v1')).catch(() => [])).some((name) => name.endsWith('.json'))) {
+      throw new Error('Built site is missing data/manifest.json or data/v1/*.json; refusing publication');
+    }
     await writeFile(join(dist, '.nojekyll'), '');
     await publishSite({ scratch, dist, target, source, identity, session, dryRun });
   } finally {
-    if (scratch) await rm(scratch, { recursive: true, force: true });
+    if (scratch) await rm(scratch, { recursive: true, force: true, maxRetries: 3 });
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onTerminate);
   }
