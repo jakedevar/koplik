@@ -29,7 +29,7 @@ export function expandRowArtifact(kind: keyof typeof validators, input: unknown)
   if (Array.isArray(input)) return input;
   const validate = validators[kind];
   if (!validate(input)) throw new Error(`${kind}: invalid v6 artifact: ${ajv.errorsText(validate.errors)}`);
-  const artifact = input as Artifact;
+  const artifact = input as unknown as Artifact;
   return artifact.rows.map((row) => ({ ...row, provenance: row.provenance.map((index) => {
     const record = artifact.provenance[index];
     if (!record) throw new Error(`${kind}: provenance index ${index} outside this file's table`);

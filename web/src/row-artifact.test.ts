@@ -20,27 +20,27 @@ function pack(rows: { provenance: Provenance[] }[]) {
 describe('v6 provenance expansion', () => {
   it('preserves every observation field and ordered provenance record for every fixture row', () => {
     for (const [kind, name] of [['geographies', 'geographies'], ['cases', 'weekly-cases'], ['coverage', 'coverage'], ['rt', 'rt']] as const) {
-      const legacy = fixtureJson(name);
+      const legacy = parseRows(kind, fixtureJson(name));
       expect(parseRows(kind, pack(legacy))).toEqual(parseRows(kind, legacy));
     }
   });
   it('preserves distinct URLs, retrieval times and licences for the same hash and repeated references', () => {
-    const row = fixtureJson('geographies')[0];
+    const row = parseRows('geographies', fixtureJson('geographies'))[0];
     const sameHash = { ...row.provenance[0], url: 'https://example.invalid/other', retrieved_at: '2026-10-02T00:00:00Z', licence_id: 'other-terms' };
     const rows = [{ ...row, provenance: [row.provenance[0], sameHash, row.provenance[0]] }];
     expect(parseRows('geographies', pack(rows))).toEqual(rows);
   });
   it('refuses invalid versions, tables and indices before any row reaches the UI', () => {
     for (const indices of [[], [-1], [0.5], [1], [4294967296], ['0']]) {
-      const artifact = pack([fixtureJson('geographies')[0]]);
+      const artifact = pack([parseRows('geographies', fixtureJson('geographies'))[0]]);
       artifact.rows[0].provenance = indices as number[];
       expect(() => parseRows('geographies', artifact)).toThrow(/invalid v6 artifact|outside this file's table/);
     }
-    const artifact = pack([fixtureJson('geographies')[0]]);
+    const artifact = pack([parseRows('geographies', fixtureJson('geographies'))[0]]);
     artifact.provenance[0] = { ...artifact.provenance[0], sha256: 'bad' };
     expect(() => parseRows('geographies', artifact)).toThrow('invalid v6 artifact');
     expect(() => parseRows('geographies', { ...artifact, contract_version: 5 })).toThrow('invalid v6 artifact');
-    const status = pack(fixtureJson('rt'));
+    const status = pack(parseRows('rt', fixtureJson('rt')));
     Object.assign(status.rows[0], { mean: 1 });
     expect(() => parseRows('rt', status)).toThrow('status and bounds');
     expect(parseRows('cases', pack([]))).toEqual([]);
