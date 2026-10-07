@@ -7,6 +7,8 @@
 //! carrying a `Provenance` (snapshot hash, source URL, retrieval time, licence id).
 
 pub mod cdc;
+pub mod census_counties;
+pub mod dshs_sources;
 pub mod error;
 pub mod http;
 pub mod jurisdictions;

@@ -16,15 +16,21 @@ use std::time::Duration;
 
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
+use koplik_ingest::census_counties;
+use koplik_ingest::dshs_sources::{self, FetchOutcome};
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
 use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
-use koplik_ingest::source::fetch_to_store;
+use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+  koplik-ingest fetch census-counties [--store DIR] [--direct 1]
+  koplik-ingest fetch dshs-live [--store DIR]
+  koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD]
+  koplik-ingest fetch dshs-reports [--store DIR]
   koplik-ingest list [--store DIR] [--source ID]";
 
 /// Largest response body accepted (the CDC measles query is about 1 MB).
@@ -61,6 +67,44 @@ fn year(flag: Option<String>, default: u16) -> Result<u16> {
             .parse()
             .map_err(|_| IngestError::Invalid(format!("bad year {s:?}"))),
     }
+}
+
+fn fetcher(interval_secs: u64) -> PoliteFetcher<UreqClient, SystemTimekeeper> {
+    let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
+    let cfg = PoliteConfig {
+        min_interval: Duration::from_secs(interval_secs.max(1)),
+        max_attempts: 5,
+        ..PoliteConfig::default()
+    };
+    PoliteFetcher::new(client, SystemTimekeeper::new(), cfg)
+}
+
+/// One line per URL; a non-zero exit when any fetch failed (failures are never dropped).
+fn report_outcomes(results: &[(SourceSpec, FetchOutcome)]) -> Result<()> {
+    let mut failed = 0;
+    for (spec, outcome) in results {
+        match outcome {
+            FetchOutcome::Skipped(r) => eprintln!("have    {} {}", r.sha256, spec.url),
+            FetchOutcome::Fetched(r, _) => {
+                eprintln!("fetched {} {}", r.sha256, spec.url);
+                println!(
+                    "{}",
+                    serde_json::to_string(r).expect("Retrieval serialises")
+                );
+            }
+            FetchOutcome::Failed(e) => {
+                failed += 1;
+                eprintln!("FAILED  {} {e}", spec.url);
+            }
+        }
+    }
+    if failed > 0 {
+        return Err(IngestError::Http(format!(
+            "{failed} of {} fetches failed",
+            results.len()
+        )));
+    }
+    Ok(())
 }
 
 fn run(args: Vec<String>) -> Result<()> {
@@ -127,6 +171,72 @@ fn run(args: Vec<String>) -> Result<()> {
                     Ok(())
                 }
             }
+        }
+        ("fetch", Some("census-counties")) => {
+            let direct = flags.take("--direct")?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let (spec, secs) = match direct {
+                Some(_) => (census_counties::source_spec(), 1),
+                None => (census_counties::wayback_spec(), 8),
+            };
+            let mut fetcher = fetcher(secs);
+            let (r, _) = fetch_to_store(&mut fetcher, &store, &spec)?;
+            println!(
+                "{}",
+                serde_json::to_string(&r).expect("Retrieval serialises")
+            );
+            Ok(())
+        }
+        ("fetch", Some("dshs-live")) => {
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let mut fetcher = fetcher(1);
+            let specs = [
+                dshs_sources::live_spec(
+                    dshs_sources::SOURCE_PAGE_LIVE,
+                    dshs_sources::OUTBREAK_PAGE_URL,
+                ),
+                dshs_sources::live_spec(
+                    dshs_sources::SOURCE_REPORT_LIVE,
+                    dshs_sources::FINAL_REPORT_URL,
+                ),
+            ];
+            let results = specs
+                .iter()
+                .map(|s| {
+                    let r = fetch_to_store(&mut fetcher, &store, s);
+                    (s.clone(), r)
+                })
+                .collect::<Vec<_>>();
+            for (spec, r) in results {
+                let (r, _) = r?;
+                eprintln!("{} sha256 {}", spec.url, r.sha256);
+                println!(
+                    "{}",
+                    serde_json::to_string(&r).expect("Retrieval serialises")
+                );
+            }
+            Ok(())
+        }
+        ("fetch", Some("dshs-wayback")) => {
+            let from = flags.take("--from")?.unwrap_or_else(|| "20250301".into());
+            let to = flags.take("--to")?.unwrap_or_else(|| "20250910".into());
+            // Archive.org rate-limits well below one request a second (HTTP 429), so pace it.
+            let secs = year(flags.take("--interval-secs")?, 8)?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let mut fetcher = fetcher(u64::from(secs));
+            let results = dshs_sources::fetch_outbreak_captures(&mut fetcher, &store, &from, &to)?;
+            report_outcomes(&results)
+        }
+        ("fetch", Some("dshs-reports")) => {
+            let secs = year(flags.take("--interval-secs")?, 8)?;
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let mut fetcher = fetcher(u64::from(secs));
+            let results = dshs_sources::fetch_report_documents(&mut fetcher, &store)?;
+            report_outcomes(&results)
         }
         ("list", None) => {
             let src = flags.take("--source")?;

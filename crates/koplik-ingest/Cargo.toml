@@ -24,6 +24,11 @@ sha2.workspace = true
 hex.workspace = true
 # Small blocking HTTP client; TLS via rustls (no OpenSSL, no async runtime).
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+# DSHS connector: HTML tables (scraper), gzip-encoded archive captures (flate2) and the
+# positioned-text PDF data reports (pdf-extract; lopdf pinned to the version it uses).
+scraper = "0.23"
+flate2 = "1"
+pdf-extract = "0.9"
 
 [dev-dependencies]
 tempfile = "3"
