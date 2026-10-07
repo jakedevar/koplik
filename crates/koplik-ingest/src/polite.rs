@@ -1174,6 +1174,57 @@ mod tests {
     }
 
     #[test]
+    fn a_redirect_off_census_carries_the_general_contact_on_the_destination() {
+        let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
+        let dest = "https://files.example.org/census-copy.zip";
+        let c = FakeClient::default();
+        c.on(CENSUS_ROBOTS, FakeClient::status(404, b""));
+        c.on(
+            CENSUS_URL,
+            Ok(HttpResponse {
+                status: 302,
+                content_type: None,
+                location: Some(dest.to_owned()),
+                retry_after_secs: None,
+                body: Vec::new(),
+            }),
+        );
+        c.on(
+            "https://files.example.org/robots.txt",
+            FakeClient::status(404, b""),
+        );
+        c.on(dest, FakeClient::ok(b"x"));
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        assert_eq!(f.fetch(CENSUS_URL).unwrap().final_url, dest);
+        let calls = c.calls.borrow();
+        assert_eq!(calls.len(), 4, "{calls:?}");
+        for (url, agent) in calls.iter() {
+            let want = if url.starts_with("https://www2.census.gov/") {
+                ua(DUMMY_CENSUS)
+            } else {
+                // The destination's robots.txt and content are not Census requests.
+                ua("https://example.org/general")
+            };
+            assert_eq!(*agent, want, "{url}");
+        }
+    }
+
+    #[test]
+    fn a_pinned_census_file_carries_the_census_contact() {
+        use crate::store::sha256_of;
+        let body = b"pinned bytes";
+        let url = "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip";
+        let manifest = NamedFileAllowlist::new([(url.to_owned(), sha256_of(body))]).unwrap();
+        let c = FakeClient::default();
+        c.on(url, FakeClient::ok(body));
+        let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        assert_eq!(f.fetch_census_file(url, &manifest).unwrap().body, body);
+        let calls = c.calls.borrow();
+        assert_eq!(*calls, vec![(url.to_owned(), ua(DUMMY_CENSUS))]);
+    }
+
+    #[test]
     fn census_contact_from_the_local_config_reaches_census_requests() {
         let local = format!("{CENSUS_CONTACT_ENV}={DUMMY_CENSUS}\n");
         let wire = wire_for(cfg_for(None, Some(&local)).unwrap(), &[CENSUS_URL]);

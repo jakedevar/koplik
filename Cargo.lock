@@ -901,6 +901,7 @@ dependencies = [
  "geo",
  "hex",
  "koplik-contracts",
+ "log",
  "pdf-extract",
  "scraper",
  "serde",
