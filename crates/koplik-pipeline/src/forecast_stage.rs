@@ -42,6 +42,7 @@ use koplik_contracts::v7::{
     PooledScores, PublicationPolicy, SeriesBacktest, SeriesBacktestEntry, SeriesSkill,
     SkillByHorizon, WithheldReason,
 };
+use koplik_epi::backtest::truncated::SkillFloor;
 use koplik_epi::forecast::{ForecastConfig, ForecastError, ProjectionStatus, forecast_weekly};
 use koplik_epi::rt::{InsufficientReason as EpiReason, case_definitions};
 use koplik_ingest::cdc;
@@ -83,11 +84,19 @@ pub fn forecast_config() -> ForecastConfig {
     ForecastConfig::default()
 }
 
+/// The evidence floor of the publication policy: at least this many scored targets of the series
+/// itself, from at least [`MINIMUM_ORIGIN_WEEKS`] distinct origin weeks. The same floor as the series
+/// backtest's measured skill (`koplik_epi::backtest::truncated::SkillFloor::PRE_REGISTERED`: about
+/// the size of the first backtest, and the 8 horizons of one origin are not independent evidence),
+/// and applied to the report-vintage backtest too: a series with less evidence has no measured skill.
+pub const MINIMUM_TARGETS: u32 = SkillFloor::PRE_REGISTERED.min_targets;
+/// See [`MINIMUM_TARGETS`].
+pub const MINIMUM_ORIGIN_WEEKS: u32 = SkillFloor::PRE_REGISTERED.min_origin_weeks;
 /// The 90% interval coverage a series' measured skill must reach for its forecast to be published.
-/// Fixed in `thoughts/shared/research/backtest-cdc-states.md` ("Publication policy") before the code
-/// that applies it and never tuned: the nominal 0.90 less 0.15, the sampling noise of a coverage
-/// estimate resting on about 10 independent origins (binomial standard error at 0.9 with 10 draws is
-/// about 0.095; 1.5 of them is about 0.14).
+/// Fixed in `thoughts/shared/research/backtest-cdc-states.md` ("Publication policy"), after the first
+/// state-series result was known and before the code that applies it, and never tuned: the nominal
+/// 0.90 less 0.15, the sampling noise of a coverage estimate resting on about 10 independent origins
+/// (binomial standard error at 0.9 with 10 draws is about 0.095; 1.5 of them is about 0.14).
 pub const MINIMUM_COVERAGE_90: f64 = 0.75;
 /// The most the measured mean CRPS may be, as a multiple of the persistence baseline's mean absolute
 /// error (carrying the origin week's count forward): 1, "no worse than the number the reader already
@@ -100,10 +109,12 @@ pub const MAXIMUM_CRPS_OVER_PERSISTENCE: f64 = 1.0;
 pub fn publication_policy() -> PublicationPolicy {
     PublicationPolicy {
         rule: format!(
-            "A series' forecast is published only if its method has a measured skill on that very series (at least the evaluation's floor of scored targets and origin weeks) and that skill meets both criteria, pooled over the series' scored targets: 90% intervals contained the true count at least {:.0}% of the time (the nominal 90% less 15 points, the sampling noise of a coverage estimate resting on about 10 independent origins), and the mean CRPS is no more than {} times the mean absolute error of simply repeating the origin week's count. Otherwise the forecast is withheld and the page says why. The thresholds were fixed before the code that applies them and are never tuned to a score.",
+            "A series' forecast is published only if its method has a measured skill on that very series and that skill meets all three criteria, pooled over the series' scored targets: at least {MINIMUM_TARGETS} scored targets from at least {MINIMUM_ORIGIN_WEEKS} distinct origin weeks (the evidence floor, for every kind of evaluation alike: the 8 horizons of one origin are not independent evidence); 90% intervals that contained the true count at least {:.0}% of the time (the nominal 90% less 15 points, the sampling noise of a coverage estimate resting on about 10 independent origins); and a mean CRPS no more than {} times the mean absolute error of simply repeating the origin week's count. Otherwise the forecast is withheld and the page says why. The thresholds were written after the first state-series backtest result was known and before the code that applies them, and are never tuned to a score.",
             MINIMUM_COVERAGE_90 * 100.0,
             MAXIMUM_CRPS_OVER_PERSISTENCE
         ),
+        minimum_targets: MINIMUM_TARGETS,
+        minimum_origin_weeks: MINIMUM_ORIGIN_WEEKS,
         minimum_coverage_90: MINIMUM_COVERAGE_90,
         maximum_crps_over_persistence: MAXIMUM_CRPS_OVER_PERSISTENCE,
     }
@@ -192,39 +203,57 @@ pub fn series_skill(
     SeriesSkill::NotBacktested
 }
 
-/// The measured scores `(coverage_90, mean CRPS, persistence mean absolute error)` a series' skill
-/// rests on, when it has a measured skill.
+/// The evidence a series' skill rests on, when it has a measured skill: `(scored targets, distinct
+/// origin weeks, 90% coverage, mean CRPS, persistence mean absolute error)`. The same five numbers
+/// for either kind of evaluation, so the policy's evidence floor applies to both.
+type Evidence = (u32, u32, f64, f64, f64);
+
 fn measured_for(
     skill_status: SeriesSkill,
     skill: Option<&BacktestSkill>,
     series_backtest: Option<&SeriesBacktest>,
     geography: GeoId,
-) -> Option<(f64, f64, f64)> {
+) -> Option<Evidence> {
     match skill_status {
-        SeriesSkill::Backtested => {
-            skill.map(|b| (b.coverage_90, b.mean_crps, b.mean_persistence_abs_error))
-        }
+        SeriesSkill::Backtested => skill.map(|b| {
+            (
+                b.targets,
+                b.origin_weeks,
+                b.coverage_90,
+                b.mean_crps,
+                b.mean_persistence_abs_error,
+            )
+        }),
         SeriesSkill::Measured => series_backtest
             .and_then(|b| b.by_series.iter().find(|e| e.geography == geography))
-            .and_then(|e| e.measured.as_ref())
-            .map(|m| (m.coverage_90, m.mean_crps, m.mean_persistence_abs_error)),
+            .and_then(|e| {
+                e.measured.as_ref().map(|m| {
+                    (
+                        e.targets,
+                        e.origin_weeks,
+                        m.coverage_90,
+                        m.mean_crps,
+                        m.mean_persistence_abs_error,
+                    )
+                })
+            }),
         SeriesSkill::InsufficientData | SeriesSkill::NotBacktested => None,
     }
 }
 
 /// Apply the publication policy to a series the method forecast: published, or withheld with the
-/// reason its skill gives. Mechanical: nothing here looks at anything but the measured scores.
+/// reason its skill gives. Mechanical: nothing here looks at anything but the measured evidence.
 fn decide(
     policy: &PublicationPolicy,
     skill_status: SeriesSkill,
-    scores: Option<(f64, f64, f64)>,
+    evidence: Option<Evidence>,
 ) -> (ForecastStatus, Option<WithheldReason>) {
-    // Only a measured skill can be admitted: scores of any other series are never looked at.
+    // Only a measured skill can be admitted: evidence of any other series is never looked at.
     if matches!(
         skill_status,
         SeriesSkill::Measured | SeriesSkill::Backtested
-    ) && let Some((coverage_90, mean_crps, persistence)) = scores
-        && policy.admits(coverage_90, mean_crps, persistence)
+    ) && let Some((targets, origin_weeks, coverage_90, mean_crps, persistence)) = evidence
+        && policy.admits(targets, origin_weeks, coverage_90, mean_crps, persistence)
     {
         return (ForecastStatus::Forecast, None);
     }
@@ -1480,60 +1509,148 @@ mod tests {
     }
 
     #[test]
-    fn the_policy_is_the_registered_one_and_decides_only_from_the_measured_scores() {
+    fn the_policy_is_the_registered_one_and_decides_only_from_the_measured_evidence() {
         let policy = publication_policy();
+        assert_eq!(
+            (policy.minimum_targets, policy.minimum_origin_weeks),
+            (40, 10)
+        );
         assert_eq!(policy.minimum_coverage_90, 0.75);
         assert_eq!(policy.maximum_crps_over_persistence, 1.0);
         assert!(policy.rule.contains("never tuned"));
-        let measured = SeriesSkill::Measured;
-        let (published, none) = decide(&policy, measured, Some((0.75, 4.0, 4.0)));
-        assert_eq!((published, none), (ForecastStatus::Forecast, None));
-        for (scores, why) in [
-            (Some((0.7499, 1.0, 4.0)), WithheldReason::SkillBelowPolicy),
-            (Some((0.95, 4.0001, 4.0)), WithheldReason::SkillBelowPolicy),
-        ] {
+        assert!(
+            policy
+                .rule
+                .contains("after the first state-series backtest result was known")
+        );
+        assert!(
+            policy
+                .rule
+                .contains("at least 40 scored targets from at least 10 distinct origin weeks")
+        );
+        let withheld = |why| (ForecastStatus::Withheld, Some(why));
+        let below = WithheldReason::SkillBelowPolicy;
+        // The evidence floor, for BOTH kinds of evaluation, at its boundaries: (targets, origin weeks,
+        // 90% coverage, mean CRPS, persistence error) with good scores everywhere else.
+        for kind in [SeriesSkill::Measured, SeriesSkill::Backtested] {
             assert_eq!(
-                decide(&policy, measured, scores),
-                (ForecastStatus::Withheld, Some(why))
+                decide(&policy, kind, Some((40, 10, 0.75, 4.0, 4.0))),
+                (ForecastStatus::Forecast, None),
+                "{kind:?}: exactly at every threshold"
+            );
+            for (targets, origin_weeks) in [(39, 10), (40, 9), (39, 9), (1, 1), (0, 0)] {
+                assert_eq!(
+                    decide(&policy, kind, Some((targets, origin_weeks, 1.0, 0.0, 4.0))),
+                    withheld(below),
+                    "{kind:?}: {targets} targets from {origin_weeks} origin weeks"
+                );
+            }
+            // The scores, at their boundaries, with the evidence at its floor.
+            assert_eq!(
+                decide(&policy, kind, Some((40, 10, 0.7499, 1.0, 4.0))),
+                withheld(below)
+            );
+            assert_eq!(
+                decide(&policy, kind, Some((40, 10, 0.95, 4.0001, 4.0))),
+                withheld(below)
             );
         }
         assert_eq!(
             decide(&policy, SeriesSkill::InsufficientData, None),
-            (
-                ForecastStatus::Withheld,
-                Some(WithheldReason::InsufficientDataForSkill)
-            )
+            withheld(WithheldReason::InsufficientDataForSkill)
         );
         assert_eq!(
             decide(&policy, SeriesSkill::NotBacktested, None),
-            (
-                ForecastStatus::Withheld,
-                Some(WithheldReason::NotBacktested)
-            )
+            withheld(WithheldReason::NotBacktested)
         );
         // A skill that is not measured cannot be admitted, whatever numbers someone supplies.
+        for kind in [SeriesSkill::NotBacktested, SeriesSkill::InsufficientData] {
+            assert_eq!(
+                decide(&policy, kind, Some((400, 100, 1.0, 0.0, 1.0))).0,
+                ForecastStatus::Withheld
+            );
+        }
+        let geography: GeoId = "12".parse().unwrap();
         assert_eq!(
-            decide(&policy, SeriesSkill::NotBacktested, Some((1.0, 0.0, 1.0))).0,
-            ForecastStatus::Withheld
-        );
-        assert_eq!(
-            measured_for(
-                SeriesSkill::NotBacktested,
-                None,
-                None,
-                "12".parse().unwrap()
-            ),
+            measured_for(SeriesSkill::NotBacktested, None, None, geography),
             None
         );
         assert_eq!(
-            measured_for(
-                SeriesSkill::InsufficientData,
-                None,
-                None,
-                "12".parse().unwrap()
-            ),
+            measured_for(SeriesSkill::InsufficientData, None, None, geography),
             None
         );
+    }
+
+    /// The report-vintage backtest has no floor of its own, so the policy's floor must hold it: the
+    /// reviewer's probe published a series with 1 target from 1 origin week. Through the whole stage,
+    /// at the boundaries.
+    #[test]
+    fn the_report_vintage_backtest_is_held_to_the_evidence_floor_end_to_end() {
+        let dshs: Vec<WeeklyCaseCount> = (1..=20u8)
+            .map(|w| {
+                row(
+                    "48",
+                    w,
+                    10 + u32::from(w % 3),
+                    CaseDefinition::Confirmed,
+                    "dshs-measles-data-report-wayback",
+                )
+            })
+            .collect();
+        let with = |targets: u32, origin_weeks: u32| {
+            let mut skill = skill_from_report(&skill_json(|_| {}), &forecast_config()).unwrap();
+            // Scores that meet the rest of the policy, so only the evidence floor can decide.
+            skill.coverage_90 = 0.9;
+            skill.mean_crps = 1.0;
+            skill.mean_persistence_abs_error = 5.0;
+            skill.targets = targets;
+            skill.forecast_dates = origin_weeks;
+            skill.origin_weeks = origin_weeks;
+            skill.by_horizon = vec![SkillByHorizon {
+                horizon: 1,
+                n: targets,
+                mean_crps: Some(1.0),
+                coverage_50: Some(0.5),
+                coverage_90: Some(0.9),
+            }];
+            build(&dshs, input(), Some(skill), None).unwrap().unwrap()
+        };
+        let at_floor = with(40, 10);
+        let s = &at_floor.provenance.series[0];
+        assert_eq!(
+            (s.status, s.skill),
+            (ForecastStatus::Forecast, SeriesSkill::Backtested)
+        );
+        assert_eq!(at_floor.rows.len(), 8);
+        at_floor.provenance.check_against(&at_floor.rows).unwrap();
+        for (targets, origin_weeks) in [(39, 10), (40, 9), (1, 1)] {
+            let short = with(targets, origin_weeks);
+            let s = &short.provenance.series[0];
+            assert_eq!(
+                (s.status, s.withheld, s.skill),
+                (
+                    ForecastStatus::Withheld,
+                    Some(WithheldReason::SkillBelowPolicy),
+                    SeriesSkill::Backtested
+                ),
+                "{targets} targets from {origin_weeks} origin weeks"
+            );
+            assert!(short.rows.is_empty(), "nothing is published");
+            assert_eq!(short.withheld_rows.len(), 8);
+            // And the contract, which re-checks the policy, accepts the withholding.
+            let json = serde_json::to_value(&short.provenance).unwrap();
+            assert!(serde_json::from_value::<ForecastProvenance>(json).is_ok());
+        }
+        // The real West Texas report (48 targets from 5 origin weeks) is below the floor too.
+        let committed = std::fs::read(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../data/reports/backtest/west-texas-2025.json"),
+        )
+        .unwrap();
+        let real = skill_from_report(&committed, &forecast_config()).unwrap();
+        assert_eq!((real.targets, real.origin_weeks), (48, 5));
+        let b = build(&dshs, input(), Some(real), None).unwrap().unwrap();
+        assert!(b.rows.is_empty());
     }
 
     #[test]
@@ -1615,6 +1732,79 @@ mod tests {
         }
     }
 
+    /// The series backtest's own floor is its report's; the policy's evidence floor is the registered
+    /// 40 targets from 10 origin weeks whatever the report says, so a report with a lower floor
+    /// cannot publish a series on less evidence, and a series one target or one origin week short has
+    /// no measured skill at all. At the boundaries.
+    #[test]
+    fn the_series_backtest_is_held_to_the_evidence_floor_at_its_boundaries() {
+        let mut cases = series("12", 20, 10);
+        cases.extend(series("13", 20, 10));
+        // Series "12" with `targets` scored targets from `origin_weeks` origin weeks, in a report with
+        // the given floor; everything else (scores, "13") as in `state_report`.
+        let outcome = |targets: u32, origin_weeks: u32, floor: (u32, u32)| {
+            let half = |n: u32| {
+                json!([
+                    {"horizon": 1, "n": n / 2, "mean_crps": 2.0, "coverage_50": 0.5, "coverage_90": 1.0, "mean_persistence_abs_error": 4.0},
+                    {"horizon": 2, "n": n - n / 2, "mean_crps": 2.0, "coverage_50": 0.5, "coverage_90": 1.0, "mean_persistence_abs_error": 4.0}
+                ])
+            };
+            let report = state_report(|v| {
+                v["primary"]["floor"] =
+                    json!({"min_targets": floor.0, "min_origin_weeks": floor.1});
+                let measured = targets >= floor.0 && origin_weeks >= floor.1;
+                let series = &mut v["primary"]["series"][0];
+                series["origin_weeks_scored"] = json!(origin_weeks);
+                series["origins_forecast"] = json!(origin_weeks + 2);
+                series["measured"] = json!(measured);
+                series["pooled"]["n"] = json!(targets);
+                series["by_horizon"] = half(targets);
+                v["primary"]["pooled"]["n"] = json!(targets + 2);
+                v["primary"]["by_horizon"] = half(targets + 2);
+                v["primary"]["forecasts_scored"] = json!(origin_weeks + 1);
+            });
+            let backtest = series_backtest_from_report(&report, &forecast_config(), 2).unwrap();
+            let b = build(&cases, input(), None, Some(backtest))
+                .unwrap()
+                .unwrap();
+            let s = b
+                .provenance
+                .series
+                .iter()
+                .find(|s| s.geography.to_string() == "12")
+                .unwrap();
+            let json = serde_json::to_value(&b.provenance).unwrap();
+            assert!(
+                serde_json::from_value::<ForecastProvenance>(json).is_ok(),
+                "{targets}/{origin_weeks}"
+            );
+            (s.status, s.withheld, s.skill, b.rows.len())
+        };
+        let published = (ForecastStatus::Forecast, None, SeriesSkill::Measured, 8);
+        let no_skill = (
+            ForecastStatus::Withheld,
+            Some(WithheldReason::InsufficientDataForSkill),
+            SeriesSkill::InsufficientData,
+            0,
+        );
+        let below = (
+            ForecastStatus::Withheld,
+            Some(WithheldReason::SkillBelowPolicy),
+            SeriesSkill::Measured,
+            0,
+        );
+        // A report with the registered floor: exactly at it is published; one short has no measured skill.
+        assert_eq!(outcome(40, 10, (40, 10)), published);
+        assert_eq!(outcome(39, 10, (40, 10)), no_skill);
+        assert_eq!(outcome(40, 9, (40, 10)), no_skill);
+        assert_eq!(outcome(39, 9, (40, 10)), no_skill);
+        // A report with a lower floor measures those series, but the policy still refuses them.
+        assert_eq!(outcome(40, 10, (4, 2)), published);
+        assert_eq!(outcome(39, 10, (4, 2)), below);
+        assert_eq!(outcome(40, 9, (4, 2)), below);
+        assert_eq!(outcome(5, 3, (4, 2)), below);
+    }
+
     #[test]
     fn a_refused_projection_is_that_series_alone_and_never_aborts_the_run() {
         // "14": one early case, then 40 in the origin week: the look-back infectivity is tiny, R is in
@@ -1653,8 +1843,8 @@ mod tests {
         assert_eq!(alone.provenance.series[0], b.provenance.series[0]);
     }
 
-    /// A state-series report with series "12" above the floor (3 horizons' worth of targets
-    /// stand in for it: floor 4 targets from 2 origin weeks) and "13" below it.
+    /// A state-series report with series "12" at the floor (40 targets from 10 origin weeks, the
+    /// registered one) and "13" below it.
     fn state_report(edit: impl FnOnce(&mut serde_json::Value)) -> Vec<u8> {
         let summary = |horizon: u32, n: u32| {
             if n == 0 {
@@ -1673,15 +1863,15 @@ mod tests {
             "primary": {
                 "seed": FORECAST_SEED, "window_weeks": 3, "max_lag_weeks": 3, "min_cases": 11,
                 "horizon_weeks": 8, "run_count": 1000, "provisional_weeks": 2,
-                "floor": {"min_targets": 4, "min_origin_weeks": 2},
+                "floor": {"min_targets": 40, "min_origin_weeks": 10},
                 "series": [
-                    {"geography": "12", "origins_forecast": 3, "origin_weeks_scored": 2, "measured": true,
-                     "pooled": summary(0, 4), "by_horizon": horizons([2, 2]), "not_forecast": {"below_threshold": 9}},
+                    {"geography": "12", "origins_forecast": 12, "origin_weeks_scored": 10, "measured": true,
+                     "pooled": summary(0, 40), "by_horizon": horizons([20, 20]), "not_forecast": {"below_threshold": 9}},
                     {"geography": "13", "origins_forecast": 1, "origin_weeks_scored": 1, "measured": false,
                      "pooled": summary(0, 2), "by_horizon": horizons([1, 1]), "not_forecast": {"projection_overflow": 1}}
                 ],
-                "series_scored": 2, "forecasts_scored": 3,
-                "by_horizon": horizons([3, 3]), "pooled": summary(0, 6), "pooled_measured": true
+                "series_scored": 2, "forecasts_scored": 11,
+                "by_horizon": horizons([21, 21]), "pooled": summary(0, 42), "pooled_measured": true
             }
         });
         edit(&mut v);
@@ -1692,12 +1882,12 @@ mod tests {
     fn a_state_report_becomes_the_series_backtest_with_scores_only_above_the_floor() {
         let b = series_backtest_from_report(&state_report(|_| {}), &forecast_config(), 2).unwrap();
         assert_eq!(b.basis, InformationBasis::PseudoRealTime);
-        assert_eq!((b.minimum_targets, b.minimum_origin_weeks), (4, 2));
+        assert_eq!((b.minimum_targets, b.minimum_origin_weeks), (40, 10));
         assert_eq!(b.by_series.len(), 2);
         let above = &b.by_series[0];
         assert_eq!(
             (above.targets, above.origin_weeks, above.forecasts),
-            (4, 2, 3)
+            (40, 10, 12)
         );
         assert_eq!(above.measured.as_ref().unwrap().mean_crps, 2.0);
         // Below the floor: the counts, never the scores.
@@ -1707,7 +1897,7 @@ mod tests {
         let pooled = b.pooled.as_ref().unwrap();
         assert_eq!(
             (pooled.forecasts, pooled.series, pooled.scores.targets),
-            (3, 2, 6)
+            (11, 2, 42)
         );
         assert_eq!(b.report_sha256, sha256_of(&state_report(|_| {})));
         assert!(
