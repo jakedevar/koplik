@@ -9,6 +9,8 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | source_id | Source | Exact URL (as recorded in provenance) | Licence id | Cadence | Last verified |
 | --- | --- | --- | --- | --- | --- |
 | `cdc-nndss-weekly-measles` | CDC NNDSS Weekly Data, measles rows (data.cdc.gov dataset `x9gk-5huc`) | see "CDC NNDSS query" below | `cdc-open-data-terms-unconfirmed` | Weekly (CDC republishes the weekly tables; dataset last updated 2026-09-30) | 2026-10-07 |
+| `census-cb-2024-states-20m` | US Census Bureau, 2024 cartographic state boundaries, 1:20m | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_20m.zip | `us-census-public-domain` | Annual vintage; pinned to 2024 | 2026-10-07 (named-file decision; pinned manifest) |
+| `census-cb-2024-counties-20m` | US Census Bureau, 2024 cartographic county boundaries, 1:20m; derived output filters STATEFP=48 | https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_county_20m.zip | `us-census-public-domain` | Annual vintage; pinned to 2024 | 2026-10-07 (named-file decision; pinned manifest) |
 | `cdc-schoolvaxview-kindergarten` | CDC SchoolVaxView, kindergarten MMR and any exemptions (Socrata `ijqb-a7ye`) | Query below; exact URL in retrieval metadata | `cdc-schoolvaxview-terms-unconfirmed` | Annual school year | 2026-10-07 |
 | `texas-dshs-kindergarten-2023` | Texas DSHS 2023–24 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2023-2024_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
 | `texas-dshs-kindergarten-2024` | Texas DSHS 2024–25 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2024-2025_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
@@ -18,6 +20,7 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 
 | licence_id | Terms | Status |
 | --- | --- | --- |
+| `us-census-public-domain` | US Census Bureau geographic materials are public domain US government works. [2024 technical documentation, §1.2](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf) states Census materials may be reproduced and requests source attribution. Boundaries are statistical depictions, not legal land descriptions (§1.1). | Public domain; cite the US Census Bureau in provenance and display attribution. |
 | `cdc-open-data-terms-unconfirmed` | The dataset page and its metadata name no licence (`license: null`); the publisher is CDC's Office of Public Health Data, Surveillance, and Technology (contact `NNDSSWeb@cdc.gov`). CDC data is a US federal agency product, but nobody has confirmed the reuse terms for this dataset. The dataset's own notes say counts are provisional, subject to ongoing revision, and "presented as published each week". | **Operator decision required before publishing.** Koplik shows the figures only with their provenance and the demonstration disclaimer; confirm the terms (or ask CDC) before the site goes public. |
 
 ## CDC NNDSS weekly measles cases by state (`cdc-nndss-weekly-measles`)
@@ -90,6 +93,84 @@ number). `m1` ("current week") is not used.
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
 (see `data/fixtures/cdc/README.md`).
 
+
+## Census cartographic boundaries (`census-cb-2024-states-20m`, `census-cb-2024-counties-20m`)
+
+**Vintage and scale.** Pin 2024 to use one published vintage preceding the 2025 outbreak,
+rather than silently follow annual geographic changes. The [Census 2024 naming guide](https://www2.census.gov/geo/tiger/GENZ2024/2024_file_name_def.pdf)
+and [primary file listing](https://www2.census.gov/geo/tiger/GENZ2024/shp/) identify the two
+national 1:20,000,000 shapefile ZIPs. Choose 1:20m for small national/state overview maps;
+it is already generalized and needs no tiles, credentials, GDAL, or a separate HTTP client.
+It is not suitable for parcel-level analysis. The raw county snapshot remains national;
+only derived GeoJSON filters `STATEFP=48`. States retain all features supplied at this scale;
+geographies absent from a source remain absent.
+
+**Deterministic display conversion.** `koplik_ingest::census_boundaries::convert` reads SHP
+and DBF in Rust, checks record counts and FIPS fields, assigns holes by containment, and
+sorts features by string `GEOID` (also their feature `id`). `NAME` is the source display name.
+Every feature carries an array of contracts v1 provenance records (hash → exact ZIP URL →
+retrieval time). The byte digest must agree with the retrieval even for direct converter calls.
+The source projection must be unprojected NAD83 degrees. This overview conversion uses NAD83
+longitude/latitude as an approximate WGS84 position, without a high-accuracy datum/grid
+transformation; do not use this output as survey coordinates.
+
+Apply Visvalingam-Whyatt simplification with a fixed triangle-area tolerance of 0.000001
+square degrees, then round longitude/latitude to four decimal places. This is a display
+policy, not a scientific parameter; [the algorithm's documentation](https://docs.rs/geo/0.33.1/geo/algorithm/simplify_vw/trait.SimplifyVwPreserve.html)
+defines the tolerance in triangle-area units. Validate geometry after both operations.
+If simplification yields invalid geometry, keep the rounded original; if rounding itself
+invalidates the source, fail explicitly. No island or hole is intentionally dropped.
+Normalize exterior rings counterclockwise and holes clockwise for RFC 7946, preserve
+source component order, emit compact JSON, and reject artifacts above 1,000,000 bytes.
+This bounds output without silently removing data. Full-file measurements and the recorded
+retrievals are documented with the fixtures in `data/fixtures/census/README.md`.
+
+**Measured artifacts (2026-10-07).** The unmodified ZIP fixtures produce 52 state features
+in 233,074 bytes and all 254 Texas county features in 169,613 bytes, including contracts
+v1 provenance per feature. Both remain below the 1,000,000-byte ceiling. Exact source
+digests, retrieval times, and output fingerprints are in `data/fixtures/census/README.md`.
+
+**Pipeline entry points.** `fetch(&mut polite_fetcher, &store)` stores both ZIPs with the
+existing write-once snapshot store. `write_latest(&store, output_dir)` converts both verified
+latest snapshots before writing `states.geojson` and `tx-counties.geojson`; the pipeline
+should pass `web/public/data/geo/` as the directory. For a historical build use a store
+containing the selected retrievals (conversion is deterministic for identical bytes and
+retrieval metadata; a different explicitly supplied retrieval changes provenance; cached fetches preserve the original record).
+
+```
+~/.rsi/bin/cargo-slot cargo run -p koplik-ingest -- fetch census-boundaries
+~/.rsi/bin/cargo-slot cargo run -p koplik-ingest -- parse census-boundaries --out web/public/data/geo
+```
+
+**Named-file access decision (2026-10-07).** The global manager ruled `census-access`
+option A, with limits, under the operator's standing directive (#1375, resolving #1373).
+These public-domain files are published for direct download (17 USC 105); fetching a fixed,
+named handful is not crawling. The recorded [RFC 9309 group reading](https://www.rfc-editor.org/rfc/rfc9309.html#section-2.2)
+still applies: the empty wildcard `User-agent: *` entry and following `User-agent:
+RavenCrawler` entry share `Disallow: /` despite the intervening blank line. The exception
+is an explicit decision, not a change to that robots interpretation.
+
+Only exact HTTPS `www2.census.gov` file URLs with SHA-256 pins in a committed, reviewed
+manifest qualify. The reusable `census_files::NamedFileAllowlist` permits named TIGER/
+cartographic boundary, Gazetteer, and population-estimate files; no wildcard, directory,
+query, fragment, path traversal, alternate host, or redirect qualifies. The boundary
+connector's manifest is `crates/koplik-ingest/manifests/census-boundaries-2024.json`.
+Use one shared `PoliteFetcher` per pipeline run: it tracks attempts and makes at most one
+GET per named file, including failures (no retries or redirects). Requests remain
+sequential, paced at least one second apart, and carry the polite identifying User-Agent.
+`PoliteConfig::live(contact_from_env().as_deref())` requires `KOPLIK_CONTACT`; the approved
+`ingest-contact` value is `https://github.com/jakedevar` pending its committed default.
+Every other URL and host still follows the reviewed robots policy.
+
+`census_files::fetch_to_store` re-verifies cached bytes against their content address and
+skips the network entirely when a retrieval for the exact source URL/licence matches the
+pin. It preserves that retrieval time and provenance, making repeated cached builds
+byte-identical. A fetched digest mismatch reports both hashes, writes no snapshot, and
+never updates the pin automatically. A deliberate pin update is a reviewed code change.
+Initial pin discovery used the same exact-file exception with deliberately nonmatching
+provisional digests: requests failed verification, exposed measured hashes for review,
+and accepted/stored no data. The committed manifest contains only measured pins; subsequent
+fixture capture verifies those pins before storing raw immutable response bytes.
 
 ## Kindergarten MMR coverage (#1351)
 

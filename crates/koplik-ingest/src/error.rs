@@ -14,6 +14,10 @@ pub enum IngestError {
     },
     #[error("blob {sha256} failed verification: bytes hash to {actual}")]
     BlobCorrupt { sha256: String, actual: String },
+    #[error("Census pin mismatch for {url}: expected {expected}, fetched {actual}")]
+    PinMismatch { url: String, expected: String, actual: String },
+    #[error("named Census file already requested in this pipeline run: {0}")]
+    NamedFileAlreadyRequested(String),
     #[error("blob {0} is not in the snapshot store")]
     BlobMissing(String),
     #[error("retrieval log line {line} is not valid: {message}")]
