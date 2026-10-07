@@ -30,6 +30,14 @@ pub enum IngestError {
         "live fetching is disabled because KOPLIK_CONTACT is set but blank: unset it to use the default contact, or set it to a verified e-mail address or repository URL (see SOURCES.md)"
     )]
     ContactRequired,
+    #[error(
+        "live fetching is disabled because {variable} is set to a value that is not valid UTF-8: unset it, or set it to a UTF-8 e-mail address or repository URL (see SOURCES.md)"
+    )]
+    ContactNotUtf8 { variable: String },
+    #[error(
+        "live fetching is disabled because the Census contact from {source_name} is blank: remove the line, or give it a verified e-mail address or repository URL (see SOURCES.md)"
+    )]
+    CensusContactBlank { source_name: String },
     #[error("invalid argument: {0}")]
     Invalid(String),
     #[error("http: {0}")]

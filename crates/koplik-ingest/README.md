@@ -31,6 +31,25 @@ KOPLIK_CONTACT=ops@example.org koplik-ingest fetch cdc-cases   # override
 KOPLIK_CONTACT= koplik-ingest fetch cdc-cases                  # refuses
 ```
 
+### Census hosts: `KOPLIK_CENSUS_CONTACT`
+
+Requests to the US Census Bureau (`www2.census.gov` and any `*.census.gov` host; an archive.org
+request is not a Census request) identify the operator's own Census contact, per the operator's
+2026-10-07 instruction (#1427). That address is **never committed**: it comes from, in order,
+
+1. the `KOPLIK_CENSUS_CONTACT` environment variable;
+2. a `KOPLIK_CENSUS_CONTACT=...` line in `.env.local` at the repository root (gitignored by the
+   `.env.*` rule; plain `KEY=VALUE` lines, `#` comments, optional quotes);
+3. otherwise the general contact above, with a one-line notice on stderr at the first Census
+   request.
+
+A Census contact that is set but blank (in the environment or in `.env.local`) **refuses**, like a
+blank `KOPLIK_CONTACT`. A non-UTF-8 value refuses with its own message. Every other host keeps the
+general contact, including a redirect from a Census host to a non-Census host. All of this is
+resolved in `PoliteConfig::live_from_env`, the one entry point for every live path: the CLI, the
+examples, and the pipeline's ingest stage (the pipeline, #1359, is expected to call it when it
+lands; until then the CLI and examples are the live paths).
+
 Parsing, listing and every test are offline and need no contact. When a public Koplik repository
 exists, switch `DEFAULT_CONTACT` to its URL.
 
