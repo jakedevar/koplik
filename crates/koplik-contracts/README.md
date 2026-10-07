@@ -73,7 +73,13 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   forecast series' `skill` gains `measured` and `insufficient data for a measured skill` (beside
   v5's `backtested` and `not backtested; no measured skill`); the deserializer checks each against
   the backtest's entry for the series. Forecast rows keep their v1 shape and the report-vintage
-  `backtest` keeps its v5 type. Every other type is re-exported from v6 unchanged. Schema:
+  `backtest` keeps its v5 type. The companion also carries a `publication_policy` (a coverage floor and
+  a ceiling on mean CRPS relative to the persistence baseline) and a new series status `withheld`
+  (the method made a forecast and the policy refuses it, with a `withheld` reason): the
+  deserializer re-applies the policy to every series (published only if its own measured skill is
+  admitted; withheld with the reason its skill gives, and never when admitted), and
+  `insufficient_data` gains the reason `projection_overflow` (the method refused a projection past
+  its limit; the rest of the run goes on). Every other type is re-exported from v6 unchanged. Schema:
   `schema/v7/`.
 
 ## Regenerate the schema

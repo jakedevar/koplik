@@ -300,16 +300,21 @@ measured skill` (the evaluation ran on it but scored too little; its counts are 
 scores are not), or `not backtested; no measured skill` (not an NNDSS state series, for example the
 Texas DSHS county series). The contract's deserializer rejects a series whose skill disagrees with
 its entry, a floor that is not what the scores say, pooled numbers that do not add up, and a
-pseudo-real-time backtest that does not say so. The page shows, above each chart, the measured
-numbers for that series in plain words (or that it has none), and a separate evaluation block
-(pooled, series with a measured skill, limitations, the exact report) apart from the West Texas
-evaluation. The report is copied byte for byte beside the forecasts
-(`forecasts/backtest-cdc-states.json`).
+pseudo-real-time backtest that does not say so. The report is copied byte for byte beside the
+forecasts (`forecasts/backtest-cdc-states.json`).
+
+Whether a forecast is *shown* is then decided by the publication policy below, and the page says
+what is measured about each series (its measured numbers in plain words, or that it has none) in
+the same place. The page's evaluation section keeps two separate blocks, the NNDSS state-series
+test (pooled, series with a measured skill, the policy, limitations, the exact report) and the West
+Texas test, each with its numbers and scope.
 
 At the origin of the published forecast (2026-W36) the fixture run forecasts 6 series: Pennsylvania
-(measured: 108 targets from 17 origin weeks, mean CRPS 384.47 against 25.71 for carrying the last
-count forward, 90% coverage 34.3%) and Kentucky, Maryland, New York, Ohio and Wisconsin, which have
-insufficient data for a measured skill.
+(measured: 108 targets from 17 origin weeks, mean CRPS 384.47 against 25.71 for repeating the latest
+complete week's count, 90% coverage 34.3%) and Kentucky, Maryland, New York, Ohio and Wisconsin, which
+have insufficient data for a measured skill. The policy withholds all six (Pennsylvania as
+`skill_below_policy`, the other five as `insufficient_data_for_skill`): the companion's rows file is
+empty and the page publishes no forecast.
 
 ## Publication policy (decided 2026-10-07 by the manager after this result; fixed here before the code that applies it)
 
@@ -382,3 +387,23 @@ truncation, once dated retrievals of the source exist (#1514), if it measures a 
 refusal of a projection that grows past the method's limit (#1513) no longer aborts the stage: that
 series is marked `insufficient_data` with the reason `projection_overflow`, and the rest are
 published or withheld as above.
+
+**Where the withheld forecasts go (decision, stated).** The forecast stage still computes them: a
+withheld series must be known to be one the method *would* have forecast (as opposed to one whose
+minimum-count rule did not hold), and the audit trail is the point. They are written to the
+pipeline's work directory as `forecast/withheld.json` (v1 `Forecast` rows, never read by `build`,
+never copied to the published data, absent from the published manifest's inputs and outputs), and
+the published `forecasts/weekly-cases.json` holds only the rows of series with status `forecast`.
+The contract's `check_against` makes the companion and the published rows agree: a withheld series
+with a row in the published file is refused.
+
+**The page.** At the top of the "Where next?" panel, before anything else, it says (with today's
+numbers): "We do not publish forecasts for these series. In our pseudo-real-time (revised counts
+truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the
+true count only 39.0% of the time (682 of 1748) and it did worse than simply repeating the latest
+complete week's count (mean error 23049631.33 cases against 15.42). See "How we evaluate forecasts"
+below." The numbers are read from the companion's pooled result; "only" and "worse than" are chosen
+by comparing them, so a result in the other direction says the other thing. The label
+"pseudo-real-time" stays in the sentence because the numbers come from one. "Latest complete week's
+count" is the persistence baseline exactly (the origin week's count), not "last week's", which would
+be two weeks off the data's latest week.

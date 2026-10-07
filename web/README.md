@@ -266,29 +266,44 @@ revised, and not used) as dashed bars. The exact values are in a table with prov
 number. A series that does not meet the method's minimum-count rule says **insufficient data** and
 why, in words that name the counts; it never gets a number.
 
-A forecast is introduced, **first, above its chart**, by what is measured about *its own series*
-(#1503). Each series carries `skill` in the companion, and the page refuses any other value or a
+**Publication policy (#1503).** A series' forecast is shown only if its method has a measured skill
+on that very series that meets a rule fixed in the research note
+(`thoughts/shared/research/backtest-cdc-states.md`) and carried in the companion as
+`publication_policy`: at least 75% of the true counts inside the 90% intervals, and a mean CRPS no
+worse than repeating the latest complete week's count. The pipeline applies it mechanically, the
+contract's deserializer re-applies it, and `src/forecast.ts` re-applies it again (`admits`) and
+refuses a companion that publishes a series the rule does not admit, or withholds one it does. The
+series statuses are `forecast` (published), `withheld` (the method made a forecast, the rule refuses
+it, with a reason: `not_backtested`, `insufficient_data_for_skill` or `skill_below_policy`; its rows
+are not in the published file) and `insufficient_data` (the method made none; reasons now include
+`projection_overflow`). **With today's data no state series qualifies**, so the panel publishes no
+forecast and says, **at the very top, before anything else**: "We do not publish forecasts for these
+series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state
+data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748) and
+it did worse than simply repeating the latest complete week's count (mean error 23049631.33 cases
+against 15.42). See "How we evaluate forecasts" below." The numbers are read from the companion's
+pooled result and the comparison words are chosen from them. A withheld series shows no chart and no
+values: its reason, its own measured numbers when it has them (the same plain words, each opening a
+provenance drawer), and the rule it did not meet. If some series do qualify, the panel says which
+are published and that the rest are not.
+
+A series that is published is introduced, first, above its chart, by what is measured about *its
+own series*. Each series carries `skill` in the companion, and the page refuses any other value or a
 value its backtest's entry does not support:
 
 - `measured`: the pseudo-real-time backtest of the CDC NNDSS state series scored at least 40
   targets of this series from at least 10 origin weeks (a floor fixed before any score). The page
   says so in plain words with the numbers exactly as measured ("In a pseudo-real-time (revised
   counts truncated at each forecast date) backtest on this series, 90% intervals contained the true
-  count 35.1% of the time (101 of 288) ...", mean CRPS against carrying the latest count forward,
-  the origin weeks it rests on, and that it is not real-time), each number opening a provenance
-  drawer that names the report and the snapshot it was read from.
+  count ... of the time ...", mean CRPS against carrying the latest count forward, the origin weeks
+  it rests on, and that it is not real-time), each number opening a provenance drawer that names the
+  report and the snapshot it was read from.
 - `insufficient data for a measured skill`: the backtest ran on this series but scored too few
-  targets or origin weeks. "No measured skill for this series. The pseudo-real-time ... backtest
-  ... scored N forecasts ... too little to state a skill ... Treat the bands as illustrative."
-  No other series' number is shown for it.
-- `not backtested; no measured skill` (for example the Texas DSHS county series): "No measured skill
-  for this series. This forecast method has not been tested on this data; treat the bands as
-  illustrative, not as calibrated uncertainty."
+  targets or origin weeks: withheld, with what was scored and the floor. No other series' number is
+  shown for it.
+- `not backtested; no measured skill` (for example the Texas DSHS county series): withheld.
 - `backtested`: the series is the one the report-vintage backtest scored (Texas DSHS outbreak
   total); see below.
-
-No skill number and no calibration adjective sits in or next to the chart of a series without a
-measured skill.
 
 The tests are reported in their own section, **How we evaluate forecasts**, after the forecast,
 each with its own scope and basis and neither standing in for the other. The **CDC state series**
