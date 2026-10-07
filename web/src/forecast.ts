@@ -325,10 +325,27 @@ export function withheldNotice(provenance: ForecastProvenance): string | null {
     second = `In our ${basisLabel(backtest.basis)} test on CDC state data, the method's 90% intervals contained the true count ${calibrated}${percent(pooled.coverage_90)} of the time${outOf(pooled.coverage_90, pooled.targets)}, and ${against} simply repeating the latest complete week's count.`;
   } else if (backtest) {
     second = `Our ${basisLabel(backtest.basis)} test on CDC state data scored too few forecasts to state a pooled result.`;
+  } else if (provenance.backtest && provenance.series.some((s) => s.status === 'withheld' && s.skill === 'backtested')) {
+    // A single report-vintage evaluation (e.g. the West Texas outbreak): it did measure the method, so say what it measured and
+    // which part of the rule it does not meet, never that no test exists.
+    const b = provenance.backtest;
+    const failures = policyFailures(provenance.publication_policy, { targets: b.targets, origin_weeks: b.origin_weeks, coverage_90: b.coverage_90, mean_crps: b.mean_crps, mean_persistence_abs_error: b.mean_persistence_abs_error });
+    second = failures.length
+      ? `This method was tested on ${b.name}, but that test does not meet our rule: ${failures.join(', and ')}.`
+      : `This method was tested on ${b.name}.`;
   } else {
     second = 'No test has measured this method on these series.';
   }
   return `${first} ${second} See "How we evaluate forecasts" below.`;
+}
+
+/** Which parts of the publication rule the evidence fails, in plain words (the evidence floor included), for either kind of evaluation. */
+export function policyFailures(policy: PublicationPolicy, scores: Evidence): string[] {
+  return [
+    scores.targets < policy.minimum_targets || scores.origin_weeks < policy.minimum_origin_weeks ? `its evidence is ${plural(scores.targets, 'scored forecast', 'scored forecasts')} from ${plural(scores.origin_weeks, 'origin week', 'origin weeks')}, below the ${policy.minimum_targets} from ${policy.minimum_origin_weeks} our rule asks for` : '',
+    scores.coverage_90 < policy.minimum_coverage_90 ? `its 90% intervals contained the true count ${percent(scores.coverage_90)} of the time, below the ${percent(policy.minimum_coverage_90)} our rule asks for` : '',
+    scores.mean_crps > policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error ? `its mean CRPS (${twoDecimals(scores.mean_crps)} cases) was larger than the persistence mean absolute error (${twoDecimals(scores.mean_persistence_abs_error)} cases) of simply repeating the latest complete week's count` : '',
+  ].filter(Boolean);
 }
 
 /** Why one series' forecast is withheld, in plain words: the reason, its own measured numbers when it has them, and the rule it did not meet. */
@@ -349,17 +366,11 @@ export function withheldSeriesWords(provenance: ForecastProvenance, series: Fore
       if (scores && backtest && entry?.measured) {
         const words = seriesSkillWords(backtest, entry);
         measured = `${words.headline} ${words.detail}`;
-        const policy = provenance.publication_policy;
-        const failures = [
-          scores.targets < policy.minimum_targets || scores.origin_weeks < policy.minimum_origin_weeks ? `its evidence is ${plural(scores.targets, 'scored forecast', 'scored forecasts')} from ${plural(scores.origin_weeks, 'origin week', 'origin weeks')}, below the ${policy.minimum_targets} from ${policy.minimum_origin_weeks} our rule asks for` : '',
-          scores.coverage_90 < provenance.publication_policy.minimum_coverage_90 ? `its 90% intervals contained the true count ${percent(scores.coverage_90)} of the time, below the ${percent(provenance.publication_policy.minimum_coverage_90)} our rule asks for` : '',
-          scores.mean_crps > provenance.publication_policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error ? `its mean CRPS (${twoDecimals(scores.mean_crps)} cases) was larger than the persistence mean absolute error (${twoDecimals(scores.mean_persistence_abs_error)} cases) of simply repeating the latest complete week's count` : '',
-        ].filter(Boolean);
-        reason = `Its measured skill does not meet our rule: ${failures.join(', and ')}.`;
+        reason = `Its measured skill does not meet our rule: ${policyFailures(provenance.publication_policy, scores).join(', and ')}.`;
       } else if (scores && provenance.backtest) {
         const words = skillWords(provenance.backtest);
         measured = `${words.headline} ${words.scores}`;
-        reason = 'Its measured skill does not meet our rule.';
+        reason = `Its measured skill does not meet our rule: ${policyFailures(provenance.publication_policy, scores).join(', and ')}.`;
       }
       break;
     default:

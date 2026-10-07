@@ -146,6 +146,28 @@ describe('forecast panel', () => {
     all.cleanup();
   });
 
+  it('says what a report-vintage test measured when it is withheld by the evidence floor alone (48 targets from 5 origin weeks)', async () => {
+    const base = published();
+    const name = base.provenance.backtest!.name;
+    const legacy = {
+      ...base,
+      rows: [],
+      provenance: {
+        ...base.provenance,
+        series_backtest: null,
+        publication_policy: { ...base.provenance.publication_policy, minimum_targets: 40, minimum_origin_weeks: 10 },
+        backtest: { ...base.provenance.backtest!, geography: '48', case_definition: 'confirmed' as const, targets: 48, origin_weeks: 5, forecast_dates: 5, coverage_90: 0.9, coverage_50: 0.5, mean_crps: 1, mean_persistence_abs_error: 5, by_horizon: [{ horizon: 1, n: 48, mean_crps: 1, coverage_50: 0.5, coverage_90: 0.9 }] },
+        series: base.provenance.series.filter((s) => s.geography === '48').map((s) => ({ ...s, case_definition: 'confirmed' as const, skill: 'backtested' as const, status: 'withheld' as const, withheld: 'skill_below_policy' as const })),
+      },
+    };
+    const { main, cleanup } = mount(vi.fn().mockResolvedValue(legacy), '48');
+    await flush();
+    const floor = 'its evidence is 48 scored forecasts from 5 origin weeks, below the 40 from 10 our rule asks for';
+    expect(main.querySelector('.forecast-withheld-top')!.textContent).toBe(`We do not publish forecasts for these series. This method was tested on ${name}, but that test does not meet our rule: ${floor}. See "How we evaluate forecasts" below.`);
+    expect(main.querySelector('.forecast-result')!.textContent).toContain(`Its measured skill does not meet our rule: ${floor}.`);
+    cleanup();
+  });
+
   it('says a series no backtest scored has no measured skill, in the one fixed sentence', async () => {
     const base = published();
     const unscored = { ...base, provenance: { ...base.provenance, series_backtest: null, series: base.provenance.series.map((s) => ({ ...s, skill: 'not backtested; no measured skill' as const })) } };
