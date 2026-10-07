@@ -19,13 +19,18 @@ builds with `/koplik/`, and adds `.nojekyll`. Dirty edits and untracked/ignored 
 (including caller `pkg/web`, `node_modules` and `web/public/data`) are ignored.
 WASM is compiled inside that workspace with its own Cargo target directory;
 only an existing version-matched binding tool may be reused. Web dependencies are
-installed from the archived lockfile. Generated pipeline artifacts must be rebuilt
-at that source commit before real-data publishing; publishing never invents data.
+installed from the archived lockfile. Before the web build, publishing runs the
+offline pipeline from that archive's committed real-byte `data/fixtures/`, with a
+scratch work directory and blank `KOPLIK_CONTACT`. It writes `web/public/data` in
+the archive, preserving each fixture's recorded retrieval time and provenance.
+The pipeline uses the caller's `CARGO_TARGET_DIR` when set, otherwise the scratch
+target directory. Pipeline failure or a missing manifest stops publication; the
+built site must contain `data/manifest.json` and `data/v1/*.json` before any push.
 It creates a commit recording that exact source SHA in an isolated Git repository whose parent
 is the fetched `gh-pages` tip (or a root commit on first publication), then pushes
 only `HEAD:refs/heads/gh-pages`. A rejected push refetches and retries up to three
 times. The caller's files, index, refs and branch are preserved, including dirty edits.
-No pipeline data is generated or filled in by publishing.
+Dirty working trees receive a warning identifying the committed SHA being published.
 The temporary workspace is removed after success, failure, SIGINT or SIGTERM;
 on interruption, active build commands and their descendants are terminated first.
 
