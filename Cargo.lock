@@ -755,6 +755,7 @@ dependencies = [
 name = "koplik-epi"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "hex",
  "koplik-contracts",
  "libm",

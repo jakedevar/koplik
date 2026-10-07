@@ -520,9 +520,21 @@ fn counts_are_called_confirmed_only_where_dshs_labels_them_so() {
             "{name}: {basis:?}"
         );
     }
-    // The dashboard-only page has no such table: not established, so not labelled confirmed
-    // (it has no county rows to label anyway).
+    // The dashboard-only pages have no such table. Their narrative sentence states the
+    // total: "400 cases have been identified" does not label it confirmed (and the page has
+    // no county rows to label anyway); "624 cases have been confirmed" does.
     assert_eq!(report("page-2025-03-28.html.gz").confirmed_basis, None);
+    for (name, total) in [
+        ("page-2025-04-22.html", 624),
+        ("page-2025-05-30.html.gz", 738),
+    ] {
+        let basis = report(name).confirmed_basis;
+        assert_eq!(
+            basis.as_deref(),
+            Some(format!("narrative sentence \"{total} cases have been confirmed\" states the outbreak total").as_str()),
+            "{name}"
+        );
+    }
 }
 
 /// The Mar 4 page re-parsed from edited bytes, standing in for a later capture of a revised

@@ -200,10 +200,14 @@ take part.
 4. *Case definition.* Weekly rows are contracts **v3** `WeeklyCaseCount` with `case_definition: confirmed`, and a
    version enters them only if its own labelling establishes confirmed cases (`confirmed_basis` in the manifest): the
    PDF's table title "Table 1: Confirmed Cases in Texas Residents", or, for the HTML pages, a "... Confirmed Cases ..."
-   (vaccination status) table whose cells add up to the outbreak total. All 10 county-detail versions pass. The early
-   pages' prose says "cases have been identified" rather than "confirmed"; the matching total in the confirmed table is
-   the only evidence that the counted population is confirmed cases, so re-check with DSHS before the UI says so
-   for March. The PDF footnote's 182 unclassifiable Gaines County reports are not in any count.
+   (vaccination status) table whose cells add up to the outbreak total, or, failing a table, the narrative sentence that
+   states the total when its verb is "confirmed" ("N cases have been confirmed since late January"; recorded for the
+   E5 backtest, #1361). All 10 county-detail versions pass by their tables; 26 of the 30 dashboard-only versions
+   (2025-04-11 to 08-12) pass by their sentence. The four dashboard-only pages of 2025-03-28 to 04-08 say "cases have
+   been identified" rather than "confirmed" and have no basis, as do the early table pages' prose; for those the
+   matching total in the confirmed table is the only evidence that the counted population is confirmed cases, so
+   re-check with DSHS before the UI says so for March. The PDF footnote's 182 unclassifiable Gaines County reports are
+   not in any count.
 5. A Texas "outbreak total" row is not emitted as a `WeeklyCaseCount`: it is the West Texas outbreak total, not
    Texas's cases, so it lives in the manifest (`outbreak_total` per version) for the backtest.
 
