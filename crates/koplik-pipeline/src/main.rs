@@ -5,10 +5,10 @@
 //!                 [--store DIR] [--work DIR] [--out DIR] [--fixtures DIR]
 //! ```
 //!
-//! `ingest` is the only stage that uses the network. It identifies the client with the contact
-//! `koplik_ingest::polite::contact_from_env` resolves (`KOPLIK_CONTACT`, or the operator's
-//! default when unset); a blank `KOPLIK_CONTACT` is an explicit opt-out and `ingest` refuses
-//! before creating anything. `--from-fixtures` makes
+//! `ingest` is the only stage that uses the network. It identifies the client through
+//! `koplik_ingest::polite::PoliteConfig::live_from_env` (`KOPLIK_CONTACT`, or the operator's
+//! default when unset; Census hosts use `KOPLIK_CENSUS_CONTACT` or the gitignored `.env.local`);
+//! a blank value is an explicit opt-out and `ingest` refuses before creating anything. `--from-fixtures` makes
 //! `ingest` seed a separate store from the committed real-byte snapshots under
 //! `data/fixtures/` instead; the two modes never mix, and nothing falls back from one to the
 //! other. Every other stage is offline. See the library docs for what each stage writes.
