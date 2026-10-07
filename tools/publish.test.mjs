@@ -12,7 +12,7 @@ import { publishSite } from './publish.mjs';
 const project = fileURLToPath(new URL('../', import.meta.url));
 function command(args, cwd, env = {}) {
   const result = spawnSync(args[0], args.slice(1), {
-    cwd, encoding: 'utf8', env: { ...process.env, ...env },
+    cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, env: { ...process.env, ...env },
   });
   assert.ifError(result.error);
   assert.equal(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
@@ -26,7 +26,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const caller = join(scratch, 'caller');
     const remote = join(scratch, 'origin.git');
     await mkdir(caller);
-    for (const path of ['web', 'crates', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
+    for (const path of ['web', 'crates', 'data/fixtures', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
       await cp(join(project, path), join(caller, path), {
         recursive: true,
         filter: (path) => !['node_modules', 'dist', 'test-results', 'playwright-report', 'public'].includes(basename(path)),
@@ -42,7 +42,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     git('init', '--initial-branch=worker');
     git('config', 'user.name', 'Publish test');
     git('config', 'user.email', 'publish-test@example.invalid');
-    git('add', '--', 'web', 'crates', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml');
+    git('add', '--', 'web', 'crates', 'data/fixtures', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml');
     git('commit', '-m', 'Publishing test source');
     const source = git('rev-parse', 'HEAD');
     git('init', '--bare', remote);
@@ -58,10 +58,14 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     await writeFile(index, (await readFile(index, 'utf8')).replace('staged-tree', 'dirty-tree'));
     await mkdir(join(caller, 'web/public'), { recursive: true });
     await writeFile(join(caller, 'web/public/untracked-asset.txt'), 'Untracked source asset\n');
-    // A package with no exports would break the Vite build if reused.
-    await mkdir(join(caller, 'pkg/web'), { recursive: true });
-    await writeFile(join(caller, 'pkg/web/koplik_wasm.js'), 'throw new Error("Stale WASM package");\n');
-    await writeFile(join(caller, 'pkg/web/koplik_wasm_bg.wasm'), 'Stale WASM bytes');
+    // This valid package builds successfully if reused, but ships a recognisable stale worker.
+    await cp(join(project, 'pkg/web'), join(caller, 'pkg/web'), { recursive: true });
+    const stalePackage = 'publish_test_stale_package';
+    await writeFile(join(caller, 'pkg/web/koplik_wasm.js'),
+      `export default async function init() {}\nexport function runEnsemble() { return '${stalePackage}'; }\n`);
+    // A missing caller fixture must not affect the archive's pipeline input.
+    const fixture = join(caller, 'data/fixtures/cdc/nndss-measles-weekly.json');
+    await rm(fixture);
     const snapshot = async () => ({
       status: git('status', '--porcelain=v1', '--untracked-files=all'),
       branch: git('symbolic-ref', 'HEAD'),
@@ -71,6 +75,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
       readme: await readFile(join(caller, 'web/README.md'), 'utf8'),
       html: await readFile(index, 'utf8'),
       staleWasm: await readFile(join(caller, 'pkg/web/koplik_wasm.js'), 'utf8'),
+      fixtureExists: existsSync(fixture),
       marker: await readFile(join(caller, 'caller-marker'), 'utf8'),
       fetchHead: existsSync(join(caller, '.git/FETCH_HEAD')),
       dist: existsSync(join(caller, 'web/dist')),
@@ -78,12 +83,16 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const before = await snapshot();
     const publish = (extra = {}) => spawnSync('make', ['publish'], {
       cwd: caller, encoding: 'utf8',
-      env: { ...process.env, TMPDIR: scratch, PUBLISH_REMOTE: remote, PUBLISH_DRY_RUN: '0', CARGO_NET_OFFLINE: 'true', npm_config_offline: 'true', ...extra },
+      env: { ...process.env, TMPDIR: scratch, PUBLISH_REMOTE: remote, PUBLISH_DRY_RUN: '0',
+        CARGO_TARGET_DIR: join(scratch, 'pipeline-target'), KOPLIK_CONTACT: 'must-be-cleared',
+        CARGO_NET_OFFLINE: 'true', npm_config_offline: 'true', ...extra },
     });
     const successfulPublish = async (extra) => {
       const result = publish(extra);
       assert.ifError(result.error);
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.equal(result.stderr.split('\n').filter((line) => line ===
+        `Warning: local edits are not published; publishing ${source}`).length, 1);
       assert.deepEqual(await snapshot(), before);
       assert.deepEqual((await readdir(scratch)).filter((name) => name.startsWith('koplik-publish-')), []);
       return result.stdout;
@@ -94,7 +103,9 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     assert.match(rootDryRun, /Would push .*HEAD:refs\/heads\/gh-pages \(parent root\)/);
     assert.equal(refs(), '');
 
+    const started = performance.now();
     await successfulPublish({ PUBLISH_REMOTE: 'origin' });
+    console.log(`Measured fixture publish: ${((performance.now() - started) / 1000).toFixed(2)} seconds`);
     const first = pages();
     assert.equal(git('--git-dir', remote, 'rev-list', '--parents', '-n', '1', first), first);
     assert.equal(git('--git-dir', remote, 'show', `${first}:.nojekyll`), '');
@@ -106,6 +117,23 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const wasm = spawnSync('git', ['--git-dir', remote, 'show', `${first}:${wasmAsset}`], { cwd: caller });
     assert.equal(wasm.status, 0);
     assert.deepEqual([...wasm.stdout.subarray(0, 4)], [0, 97, 115, 109], 'published bytes are a real WASM module');
+    const publishedPaths = git('--git-dir', remote, 'ls-tree', '-r', '--name-only', first).split('\n');
+    for (const path of publishedPaths.filter((path) => path.endsWith('.js'))) {
+      assert.ok(!git('--git-dir', remote, 'show', `${first}:${path}`).includes(stalePackage),
+        'published JavaScript comes from the fresh package');
+    }
+    const manifest = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/manifest.json`));
+    assert.equal(manifest.mode, 'fixtures');
+    assert.deepEqual(Object.keys(manifest.stages).sort(), ['forecast', 'infer', 'ingest', 'validate']);
+    assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v1/')).sort(),
+      ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v1/${name}.json`).sort());
+    for (const file of manifest.outputs) {
+      const bytes = spawnSync('git', ['--git-dir', remote, 'show', `${first}:data/${file.path}`],
+        { cwd: caller, maxBuffer: Math.max(1024 * 1024, file.bytes + 1024) });
+      assert.ifError(bytes.error);
+      assert.equal(bytes.status, 0);
+      assert.equal(createHash('sha256').update(bytes.stdout).digest('hex'), file.sha256);
+    }
     const assets = [...html.matchAll(/(?:src|href)="([^"]*\/assets\/[^\"]+)"/g)].map((match) => match[1]);
     assert.ok(assets.length >= 2, 'the built page has JavaScript and CSS assets');
     assert.ok(assets.every((asset) => asset.startsWith('/koplik/assets/')));
@@ -181,21 +209,62 @@ process.exit(r.status ?? 1);
     assert.match(forbidden.stderr, /local bare repository/);
     assert.deepEqual(await snapshot(), before);
 
-    // Pause archive extraction with an actual child, then signal the publisher.
+    // A failed pipeline and a successful command with no manifest both fail before any push.
+    await rm(join(bin, 'git'));
+    const pipelineCall = join(scratch, 'pipeline-call.json');
+    for (const code of [42, 0]) {
+      await writeFile(join(bin, 'cargo'), `#!/usr/bin/env node
+const { writeFileSync } = require('node:fs');
+writeFileSync(${JSON.stringify(pipelineCall)}, JSON.stringify({ args: process.argv.slice(2),
+  cwd: process.cwd(), contact: process.env.KOPLIK_CONTACT, target: process.env.CARGO_TARGET_DIR }));
+console.error('TEST_PIPELINE_COMMAND');
+process.exit(${code});
+`, { mode: 0o755 });
+      const failed = publish({ PATH: `${bin}:${process.env.PATH}`, CARGO_TARGET_DIR: 'relative-pipeline-target' });
+      assert.notEqual(failed.status, 0);
+      assert.match(failed.stderr, code ? /failed \(42\)/ : /produced no web\/public\/data\/manifest.json/);
+      const call = JSON.parse(await readFile(pipelineCall, 'utf8'));
+      assert.equal(call.contact, '');
+      assert.equal(call.target, join(caller, 'relative-pipeline-target'));
+      assert.deepEqual(call.args.slice(0, 9), ['run', '--offline', '--locked', '--release', '-p', 'koplik-pipeline', '--', 'all', '--from-fixtures']);
+      assert.deepEqual(call.args.slice(9), ['--fixtures', join(call.cwd, 'data/fixtures'),
+        '--work', join(call.cwd, '../work'), '--out', join(call.cwd, 'web/public/data')]);
+      assert.ok(call.cwd.startsWith(join(scratch, 'koplik-publish-')));
+      assert.equal(refs(), `refs/heads/gh-pages ${final}`);
+      assert.deepEqual(await snapshot(), before);
+      assert.deepEqual((await readdir(scratch)).filter((name) => name.startsWith('koplik-publish-')), []);
+    }
+    await rm(join(bin, 'cargo'));
+
+    // Pause both archive extraction and the WASM build with actual children, then signal.
+    const realMake = command(['which', 'make'], caller);
     await writeFile(join(bin, 'git'), `#!/usr/bin/env node
 const { spawnSync } = require('node:child_process');
 const args = process.argv.slice(2);
-if (args.includes('archive')) {
-  process.stdout.write('ARCHIVE_READY ' + process.pid + '\\n');
+if (args.includes('archive') && process.env.TEST_INTERRUPT_STAGE === 'archive') {
+  process.stdout.write('INTERRUPT_READY ' + process.pid + '\\n');
   setInterval(() => {}, 1000);
 } else {
   const r = spawnSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit' });
   process.exit(r.status ?? 1);
 }
 `, { mode: 0o755 });
-    for (const signal of ['SIGINT', 'SIGTERM']) {
+    await writeFile(join(bin, 'make'), `#!/usr/bin/env node
+const { spawnSync } = require('node:child_process');
+const args = process.argv.slice(2);
+if (args.includes('wasm') && process.env.TEST_INTERRUPT_STAGE === 'build') {
+  process.stdout.write('INTERRUPT_READY ' + process.pid + '\\n');
+  setInterval(() => {}, 1000);
+} else {
+  const r = spawnSync(${JSON.stringify(realMake)}, args, { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}
+`, { mode: 0o755 });
+    for (const stage of ['archive', 'build']) for (const signal of ['SIGINT', 'SIGTERM']) {
       const child = spawn(process.execPath, ['tools/publish.mjs'], {
-        cwd: caller, env: { ...process.env, TMPDIR: scratch, PUBLISH_REMOTE: remote, PATH: `${bin}:${process.env.PATH}` },
+        cwd: caller, env: { ...process.env, TMPDIR: scratch, PUBLISH_REMOTE: remote,
+          CARGO_TARGET_DIR: join(scratch, 'pipeline-target'), CARGO_NET_OFFLINE: 'true',
+          npm_config_offline: 'true', TEST_INTERRUPT_STAGE: stage, PATH: `${bin}:${process.env.PATH}` },
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       let subprocess;
@@ -204,7 +273,7 @@ if (args.includes('archive')) {
         let stdout = '';
         child.stdout.on('data', (chunk) => {
           stdout += chunk;
-          const ready = stdout.match(/ARCHIVE_READY (\d+)/);
+          const ready = stdout.match(/INTERRUPT_READY (\d+)/);
           if (ready && !subprocess) { subprocess = Number(ready[1]); child.kill(signal); }
         });
         child.stderr.resume();
@@ -221,6 +290,6 @@ if (args.includes('archive')) {
       assert.equal(refs(), `refs/heads/gh-pages ${final}`);
     }
   } finally {
-    await rm(scratch, { recursive: true, force: true });
+    await rm(scratch, { recursive: true, force: true, maxRetries: 3 });
   }
 });
