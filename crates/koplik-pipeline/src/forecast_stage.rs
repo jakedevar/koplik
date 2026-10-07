@@ -847,7 +847,7 @@ pub fn series_backtest_from_report(
     let limitations = {
         let mut list = vec![
             format!(
-                "Scope: {}. Nothing else was scored here: not the Texas DSHS county series, not confirmed cases only, not symptom-onset incidence.",
+                "Scope: {}.",
                 report.scope
             ),
             format!(

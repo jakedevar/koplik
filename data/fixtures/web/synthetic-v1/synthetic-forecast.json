@@ -1,5 +1,357 @@
 [
   {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 2
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 2.5
+      },
+      {
+        "level": 0.25,
+        "value": 5
+      },
+      {
+        "level": 0.5,
+        "value": 6.5
+      },
+      {
+        "level": 0.75,
+        "value": 8
+      },
+      {
+        "level": 0.95,
+        "value": 10.5
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 3
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 3
+      },
+      {
+        "level": 0.25,
+        "value": 5.5
+      },
+      {
+        "level": 0.5,
+        "value": 7
+      },
+      {
+        "level": 0.75,
+        "value": 8.5
+      },
+      {
+        "level": 0.95,
+        "value": 11
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 4
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 3.5
+      },
+      {
+        "level": 0.25,
+        "value": 6
+      },
+      {
+        "level": 0.5,
+        "value": 7.5
+      },
+      {
+        "level": 0.75,
+        "value": 9
+      },
+      {
+        "level": 0.95,
+        "value": 11.5
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 5
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 4
+      },
+      {
+        "level": 0.25,
+        "value": 6.5
+      },
+      {
+        "level": 0.5,
+        "value": 8
+      },
+      {
+        "level": 0.75,
+        "value": 9.5
+      },
+      {
+        "level": 0.95,
+        "value": 12
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 6
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 4.5
+      },
+      {
+        "level": 0.25,
+        "value": 7
+      },
+      {
+        "level": 0.5,
+        "value": 8.5
+      },
+      {
+        "level": 0.75,
+        "value": 10
+      },
+      {
+        "level": 0.95,
+        "value": 12.5
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 7
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 5
+      },
+      {
+        "level": 0.25,
+        "value": 7.5
+      },
+      {
+        "level": 0.5,
+        "value": 9
+      },
+      {
+        "level": 0.75,
+        "value": 10.5
+      },
+      {
+        "level": 0.95,
+        "value": 13
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 8
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 5.5
+      },
+      {
+        "level": 0.25,
+        "value": 8
+      },
+      {
+        "level": 0.5,
+        "value": 9.5
+      },
+      {
+        "level": 0.75,
+        "value": 11
+      },
+      {
+        "level": 0.95,
+        "value": 13.5
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "origin_week": {
+      "year": 2026,
+      "week": 1
+    },
+    "target_week": {
+      "year": 2026,
+      "week": 9
+    },
+    "quantiles": [
+      {
+        "level": 0.05,
+        "value": 6
+      },
+      {
+        "level": 0.25,
+        "value": 8.5
+      },
+      {
+        "level": 0.5,
+        "value": 10
+      },
+      {
+        "level": 0.75,
+        "value": 11.5
+      },
+      {
+        "level": 0.95,
+        "value": 14
+      }
+    ],
+    "seed": 1,
+    "run_count": 1000,
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
     "geography": "48",
     "origin_week": {
       "year": 2026,

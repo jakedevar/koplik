@@ -36,22 +36,24 @@ function boundaries(rows) {
   }) };
 }
 
-// A synthetic forecast pair (contract v1 Forecast rows and the v5 companion) for the web tests and the
+// A synthetic forecast pair (contract v1 Forecast rows and the v6 companion) for the web tests and the
 // dev server only: invented numbers shaped like the real artifacts, labelled SYNTHETIC throughout. The
 // forecast pipeline's own output is tested in koplik-pipeline against the committed fixtures.
 const levels = [0.05, 0.25, 0.5, 0.75, 0.95];
-const forecastRows = Array.from({ length: 8 }, (_, i) => {
+const forecastRowsFor = (geography, base) => Array.from({ length: 8 }, (_, i) => {
   const h = i + 1;
-  const median = 3 + h / 2;
+  const median = base + h / 2;
   const at = (offset) => Math.max(0, median + offset);
-  return { geography: '48', origin_week: { year: 2026, week: 1 }, target_week: { year: 2026, week: 1 + h },
+  return { geography, origin_week: { year: 2026, week: 1 }, target_week: { year: 2026, week: 1 + h },
     quantiles: [at(-4), at(-1.5), at(0), at(1.5), at(4)].map((value, j) => ({ level: levels[j], value })),
     seed: 1, run_count: 1000, provenance };
 });
+// Rows in geography order: Kansas (20) then Texas (48).
+const forecastRows = [...forecastRowsFor('20', 6), ...forecastRowsFor('48', 3)];
 const parameter = (name, value, note) => ({ parameter: name, value, source: 'SYNTHETIC fixture: an invented value, not a published source', url: null, note });
 const hex = (seed) => createHash('sha256').update(seed).digest('hex');
 const forecastProvenance = {
-  contract_version: 5, artifact: 'weekly-cases',
+  contract_version: 6, artifact: 'weekly-cases',
   statement: 'SYNTHETIC FIXTURE. Invented projections for development; nothing here is a model run on observed counts.',
   method: 'SYNTHETIC FIXTURE: no method was run.',
   origin_week: { year: 2026, week: 1 }, latest_data_week: { year: 2026, week: 3 },
@@ -60,8 +62,9 @@ const forecastProvenance = {
   input: { artifact: 'weekly-cases', sha256: createHash('sha256').update(JSON.stringify(cases)).digest('hex'), rows: cases.length },
   parameters: [parameter('window_weeks', 3, 'Estimation window.'), parameter('min_cases', 11, 'Minimum cases in the window.'), parameter('provisional_weeks', 2, 'Recent weeks not used.')],
   series: [
+    { geography: '20', case_definition: 'confirmed_or_unknown_status', status: 'forecast', reason: null, cases_in_window: 14, skill: 'insufficient data for a measured skill' },
     { geography: '40', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'below_threshold', cases_in_window: 2, skill: 'not backtested; no measured skill' },
-    { geography: '48', case_definition: 'confirmed_or_unknown_status', status: 'forecast', reason: null, cases_in_window: 15, skill: 'not backtested; no measured skill' },
+    { geography: '48', case_definition: 'confirmed_or_unknown_status', status: 'forecast', reason: null, cases_in_window: 15, skill: 'measured' },
     { geography: '35', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'missing_count', cases_in_window: null, skill: 'not backtested; no measured skill' },
   ].sort((a, b) => a.geography.localeCompare(b.geography)),
   backtest: {
@@ -72,7 +75,26 @@ const forecastProvenance = {
     report_path: 'data/reports/synthetic-backtest.json', report_sha256: hex('synthetic-report'), manifest_sha256: hex('synthetic-manifest'),
     limitations: ['SYNTHETIC FIXTURE: every number here is invented.'],
   },
-  scope_note: 'SYNTHETIC FIXTURE: the scores describe an invented series, not the forecast beside them.',
+  // Invented scores shaped like the real evaluation of the CDC state series: a floor of 4 targets from 2 origin weeks
+  // (the real floor is 40 from 10), Texas above it, Kansas below it, the other states never forecast.
+  series_backtest: {
+    name: 'the synthetic fixture state series', series: 'SYNTHETIC invented state counts by report week', case_definition: 'confirmed_or_unknown_status',
+    basis: 'pseudo-real-time (revised counts truncated at each forecast date)',
+    protocol: 'SYNTHETIC FIXTURE: pseudo-real-time (revised counts truncated at each forecast date); nothing was backtested.',
+    seed: 1, provisional_weeks: 2, minimum_targets: 4, minimum_origin_weeks: 2,
+    pooled: { forecasts: 4, series: 2, scores: { targets: 8, mean_crps: 9.5, coverage_50: 0.375, coverage_90: 0.75, mean_persistence_abs_error: 6.25,
+      by_horizon: [{ horizon: 1, n: 4, mean_crps: 8, coverage_50: 0.25, coverage_90: 0.75 }, { horizon: 2, n: 4, mean_crps: 11, coverage_50: 0.5, coverage_90: 0.75 }] } },
+    by_series: [
+      { geography: '20', forecasts: 1, origin_weeks: 1, targets: 2, measured: null },
+      { geography: '35', forecasts: 0, origin_weeks: 0, targets: 0, measured: null },
+      { geography: '40', forecasts: 0, origin_weeks: 0, targets: 0, measured: null },
+      { geography: '48', forecasts: 3, origin_weeks: 3, targets: 6, measured: { targets: 6, mean_crps: 12.25, coverage_50: 0.5, coverage_90: 5 / 6, mean_persistence_abs_error: 7,
+        by_horizon: [{ horizon: 1, n: 3, mean_crps: 11, coverage_50: 1 / 3, coverage_90: 2 / 3 }, { horizon: 2, n: 3, mean_crps: 13.5, coverage_50: 2 / 3, coverage_90: 1 }] } },
+    ],
+    report_path: 'data/reports/synthetic-series-backtest.json', report_sha256: hex('synthetic-series-report'), input_sha256: hex('synthetic-series-input'),
+    limitations: ['SYNTHETIC FIXTURE: every number here is invented.'],
+  },
+  scope_note: 'SYNTHETIC FIXTURE: the scores describe invented series, not the forecast beside them.',
 };
 const artifacts = { geographies, 'weekly-cases': cases, coverage, rt, 'us-states': boundaries(source.states), 'texas-counties': boundaries(source.counties) };
 for (const root of [new URL('../../data/fixtures/web/synthetic-v1/', import.meta.url)]) {

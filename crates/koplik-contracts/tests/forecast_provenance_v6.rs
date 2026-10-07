@@ -277,3 +277,35 @@ fn unknown_skill_statuses_and_fields_are_rejected() {
     );
     rejects(|v| v["series"][1]["extra"] = json!(1), "unknown field");
 }
+
+/// The synthetic forecast the web tests and the dev server load (`web/scripts/build-synthetic-fixtures.mjs`)
+/// is a valid v6 companion that describes its rows: the web's own checks mirror this contract.
+#[test]
+fn the_synthetic_web_fixture_is_a_valid_companion_that_describes_its_rows() {
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data/fixtures/web/synthetic-v1");
+    let companion: ForecastProvenance = serde_json::from_slice(
+        &std::fs::read(dir.join("synthetic-forecast.provenance.json")).unwrap(),
+    )
+    .unwrap();
+    let rows: Vec<Forecast> =
+        serde_json::from_slice(&std::fs::read(dir.join("synthetic-forecast.json")).unwrap())
+            .unwrap();
+    companion.check_against(&rows).unwrap();
+    let backtest = companion.series_backtest.as_ref().unwrap();
+    assert_eq!(backtest.basis, InformationBasis::PseudoRealTime);
+    let skills: Vec<_> = companion
+        .series
+        .iter()
+        .map(|s| (s.geography.to_string(), s.skill))
+        .collect();
+    assert_eq!(
+        skills,
+        [
+            ("20".to_owned(), SeriesSkill::InsufficientData),
+            ("35".to_owned(), SeriesSkill::NotBacktested),
+            ("40".to_owned(), SeriesSkill::NotBacktested),
+            ("48".to_owned(), SeriesSkill::Measured),
+        ]
+    );
+}

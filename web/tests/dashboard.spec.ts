@@ -89,10 +89,18 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   const forecast = page.locator('.forecast');
   await expect(forecast.getByRole('heading', { name: /Where next/ })).toBeVisible();
   await expect(forecast.locator('svg.forecast-chart')).toBeVisible();
-  // First thing above the chart of a series that was not backtested; the backtest is its own section below.
-  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toHaveText('No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.');
+  // First thing above the chart: what is measured about this very series, in plain words with the basis (here Texas has a
+  // measured skill); the tests are their own section below.
+  const banner = forecast.locator('.forecast-result').locator('> :first-child');
+  await expect(banner).toContainText('Measured skill for this series.');
+  await expect(banner).toContainText('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 83.3% of the time (5 of 6)');
+  await expect(banner).toContainText('not real-time');
   const evaluation = page.locator('.forecast-evaluation');
   await expect(evaluation.getByRole('heading', { name: 'How we evaluate forecasts' })).toBeVisible();
+  // The state-series test is its own block, pooled and labelled pseudo-real-time, apart from the West Texas one.
+  await expect(evaluation.locator('.forecast-series-headline')).toContainText('pooled over 2 series and 4 forecasts');
+  await expect(evaluation.locator('.forecast-series-scope')).toContainText('1 has a measured skill from this test, 1 has insufficient data for one');
+  await expect(evaluation.locator('h3').first()).toContainText('pseudo-real-time (revised counts truncated at each forecast date)');
   await expect(evaluation.locator('.forecast-headline')).toContainText('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4)');
   await expect(evaluation.locator('.forecast-narrow')).toContainText('In this backtest the intervals were too narrow');
   await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText('does not measure how the forecasts above will do');
@@ -102,6 +110,9 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(drawer).toContainText('SYNTHETIC');
   await expect(drawer).toContainText('not a source observation');
   await close.press('Escape'); await expect(forecastMedian).toBeFocused();
+  // A series the test ran on but scored too little for has no measured skill, and says what was scored.
+  await forecast.getByLabel('Forecast for').selectOption('20');
+  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toContainText('No measured skill for this series. The pseudo-real-time (revised counts truncated at each forecast date) backtest');
   await forecast.getByLabel('Forecast for').selectOption('40');
   await expect(forecast.locator('.forecast-insufficient')).toContainText('Insufficient data');
   await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);
