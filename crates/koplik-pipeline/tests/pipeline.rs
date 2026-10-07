@@ -6,9 +6,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use koplik_contracts::v1::{GeoId, Geography, KindergartenMmrCoverage, RtEstimate, RtStatus};
+use koplik_contracts::v1::{
+    BaselineCoverage, GeoId, Geography, KindergartenMmrCoverage, RtEstimate, RtStatus,
+    ScenarioInput,
+};
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_ingest::store::sha256_of;
+use koplik_pipeline::scenario::ScenarioProvenance;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
 fn repo() -> PathBuf {
@@ -141,6 +145,10 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
         "census-county-codes-2020-wayback",
         "census-cb-2024-states-20m",
         "census-cb-2024-counties-20m",
+        "census-county-population-2025",
+        "census-county-gazetteer-2025",
+        "census-state-population-2025",
+        "census-state-gazetteer-2025",
     ] {
         assert!(
             matches!(ingest.items[id], ItemStatus::Present { .. }),
@@ -256,35 +264,110 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
             assert_eq!(f["properties"]["provenance"][0]["source_id"], source);
         }
     }
-    // Inputs without a source are explicitly missing, never guessed.
+    // The what-if scenario (#1455) is built from store snapshots only and published with its
+    // provenance companion; both are in the build manifest's hashed outputs.
     assert!(matches!(
         build.items["gaines-2025"],
-        ItemStatus::Missing { .. }
+        ItemStatus::Present { rows: Some(1), .. }
     ));
-    assert!(!config.out.join("scenarios").exists());
+    let scenario: ScenarioInput = read(&config.out.join("scenarios/gaines-2025.json"));
+    let provenance: ScenarioProvenance =
+        read(&config.out.join("scenarios/gaines-2025.provenance.json"));
+    provenance.check_against(&scenario).unwrap();
+    for rel in [
+        "scenarios/gaines-2025.json",
+        "scenarios/gaines-2025.provenance.json",
+    ] {
+        assert!(build.outputs.iter().any(|f| f.path == rel), "{rel}");
+        assert!(build.inputs.iter().any(|f| f.path == rel), "{rel}");
+    }
+    let gaines = &scenario.nodes[0];
+    assert_eq!(scenario.nodes.len(), 1);
+    assert_eq!(gaines.id.to_string(), "48165");
+    assert_eq!(gaines.population, 23956);
+    // The earliest DSHS vintage with a Gaines count: the 2025-03-04 report (107), MMWR 2025-W10.
+    assert_eq!(
+        (gaines.initial_infectious, gaines.initial_exposed),
+        (107, 0)
+    );
+    assert_eq!(scenario.start_week.to_string(), "2025-W10");
+    assert_eq!(scenario.seed, koplik_pipeline::scenario::SEED);
+    assert_eq!(scenario.run_count, 1000);
+    assert_eq!(scenario.parameters, koplik_epi::default_parameters());
+    assert!(scenario.coverage_overrides.is_empty());
+    assert_eq!(provenance.seeding.report_date.to_string(), "2025-03-04");
+    assert!(provenance.seeding.skipped_vintages.is_empty());
+    // Every record the scenario cites is a snapshot the ingest manifest hashed.
+    let scenario_records =
+        gaines
+            .provenance
+            .as_slice()
+            .iter()
+            .chain(match &gaines.baseline_coverage {
+                BaselineCoverage::Reported { provenance, .. } => provenance.as_slice(),
+                BaselineCoverage::Missing { .. } => panic!("Gaines coverage is reported"),
+            });
+    for p in scenario_records.chain(provenance.seeding.provenance.iter()) {
+        assert!(snapshots.contains(p.sha256.as_str()), "{}", p.source_id);
+    }
+    // Every population and Gazetteer snapshot the scenario read is a validate input.
+    for id in [
+        "census-county-population-2025",
+        "census-county-gazetteer-2025",
+    ] {
+        let sha = match &first[&Stage::Ingest].items[id] {
+            ItemStatus::Present {
+                retrieval: Some(r), ..
+            } => r.sha256.clone(),
+            other => panic!("{id}: {other:?}"),
+        };
+        assert!(
+            first[&Stage::Validate]
+                .inputs
+                .iter()
+                .any(|f| f.sha256 == sha),
+            "{id}"
+        );
+    }
+    // Geography.centroid is the Gazetteer internal point, with the Gazetteer in its sources.
+    let gaines_geo = geographies
+        .iter()
+        .find(|g| g.id.to_string() == "48165")
+        .unwrap();
+    assert_eq!(gaines_geo.centroid, Some(gaines.centroid));
+    assert!(
+        gaines_geo
+            .provenance
+            .as_slice()
+            .iter()
+            .any(|p| p.source_id == "census-county-gazetteer-2025")
+    );
+    assert!(
+        geographies
+            .iter()
+            .filter(|g| g.id.to_string().starts_with("48"))
+            .all(|g| g.centroid.is_some())
+    );
     let validate = &first[&Stage::Validate];
     assert!(matches!(
         validate.items["texas-dshs-outbreak-cases"],
         ItemStatus::Present { .. }
     ));
     assert!(config.work.join("validate/dshs-vintages.json").is_file());
+    assert!(matches!(
+        validate.items["gaines-2025"],
+        ItemStatus::Present { .. }
+    ));
     // No artifact carries a run time: the only timestamps are recorded retrieval times.
     let text = String::from_utf8(fs::read(config.out.join("manifest.json")).unwrap()).unwrap();
     assert!(!text.contains("run_at") && !text.contains("generated_at"));
 }
 
 #[test]
-fn build_passes_through_a_scenario_when_supplied_and_empties_an_absent_boundary() {
+fn build_publishes_the_scenario_with_its_companion_and_never_one_without_it() {
     let dir = tempfile::tempdir().unwrap();
     let config = fixture_config(dir.path());
     run_all(&config);
-    fs::create_dir_all(config.work.join("scenarios")).unwrap();
-    // Any valid v1 ScenarioInput exercises the plug; this committed one is explicitly synthetic.
-    fs::copy(
-        repo().join("data/fixtures/seir/synthetic-scenario.json"),
-        config.work.join("scenarios/gaines-2025.json"),
-    )
-    .unwrap();
     // Without a converted boundary file the build writes an explicitly empty collection.
     fs::remove_file(config.work.join("validate/texas-counties.json")).unwrap();
     let m = run_stage(Stage::Build, &config).unwrap();
@@ -300,10 +383,36 @@ fn build_passes_through_a_scenario_when_supplied_and_empties_an_absent_boundary(
     assert_eq!(empty["features"].as_array().unwrap().len(), 0);
     assert!(matches!(m.items["gaines-2025"], ItemStatus::Present { .. }));
     assert!(config.out.join("scenarios/gaines-2025.json").is_file());
+    assert!(
+        config
+            .out
+            .join("scenarios/gaines-2025.provenance.json")
+            .is_file()
+    );
     assert_hashes_match(&config.out, &m.outputs);
-    // Removing the plug removes the artifact: the output tree is a function of the inputs.
+
+    // A scenario without its companion is refused, not published bare.
+    let companion = config.work.join("scenarios/gaines-2025.provenance.json");
+    let saved = fs::read(&companion).unwrap();
+    fs::remove_file(&companion).unwrap();
+    let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
+    assert!(err.contains("provenance companion"), "{err}");
+
+    // So is a companion that describes a different scenario (here an explicitly synthetic one).
+    fs::write(&companion, &saved).unwrap();
+    fs::copy(
+        repo().join("data/fixtures/seir/synthetic-scenario.json"),
+        config.work.join("scenarios/gaines-2025.json"),
+    )
+    .unwrap();
+    let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
+    assert!(err.contains("does not describe the scenario"), "{err}");
+
+    // Removing the scenario removes the artifact: the output tree is a function of the inputs.
     fs::remove_file(config.work.join("scenarios/gaines-2025.json")).unwrap();
-    run_stage(Stage::Build, &config).unwrap();
+    fs::remove_file(&companion).unwrap();
+    let m = run_stage(Stage::Build, &config).unwrap();
+    assert!(matches!(m.items["gaines-2025"], ItemStatus::Missing { .. }));
     assert!(!config.out.join("scenarios").exists());
 }
 
@@ -353,6 +462,17 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
             "{name}"
         );
     }
+    // No source, no scenario: nothing stale in the work or web tree, and both stages say why.
+    assert!(matches!(
+        validate.items["gaines-2025"],
+        ItemStatus::Missing { .. }
+    ));
+    assert!(matches!(
+        build.items["gaines-2025"],
+        ItemStatus::Missing { .. }
+    ));
+    assert!(!empty.work.join("scenarios").exists());
+    assert!(!empty.out.join("scenarios").exists());
     // The published artifacts stay mutually consistent: no boundary without a geography, no
     // row without a geography, every file the web loader needs present.
     let out = empty.out.join("v1");

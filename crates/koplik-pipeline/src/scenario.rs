@@ -267,7 +267,7 @@ impl ScenarioProvenance {
             .nodes
             .iter()
             .find(|n| n.initial_infectious > 0 || n.initial_exposed > 0)
-            .ok_or("the scenario seeds no node")?;
+            .ok_or("the provenance companion does not describe the scenario beside it (it seeds no node)")?;
         let values = serde_json::to_value(input.parameters).map_err(|e| e.to_string())?;
         let same = self.artifact_version == PROVENANCE_VERSION
             && self.seed == input.seed.to_string()
