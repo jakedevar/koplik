@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
-import { mapFeatures } from './map';
+import { caseScales, fillColor, mapFeatures } from './map';
 
 // MapLibre needs a real browser/WebGL. Test the UI through its injected map adapter.
 vi.mock('maplibre-gl', () => ({ default: {} }));
@@ -20,6 +20,45 @@ function select(id: string, value: string) {
   node.value = value;
   node.dispatchEvent(new Event('change'));
 }
+
+/** Texas reports 7 confirmed cases; New Mexico reports 900 confirmed-or-unknown-status cases (schema-valid, not comparable). */
+function twoDefinitionDataset() {
+  const data = fixtureDataset();
+  const template = data.cases.find((r) => r.geography === '48' && r.cases.status === 'reported')!;
+  const row = (geography: string, week: number, count: number, case_definition: typeof template.case_definition) =>
+    ({ ...template, geography, week: { year: 2025, week }, cases: { status: 'reported' as const, count }, case_definition });
+  data.cases = [row('48', 1, 7, 'confirmed'), row('35', 1, 900, 'confirmed_or_unknown_status')];
+  return data;
+}
+
+describe('map colour scales never mix case definitions', () => {
+  it('colours Texas (7 confirmed) and New Mexico (900 confirmed-or-unknown) each on its own definition only', () => {
+    const data = twoDefinitionDataset();
+    const values = (definition: 'confirmed' | 'confirmed_or_unknown_status') => Object.fromEntries(
+      mapFeatures(data, 'state', 'cases-2025', '48', definition).features
+        .filter((f) => ['48', '35'].includes(f.properties.GEOID)).map((f) => [f.properties.GEOID, f.properties.value]));
+    expect(values('confirmed')).toEqual({ '48': 7, '35': null });
+    expect(values('confirmed_or_unknown_status')).toEqual({ '48': null, '35': 900 });
+    expect(fillColor('cases-2025', 'state', 'confirmed')).toEqual(['interpolate', ['linear'], ['get', 'value'], ...caseScales.confirmed.flat()]);
+    expect(fillColor('cases-2025', 'state', 'confirmed_or_unknown_status')).toEqual(['interpolate', ['linear'], ['get', 'value'], ...caseScales.confirmed_or_unknown_status.flat()]);
+    expect(caseScales.confirmed).not.toEqual(caseScales.confirmed_or_unknown_status);
+  });
+  it('gives each definition its own legend block naming it, a selector defaulting to the CDC definition, and a note about the other', () => {
+    const { root, map } = mount(twoDefinitionDataset());
+    const selector = root.querySelector<HTMLSelectElement>('#case-definition')!;
+    expect([...selector.options].map((o) => o.textContent)).toEqual(['confirmed cases', 'confirmed or unknown-status cases']);
+    expect(selector.value).toBe('confirmed_or_unknown_status');
+    expect(root.querySelector('.legend-scale')?.textContent).toBe('Reported confirmed or unknown-status cases · 0 → 500+');
+    expect(root.querySelector('.legend-scale')?.getAttribute('data-case-definition')).toBe('confirmed_or_unknown_status');
+    expect(root.querySelector('.legend-note')?.textContent).toContain('1 geography reports cases under a different case definition and is shown as No data on this confirmed or unknown-status cases scale');
+    expect(map.update).toHaveBeenLastCalledWith('state', 'cases-2025', '48', 'confirmed_or_unknown_status');
+    select('case-definition', 'confirmed');
+    expect(root.querySelector('.legend-scale')?.textContent).toBe('Reported confirmed cases · 0 → 500+');
+    expect(root.querySelector('.legend-scale')?.getAttribute('data-case-definition')).toBe('confirmed');
+    expect(root.querySelector('.legend-note')?.textContent).toContain('on this confirmed cases scale');
+    expect(map.update).toHaveBeenLastCalledWith('state', 'cases-2025', '48', 'confirmed');
+  });
+});
 
 describe('dashboard', () => {
   it('shows every supplied R_t interval level in the exact report table', () => {
@@ -61,7 +100,7 @@ describe('dashboard', () => {
     const { root, map } = mount();
     select('metric', 'cases-2026');
     expect(root.querySelector('.headline-value')?.textContent).toBe('3');
-    expect(map.update).toHaveBeenLastCalledWith('state', 'cases-2026', '48');
+    expect(map.update).toHaveBeenLastCalledWith('state', 'cases-2026', '48', 'confirmed_or_unknown_status');
     select('metric', 'coverage');
     expect(root.querySelector('.headline-value')?.textContent).toBe('91.2%');
     select('geography', '35');
@@ -77,7 +116,7 @@ describe('dashboard', () => {
     expect(root.querySelector('h2')?.textContent).toBe('Gaines County');
     expect(document.activeElement?.id).toBe('geography');
     expect(root.querySelector<HTMLSelectElement>('#metric')?.disabled).toBe(true);
-    expect(map.update).toHaveBeenLastCalledWith('county', 'cases-2025', '48165');
+    expect(map.update).toHaveBeenLastCalledWith('county', 'cases-2025', '48165', 'confirmed');
     select('geography', '48115');
     expect(root.querySelector('h2')?.textContent).toBe('Dawson County');
     expect(root.querySelector('.headline-value')?.textContent).toBe('No data');

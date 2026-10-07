@@ -1,7 +1,7 @@
 import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
-import { caseDefinitionLabels, caseDefinitionWords, compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
+import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
 import { attributionSection } from './attribution-view';
-import { createMap, type MapView } from './map';
+import { caseScales, createMap, type MapView } from './map';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
 export const disclaimer = 'Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.';
@@ -54,9 +54,15 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     option.value = value;
     metricSelect.append(option);
   }
+  const definitionLabel = element('label', 'Case definition');
+  const definitionSelect = element('select');
+  definitionSelect.id = 'case-definition';
+  definitionLabel.htmlFor = definitionSelect.id;
+  let definition: CaseDefinition | undefined;
+  let definitionLevel: 'state' | 'county' | undefined;
   const drill = element('button', 'Explore Texas counties →', 'drill-button');
   drill.type = 'button';
-  toolbar.append(metricLabel, metricSelect, drill);
+  toolbar.append(metricLabel, metricSelect, definitionLabel, definitionSelect, drill);
   const mapNode = element('div', undefined, 'map');
   mapNode.setAttribute('role', 'region');
   mapNode.setAttribute('aria-label', 'Choropleth map. Use the geography selector below as a keyboard alternative.');
@@ -210,8 +216,25 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     yearSelect.disabled = level === 'county';
     legend.replaceChildren();
     const isCoverage = metric === 'coverage';
-    const levelCases = data.cases.filter((r) => (r.geography.length === 2) === (level === 'state'));
-    legend.append(element('span', isCoverage ? 'MMR coverage · 0–100%' : `Reported ${caseDefinitionWords(levelCases)} · 0 → 500+`, 'legend-scale'), element('span', '▨ No data', 'legend-missing'));
+    // Each case definition has its own colour scale and legend block; no value is coloured on another definition's scale.
+    const definitions = caseDefinitionsAt(data, level);
+    if (!definitions.includes(definition!) || definitionLevel !== level) definition = defaultCaseDefinition(definitions);
+    definitionLevel = level;
+    definitionSelect.replaceChildren(...definitions.map((one) => { const option = element('option', caseDefinitionLabels[one]); option.value = one; return option; }));
+    if (definition) definitionSelect.value = definition;
+    const showDefinition = !isCoverage && definitions.length > 0;
+    definitionLabel.hidden = definitionSelect.hidden = !showDefinition;
+    definitionSelect.disabled = definitions.length < 2;
+    if (isCoverage) legend.append(element('span', 'MMR coverage · 0–100%', 'legend-scale'));
+    else if (definition) {
+      const block = element('span', `Reported ${caseDefinitionLabels[definition]} · 0 → 500+`, 'legend-scale');
+      block.dataset.caseDefinition = definition;
+      block.style.setProperty('--scale', `linear-gradient(90deg, ${caseScales[definition].map(([, colour]) => colour).join(', ')})`);
+      legend.append(block);
+    } else legend.append(element('span', 'Reported cases · no case data', 'legend-scale'));
+    legend.append(element('span', '▨ No data', 'legend-missing'));
+    const others = !isCoverage && definition ? otherDefinitionGeographies(data, level, metric, definition) : [];
+    if (others.length) legend.append(element('p', `${others.length} ${others.length === 1 ? 'geography reports' : 'geographies report'} cases under a different case definition and ${others.length === 1 ? 'is' : 'are'} shown as No data on this ${caseDefinitionLabels[definition!]} scale. Different definitions count different things, so choose another case definition above to see them; no value is coloured on another definition's scale.`, 'legend-note'));
     renderReports(Number(yearSelect.value));
     const comparisonTable = element('table');
     comparisonTable.append(element('caption', metricLabels[metric]));
@@ -225,7 +248,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       row.append(title, cell, element('td', current.detail)); comparisonBody.append(row);
     }
     comparisonTable.append(comparisonBody); comparisonRows.replaceChildren(comparisonTable);
-    map?.update(level, metric, selected);
+    map?.update(level, metric, selected, isCoverage ? undefined : definition);
     root.dispatchEvent(new CustomEvent('koplik:selection', { bubbles: true, detail: { geography: selected, metric, year: Number(yearSelect.value), data } }));
   }
   metricSelect.addEventListener('change', () => {
@@ -233,6 +256,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     if (metric !== 'coverage') yearSelect.value = metric === 'cases-2025' ? '2025' : '2026';
     chooseOptions(); render();
   });
+  definitionSelect.addEventListener('change', () => { definition = definitionSelect.value as CaseDefinition; render(); });
   geographySelect.addEventListener('change', () => { selected = geographySelect.value; render(); });
   yearSelect.addEventListener('change', render);
   drill.addEventListener('click', () => {
@@ -249,7 +273,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     map = mapFactory(mapNode, data, (id) => {
       if (available().some((g) => g.id === id)) { selected = id; render(); }
     }, () => { mapStatus.textContent = 'Map unavailable. Select a geography below to explore all reports.'; });
-    map.update(level, metric, selected);
+    map.update(level, metric, selected, definition);
   } catch {
     mapStatus.textContent = 'Map unavailable. Select a geography below to explore all reports.';
   }

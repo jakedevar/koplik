@@ -25,7 +25,7 @@ select:disabled { cursor: default; opacity: 0.7; }
 .map-status:empty { display: none; }
 .map-status { font-size: 13px; padding: 12px; }
 .legend { display: flex; flex-wrap: wrap; padding: 16px; gap: 18px; font-size: 12px; color: #4c665d; border-bottom: 1px solid #e3ebe6; }
-.legend-scale::before { content: ''; display: inline-block; background: linear-gradient(90deg, #edf4ed, #68a58d, #123f3b); width: 80px; height: 10px; margin-right: 8px; }
+.legend-scale::before { content: ''; display: inline-block; background: var(--scale, linear-gradient(90deg, #edf4ed, #68a58d, #123f3b)); width: 80px; height: 10px; margin-right: 8px; }
 .geography-chooser { padding: 16px; display: flex; flex-direction: column; gap: 8px; }
 .geography-chooser label, .chart-controls label { font-size: 12px; color: #557069; }
 .detail-panel { padding: 22px; }
@@ -88,3 +88,4 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .attribution-list a { font-weight: 650; }
 .attribution-ruling { font-size: 12px; color: #557069; }
 .attribution-text { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: #354b42; overflow-wrap: anywhere; }
+.legend-note { flex-basis: 100%; margin: 0; }
