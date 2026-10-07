@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,7 +8,9 @@ import { publishSite } from '../publish.mjs';
 import { command, digest } from './data.mjs';
 import { seedFixtureStore } from './fixture-store.mjs';
 import { failure, ingestGreen, pathGuard, refresh } from './refresh.mjs';
-import { scanHistory, scanText } from './scans.mjs';
+import { loadPatterns, scanHistory, scanText } from './scans.mjs';
+import { preflight, pruneRuns } from './safety.mjs';
+import { bootstrap } from './bootstrap.mjs';
 
 const dummyEnv = { ...process.env };
 delete dummyEnv.RSI_SESSION_TOKEN;
@@ -120,7 +122,7 @@ test('failure RPC has no token in params; RPC refusal and no-token runs persist 
 
 test('temporary-clone refresh prepares exact Pages objects and releases all refs or none', async () => {
   const scenarios = ['green', 'publish-green', 'qa-red', 'path-red', 'publish-red',
-    'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages', 'live-green', 'live-qa-red', 'live-atomic-reject-gh-pages'];
+    'scan-red-crlf', 'secrets-bundle-red', 'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages', 'live-green', 'live-qa-red', 'live-atomic-reject-gh-pages'];
   for (const scenario of scenarios) {
     const decision = scenario.replace(/^live-/, '');
     const mode = scenario.startsWith('live-') ? 'live' : 'fixtures';
@@ -133,6 +135,7 @@ if [ "$1" = "refs/heads/${ref}" ]; then exit 1; fi
 exit 0
 `, { mode: 0o755 });
     }
+    if (scenario === 'scan-red-crlf') await writeFile(context.patterns, '  private-contact-sentinel  \r\n');
     const effects = [];
     const run = async (program, args, cwd, env) => {
       if (program.endsWith('/tools/offline-test.sh')) {
@@ -150,6 +153,8 @@ exit 0
         // Fake build/QA, real Git commit preparation, object import and atomic push.
         const dist = join(scratch, 'site');
         await cp(join(cwd, 'target/refresh-out-3'), join(dist, 'data'), { recursive: true });
+        if (scenario === 'scan-red-crlf') await writeFile(join(dist, 'app.js'), 'private-contact-sentinel');
+        if (scenario === 'secrets-bundle-red') await writeFile(join(dist, 'app.js'), 'ghp_' + 'a'.repeat(36));
         await publishSite({ scratch, dist,
           target: context.origin, source: git(cwd, 'rev-parse', 'HEAD'),
           identity: ['', 'Refresh test', 'refresh-test@example.invalid'], env, dryRun: '1',
@@ -197,15 +202,17 @@ exit 0
           decision === 'green' ? result.pages : `${result.pages} ${context.base}`);
         assert.ok(git(result.work, 'ls-tree', '-r', '--name-only', result.pages).includes('data/v6/weekly-cases.json'));
         if (scenario === 'publish-green') {
+          await assert.rejects(access(join(result.work, 'target')), { code: 'ENOENT' });
+          assert.equal(JSON.parse(await readFile(join(result.work, '../status.json'))).status, 'green');
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), result.sha);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), result.sha);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/gh-pages'), result.pages);
         }
       } else {
         const phase = decision === 'qa-red' ? 'qa' : scenario === 'path-red' ? 'integrity'
-          : scenario === 'publish-red' ? 'publish-prepare' : 'atomic-release';
+          : scenario === 'publish-red' ? 'publish-prepare' : ['scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 'publication-scans' : 'atomic-release';
         await assert.rejects(refresh(options), new RegExp(`failed at ${phase}`));
-        assert.equal(effects.length, decision.startsWith('atomic-reject-') ? 2 : scenario === 'publish-red' ? 1 : 0);
+        assert.equal(effects.length, decision.startsWith('atomic-reject-') ? 2 : ['publish-red', 'scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 1 : 0);
         const failures = (await readdir(context.state)).filter((path) => path.startsWith('FAILED-'));
         assert.equal(failures.length, 1);
         assert.ok((await readFile(join(context.state, failures[0]), 'utf8')).includes(phase));
@@ -234,5 +241,94 @@ test('scans refuse private patterns, secrets, tracked environment files and secr
     await writeFile(join(context.shared, '.env.test'), 'dummy=example.invalid\n');
     git(context.shared, 'add', '-f', '--', '.env.test');
     await assert.rejects(scanHistory(context.shared, context.patterns), /Tracked environment/);
+  } finally { await rm(context.root, { recursive: true, force: true }); }
+});
+
+test('preflight trims CRLF patterns and resolves private contact without accepting empty or invalid config', async () => {
+  const context = await repository();
+  try {
+    const contact = join(context.shared, '.env.local');
+    await writeFile(context.patterns, '   # comment\r\n\t\r\n  private-contact-sentinel \r\n');
+    await writeFile(contact, 'KOPLIK_CENSUS_CONTACT=\n export KOPLIK_CENSUS_CONTACT = " refresh-test@example.invalid "\r\n');
+    assert.deepEqual(await loadPatterns(context.patterns), ['private-contact-sentinel']);
+    assert.equal((await preflight(context.patterns, contact)).contact, 'refresh-test@example.invalid');
+    const original = git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)');
+    for (const bad of ['blank-patterns', 'comment-patterns', 'missing-patterns', 'missing-contact', 'blank-contact', 'unset-contact', 'invalid-utf8']) {
+      await writeFile(context.patterns, 'private-contact-sentinel\n');
+      await writeFile(contact, 'KOPLIK_CENSUS_CONTACT=refresh-test@example.invalid\n');
+      if (bad === 'blank-patterns') await writeFile(context.patterns, ' \t\r\n\r\n');
+      if (bad === 'comment-patterns') await writeFile(context.patterns, ' # comment\r\n');
+      if (bad === 'missing-patterns') await rm(context.patterns);
+      if (bad === 'missing-contact') await rm(contact);
+      if (bad === 'blank-contact') await writeFile(contact, 'KOPLIK_CENSUS_CONTACT="  "\n');
+      if (bad === 'unset-contact') await writeFile(contact, 'OTHER=value\n');
+      if (bad === 'invalid-utf8') await writeFile(contact, Buffer.from([0xff]));
+      let ingests = 0;
+      await assert.rejects(refresh({ ...context, ingest: async () => { ingests++; },
+        run: (program, args, cwd, env) => program === 'notify-send' ? '' : command(program, args, cwd, env) }), /failed at preflight/);
+      assert.equal(ingests, 0, bad);
+      assert.equal(git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)'), original);
+      console.log(`Offline refresh red-preflight ${bad}: ingest not invoked, all refs preserved`);
+    }
+  } finally { await rm(context.root, { recursive: true, force: true }); }
+});
+
+test('retention keeps two newest green sources, preserves failed sources and expires their targets after 14 days', async () => {
+  const state = await mkdtemp('/tmp/koplik-retention-');
+  const now = Date.parse('2026-10-07T00:00:00Z');
+  const names = [];
+  try {
+    for (const [index, status, age] of [[1, 'green', 1], [2, 'green', 7], [3, 'green', 21], [4, 'failed', 14], [5, 'failed', 13], [6, 'running', 15], [7, 'dry-run', 15]]) {
+      const name = `2026-10-07-00000000-0000-0000-0000-${String(index).padStart(12, '0')}`;
+      names[index] = name;
+      const root = join(state, name);
+      await mkdir(join(root, 'worktree/target'), { recursive: true });
+      await writeFile(join(root, 'worktree/source.txt'), 'Retained source\n');
+      await writeFile(join(root, 'worktree/target/output'), 'Disposable build\n');
+      await writeFile(join(root, 'status.json'), JSON.stringify({ status, completed_at: new Date(now - age * 86400000).toISOString() }));
+    }
+    await mkdir(join(state, 'operator-notes'));
+    await pruneRuns(state, now);
+    assert.deepEqual((await readdir(state)).sort(), [1, 2, 4, 5, 6, 7].map((i) => names[i]).concat('operator-notes').sort());
+    for (const i of [1, 2, 4, 5, 6, 7]) await access(join(state, names[i], 'worktree/source.txt'));
+    for (const i of [4, 6, 7]) await assert.rejects(access(join(state, names[i], 'worktree/target')), { code: 'ENOENT' });
+    await access(join(state, names[5], 'worktree/target/output'));
+  } finally { await rm(state, { recursive: true, force: true }); }
+});
+
+test('failing QA persists only a redacted last 200 lines of child output', async () => {
+  const context = await repository();
+  try {
+    await assert.rejects(refresh({ ...context, build: fakeBuild, ingest: fixtureIngest,
+      run: (program, args, cwd, env) => program === 'notify-send' ? '' : command(program, args, cwd, env),
+      qa: async ({ work, env }) => command(process.execPath, ['-e',
+        "for(let i=0;i<210;i++)console.error('line '+i);console.error('refresh-test@example.invalid private-contact-sentinel '+('ghp_'+'a'.repeat(36)));process.exitCode=1"], work, env),
+    }), /failed at qa/);
+    const report = await readFile(join(context.state, (await readdir(context.state)).find((name) => name.startsWith('FAILED-'))), 'utf8');
+    const tail = report.split('Redacted command tail (last 200 lines):\n\n')[1].trimEnd().split('\n');
+    assert.equal(tail.length, 200);
+    assert.equal(tail[0], '    line 11');
+    assert.equal(tail.at(-1), '    [REDACTED] [REDACTED] [REDACTED]');
+    assert.equal((await readdir(context.state)).filter((name) => name.startsWith('FAILED-')).length, 1);
+  } finally { await rm(context.root, { recursive: true, force: true }); }
+});
+
+test('bootstrap executes landed rolling code and removes its clone despite dirty shared code', async () => {
+  const context = await repository();
+  try {
+    await mkdir(join(context.shared, 'tools/refresh'), { recursive: true });
+    const script = join(context.shared, 'tools/refresh/refresh.mjs');
+    await writeFile(script, "import {writeFile} from 'node:fs/promises';await writeFile(process.env.KOPLIK_REFRESH_STATE+'/landed-code', 'reviewed-tip');\n");
+    git(context.shared, 'add', '--', 'tools/refresh/refresh.mjs');
+    git(context.shared, 'commit', '-m', 'Landed bootstrap test');
+    git(context.shared, 'push', 'origin', 'HEAD:refs/heads/rolling');
+    await writeFile(script, "throw new Error('Dirty shared code must not run');\n");
+    assert.equal(await bootstrap(context), 0);
+    assert.equal(await readFile(join(context.state, 'landed-code'), 'utf8'), 'reviewed-tip');
+    assert.deepEqual(await readdir(context.state), ['landed-code']);
+    await rm(join(context.origin, 'refs/heads/rolling'));
+    assert.equal(await bootstrap(context), 1);
+    assert.equal((await readdir(context.state)).filter((name) => name.startsWith('FAILED-bootstrap-')).length, 1);
+    assert.deepEqual((await readdir(context.state)).filter((name) => name.startsWith('bootstrap-')), []);
   } finally { await rm(context.root, { recursive: true, force: true }); }
 });

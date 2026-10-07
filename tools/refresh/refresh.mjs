@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import { cp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { buildData, cargo, command, digest, files, verifyStore } from './data.mjs';
-import { scanHistory } from './scans.mjs';
+import { redact, scanHistory, scanTree } from './scans.mjs';
+import { preflight, pruneRuns } from './safety.mjs';
 
 const gitEnvironment = (env) => Object.fromEntries(Object.entries(env).filter(([key]) =>
   !key.startsWith('GIT_') && !['KOPLIK_ALLOW_NETWORK_TESTS', 'KOPLIK_CENSUS_CONTACT', 'KOPLIK_ENV_LOCAL', 'PUBLISH_REMOTE', 'PUBLISH_DRY_RUN', 'PUBLISH_PREPARE_OUTPUT', 'PUBLISH_EXPECTED_PARENT'].includes(key)));
@@ -36,11 +36,12 @@ export function ingestGreen(previous, current) {
     || current.notes.some((note) => note.includes('fetch failed'))) throw new Error('Ingest incomplete');
 }
 
-export async function failure({ state, runId, phase, run = command, env = process.env }) {
+export async function failure({ state, runId, phase, tail, run = command, env = process.env }) {
   // Phase identifiers are controlled by this script, never child output or private input.
-  const body = `Weekly refresh ${runId} failed at ${phase}.\nNo further promotion or publication was attempted.\nInspect the refresh journal and dedicated worktree; rerun full QA before retrying.\n`;
+  const body = `Weekly refresh ${runId} failed at ${phase}.\nNo further promotion or publication was attempted.\nInspect the refresh journal and dedicated worktree; rerun full QA before retrying.\n` + (tail ? `\nRedacted command tail (last 200 lines):\n\n${tail.split('\n').map((line) => `    ${line}`).join('\n')}\n` : '');
   await mkdir(state, { recursive: true });
   const artifact = join(state, `FAILED-${runId}.md`);
+  await writeFile(artifact, body, { mode: 0o600 });
   if (env.RSI_SESSION_TOKEN) {
     const params = join(state, `failure-${runId}.json`);
     await writeFile(params, JSON.stringify({ title: `Weekly refresh failed: ${phase}`, body, labels: ['refresh-failure'], idempotency_key: `koplik-refresh-${runId}` }), { mode: 0o600 });
@@ -48,7 +49,6 @@ export async function failure({ state, runId, phase, run = command, env = proces
     catch { /* A refused/unavailable Issue endpoint still leaves a durable local report. */ }
     finally { await rm(params, { force: true }); }
   }
-  await writeFile(artifact, body, { mode: 0o600 });
   try { await run('notify-send', ['Koplik refresh failed', `Phase: ${phase}. See the refresh journal.`], state, env); } catch { /* headless hub */ }
 }
 
@@ -59,6 +59,8 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
   let phase = 'setup';
   let locked = false;
   let work;
+  let privateInputs = { patterns: [], contact: undefined };
+  const status = async (value) => writeFile(join(state, runId, 'status.json'), `${JSON.stringify({ status: value, [value === 'running' ? 'started_at' : 'completed_at']: new Date().toISOString() })}\n`, { mode: 0o600 });
   const safeEnv = gitEnvironment(env);
   const execute = (program, args, cwd, extra = {}) => run(program, args, cwd, { ...safeEnv, ...extra });
   try {
@@ -69,9 +71,14 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     state = await realpath(state);
     if (state.includes('/sandboxes/') || state === shared || state.startsWith(`${shared}/`)) throw new Error('Refresh requires a dedicated directory');
     await mkdir(join(state, 'lock')); locked = true;
+    await pruneRuns(state);
+    phase = 'preflight';
+    privateInputs = await preflight(patterns, join(shared, '.env.local'));
+    phase = 'clone';
     // A fresh detached clone per run avoids deleting or resetting any previous failed work.
     work = join(state, runId, 'worktree');
     await mkdir(join(state, runId));
+    await status('running');
     const urls = (await execute('git', ['remote', 'get-url', '--push', '--all', 'origin'], shared)).split('\n');
     if (urls.length !== 1) throw new Error('Exactly one local origin required');
     const origin = await realpath(resolve(shared, urls[0]));
@@ -88,8 +95,6 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     for (const path of await files(release)) before.set(path, await readFile(join(release, path)));
     const previous = JSON.parse(before.get('ingest.manifest.json'));
     const runtime = { ...safeEnv, CARGO_TARGET_DIR: join(work, 'target'), KOPLIK_ENV_LOCAL: join(shared, '.env.local') };
-    // Refuse a missing operator config rather than silently fall back to a general Census contact.
-    if (!existsSync(runtime.KOPLIK_ENV_LOCAL)) throw new Error('Shared Census config required');
     phase = 'ingest'; console.log(`Refresh ${runId}: ingest`);
     const stageWork = join(work, 'data/pipeline');
     if (ingest) await ingest({ work, release, stageWork, env: runtime });
@@ -180,7 +185,10 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
       throw new Error('Prepared site did not use candidate release data');
     }
     if (await git(['status', '--porcelain=v1', '--untracked-files=all'])) throw new Error('Candidate changed during QA');
-    if (dryRun) { console.log(`Refresh dry-run green ${sha}, Pages ${g}; no push or publication`); return { sha, pages: g, work, receipt }; }
+    phase = 'publication-scans';
+    publication.scans = await scanTree(work, g, patterns, (program, args, cwd) => execute(program, args, cwd));
+    await writeFile(output, `${JSON.stringify(publication)}\n`, { mode: 0o600 });
+    if (dryRun) { await status('dry-run'); console.log(`Refresh dry-run green ${sha}, Pages ${g}; no push or publication`); return { sha, pages: g, work, receipt }; }
     phase = 'atomic-release';
     // All local preparation has succeeded. One FF-only transaction changes all three
     // refs, or none on rejection. No retry/reparent: a later run starts from new tips.
@@ -192,11 +200,15 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     if (refs.get('refs/heads/rolling') !== sha || refs.get('refs/heads/main') !== sha || refs.get('refs/heads/gh-pages') !== g) {
       throw new Error('Released refs differ from prepared transaction');
     }
+    await status('green');
+    await rm(join(work, 'target'), { recursive: true, force: true });
     console.log(`Refresh green ${sha}`);
     return { sha, pages: g, work, receipt };
   } catch (error) {
     console.error(`Refresh failed at ${phase}; command details suppressed`);
-    await failure({ state, runId, phase, run, env: safeEnv });
+    if (work) await status('failed').catch(() => {});
+    const tail = redact(error.commandTail || '', [...privateInputs.patterns, safeEnv.KOPLIK_CONTACT, safeEnv.RSI_SESSION_TOKEN].filter(Boolean), privateInputs.contact);
+    await failure({ state, runId, phase, tail, run, env: safeEnv });
     throw new Error(`Refresh failed at ${phase}`);
   } finally {
     if (locked) await rm(join(state, 'lock'), { recursive: true });

@@ -1,3 +1,4 @@
+import { StringDecoder } from 'node:string_decoder';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
@@ -24,10 +25,24 @@ export async function command(program, args, cwd, env = process.env) {
   return new Promise((accept, reject) => {
     const child = spawn(program, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
-    child.stdout.on('data', (bytes) => { out += bytes; });
-    child.stderr.resume();
+    let tail = '';
+    const capture = (bytes) => {
+      tail = (tail + bytes).split('\n').slice(-201).join('\n');
+    };
+    const stdout = new StringDecoder('utf8');
+    const stderr = new StringDecoder('utf8');
+    child.stdout.on('data', (bytes) => { const text = stdout.write(bytes); out += text; capture(text); });
+    child.stderr.on('data', (bytes) => capture(stderr.write(bytes)));
+    child.stdout.on('end', () => { const text = stdout.end(); out += text; capture(text); });
+    child.stderr.on('end', () => capture(stderr.end()));
     child.on('error', () => reject(new Error(`Command unavailable: ${program}`)));
-    child.on('close', (code) => code === 0 ? accept(out.trim()) : reject(new Error(`Command failed: ${program} (exit ${code})`)));
+    child.on('close', (code) => {
+      if (code === 0) return accept(out.trim());
+      const error = new Error(`Command failed (exit ${code})`);
+      // Private until the refresh boundary redacts it; never log this property.
+      error.commandTail = tail.replace(/\n$/, '').split('\n').slice(-200).join('\n');
+      reject(error);
+    });
   });
 }
 

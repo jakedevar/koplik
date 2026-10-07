@@ -108,16 +108,25 @@ After tier2 review, the manager installs from `~/koplik` with
 `systemctl --user start koplik-refresh.service`. The timer runs Thursdays at
 21:00 America/Chicago with `Persistent=true`. Inspect it with
 `systemctl --user list-timers koplik-refresh.timer` and
-`journalctl --user -u koplik-refresh.service`. Enable user lingering separately
-if the hub must run timers while logged out.
+`journalctl --user -u koplik-refresh.service`. The operator enables logged-out
+timers with `loginctl enable-linger "$USER"`. Without lingering, `Persistent=true`
+runs a missed refresh at the next login. The service PATH includes `~/.local/bin`
+for user-installed notification and RSI tools.
 
+The installer copies a tiny standalone launcher to
+`~/.local/lib/koplik-refresh/bootstrap.mjs`. At each activation it clones the
+local bare origin into the state directory and executes the refresh script
+from the fetched `origin/rolling` tip; edits in `~/koplik` cannot change the
+weekly refresh code. The launcher removes its scratch clone after execution.
 The refresh creates a fresh detached clone at `origin/rolling` under
 `~/.rsi/koplik-refresh/<run-id>/worktree`, never in the shared checkout or an
 agent sandbox. Existing release blobs are immutable and the retrieval log is
 append-only. The candidate commit may change only `data/release/**`; staged,
 unstaged, untracked and committed paths are guarded. Tests still use
-`data/fixtures/`. Failed worktrees are retained for diagnosis; cleanup is an
-operator action. A directory lock prevents overlapping runs; after a killed
+`data/fixtures/`. After verified release, the run's compiler `target/` is deleted. Each run first
+prunes green run directories older than the last two. Failed source trees and
+reports remain for diagnosis; compiler targets for failed, interrupted or dry
+runs are removed after 14 days. A directory lock prevents overlapping runs; after a killed
 run, inspect the journal before removing `~/.rsi/koplik-refresh/lock`.
 
 Before installation, configure the Census contact in the shared checkout's
@@ -126,8 +135,11 @@ personal-data scan patterns, one per line, in
 `~/.config/koplik/pii-patterns` (outside git; do not print their contents).
 `KOPLIK_ENV_LOCAL` passes only the config path to ingest. The refresh clears
 inherited Census overrides so that the shared file is the contact authority.
-No contact is copied into the refresh worktree or command logs. Missing config
-or an empty/missing pattern file refuses the run.
+No contact is copied into the refresh worktree or command logs. Before ingest,
+preflight requires a non-blank Census contact in valid UTF-8 config and at least
+one usable pattern. Pattern lines are trimmed (including CRLF); blank/comment
+lines contribute no patterns. Missing or unusable config or patterns refuses
+the run before any live request.
 
 The refresh prepares a data-only commit D at the fetched `origin/rolling` tip,
 then runs `make check`, isolated `make test`, `make web-test`, and
@@ -142,7 +154,9 @@ The existing publisher builds D locally with `PUBLISH_DRY_RUN=1` and
 clone without changing refs, and records its source, tree and parent. G's
 parent must be the fetched gh-pages tip (or G is a root if the branch is absent).
 Refresh verifies G contains `data/manifest.json` and all six v6 artifacts and
-uses D's `data/release/` outputs. Only after all preparation succeeds does one
+uses D's `data/release/` outputs. Every blob and filename in G's tree, including
+the web bundle, then passes the personal-data and secrets scans. Only after
+all preparation succeeds does one
 `KOPLIK_PROMOTE_MAIN=1 git push --atomic origin D:refs/heads/rolling
 D:refs/heads/main G:refs/heads/gh-pages` release all three refs. Refresh verifies
 they equal D, D and G afterward. Every update is fast-forward only.
@@ -150,11 +164,14 @@ they equal D, D and G afterward. Every update is fast-forward only.
 Any preparation failure or rejected atomic push leaves all three refs unchanged
 and publishes nothing. A concurrent advance skips or rejects the run; the next
 run starts from the new tips and repeats QA, with no rebase, force push or
-partial retry. Every failure attempts an Issue labeled `refresh-failure` through
-`rsi-rpc AgentCreateIssue` when an RSI token is available; otherwise (also on RPC
-refusal) it writes `~/.rsi/koplik-refresh/FAILED-<run-id>.md` and attempts a local
-notification. Logs and reports contain phase identifiers, never captured child
-output or scan matches.
+partial retry. Every failure writes
+`~/.rsi/koplik-refresh/FAILED-<run-id>.md`. Failing commands include their last
+200 lines, with the contact, personal-pattern hits and secrets masked before
+persistence. The journal contains phase identifiers without raw child output.
+With an RSI session token the refresh also attempts an Issue labeled
+`refresh-failure` through `rsi-rpc AgentCreateIssue`. An unattended user timer
+normally has no RSI token: the FAILED report plus a `notify-send` attempt is
+the supported failure path (also used on RPC refusal).
 
 `make publish` archives committed HEAD and builds offline from `data/release/`
 when it exists. Only absence of that directory permits fixture fallback;

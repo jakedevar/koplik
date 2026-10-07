@@ -16,10 +16,37 @@ export function scanText(text, personalPatterns) {
   const rule = secretPatterns.findIndex((pattern) => pattern.test(text));
   if (rule !== -1) throw new Error(`Secrets scan failed (rule ${rule + 1}; details suppressed)`);
 }
+export async function loadPatterns(patternsFile) {
+  // Literal patterns are normalized once for preflight, scanning and redaction.
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(await readFile(patternsFile));
+  const patterns = text.split('\n').map((line) => line.trim()).filter((line) => line && !line.startsWith('#'));
+  if (!patterns.length) throw new Error('Personal-data patterns file has no usable patterns');
+  return patterns;
+}
+export function redact(text, personalPatterns = [], contact) {
+  for (const value of [...personalPatterns, contact].filter(Boolean).sort((a, b) => b.length - a.length)) {
+    text = text.split(value).join('[REDACTED]');
+  }
+  for (const pattern of secretPatterns) text = text.replace(new RegExp(pattern.source, 'g'), '[REDACTED]');
+  return text;
+}
+export async function scanTree(root, sha, patternsFile, run = command) {
+  const patterns = await loadPatterns(patternsFile);
+  const tree = await run('git', ['ls-tree', '-r', '-z', sha], root);
+  const objects = new Set();
+  for (const entry of tree.split('\0').filter(Boolean)) {
+    const [header, path] = entry.split('\t');
+    const [mode, type, object] = header.split(' ');
+    if (path.split('/').some((part) => /^\.env/.test(part))) throw new Error('Environment file in publication');
+    scanText(path, patterns);
+    if (mode === '160000' || type !== 'blob') throw new Error('Unscannable publication entry');
+    objects.add(object);
+  }
+  for (const object of objects) scanText(await run('git', ['cat-file', 'blob', object], root), patterns);
+  return { blobs: objects.size, personal_matches: 0, secret_matches: 0 };
+}
 export async function scanHistory(root, patternsFile, run = command) {
-  // Patterns are literal, one per line; no values or matching text ever reach logs.
-  const patterns = (await readFile(patternsFile, 'utf8')).split('\n').filter((line) => line.trim() && !line.startsWith('#'));
-  if (!patterns.length) throw new Error('Personal-data patterns file is empty');
+  const patterns = await loadPatterns(patternsFile);
   const git = (args) => run('git', args, root);
   const tracked = (await git(['ls-files', '-z'])).split('\0').filter(Boolean);
   if (tracked.some((path) => path.split('/').some((part) => /^\.env/.test(part)))) throw new Error('Tracked environment file');

@@ -3,8 +3,8 @@ Description=Koplik weekly live data refresh with release QA
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/node %h/koplik/tools/refresh/refresh.mjs
-Environment=PATH=%h/.cargo/bin:%h/.rsi/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/node %h/.local/lib/koplik-refresh/bootstrap.mjs
+Environment=PATH=%h/.local/bin:%h/.cargo/bin:%h/.rsi/bin:/usr/local/bin:/usr/bin:/bin
 Environment=TMPDIR=%h/.rsi/koplik-refresh/tmp
 UMask=0077
 TimeoutStartSec=infinity
