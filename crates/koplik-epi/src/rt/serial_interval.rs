@@ -29,8 +29,27 @@ impl SerialInterval {
         sd_days: 3.0,
     };
 
+    /// Reject a non-finite or non-positive mean or SD before any gamma parameter is
+    /// derived from them (a negative SD would otherwise square away silently).
+    pub fn validate(&self) -> Result<(), RtError> {
+        if !(self.mean_days.is_finite() && self.mean_days > 0.0) {
+            return Err(RtError::Config(format!(
+                "serial interval mean must be finite and > 0 days, got {}",
+                self.mean_days
+            )));
+        }
+        if !(self.sd_days.is_finite() && self.sd_days > 0.0) {
+            return Err(RtError::Config(format!(
+                "serial interval SD must be finite and > 0 days, got {}",
+                self.sd_days
+            )));
+        }
+        Ok(())
+    }
+
     /// The continuous distribution.
     pub fn gamma(&self) -> Result<GammaDist, RtError> {
+        self.validate()?;
         GammaDist::from_mean_sd(self.mean_days, self.sd_days)
     }
 
@@ -87,7 +106,8 @@ impl SerialInterval {
         if steps < 2 {
             return Err(RtError::Config("steps must be >= 2".into()));
         }
-        if self.mean_days.is_nan() || self.mean_days <= 1.0 {
+        self.validate()?;
+        if self.mean_days <= 1.0 {
             return Err(RtError::Config(
                 "Cori daily discretisation needs a mean serial interval > 1 day".into(),
             ));
@@ -263,6 +283,41 @@ mod tests {
         assert!((w.iter().sum::<f64>() - 1.0).abs() < 1e-6);
         // Mean of the shifted gamma is the requested mean.
         assert!((d.mean_lag() - 2.6).abs() < 1e-3);
+    }
+
+    #[test]
+    fn rejects_negative_or_non_finite_mean_and_sd() {
+        let bad_sd = SerialInterval {
+            mean_days: 2.6,
+            sd_days: -1.5,
+        };
+        assert!(bad_sd.validate().is_err());
+        assert!(bad_sd.gamma().is_err());
+        assert!(bad_sd.discretize_daily_cori(32).is_err());
+        assert!(bad_sd.discretize_weekly(8).is_err());
+        for (mean, sd) in [
+            (0.0, 1.0),
+            (-11.7, 3.0),
+            (f64::NAN, 3.0),
+            (11.7, 0.0),
+            (11.7, f64::INFINITY),
+        ] {
+            let si = SerialInterval {
+                mean_days: mean,
+                sd_days: sd,
+            };
+            assert!(si.validate().is_err(), "mean={mean} sd={sd}");
+            assert!(si.discretize_daily_cori(32).is_err(), "mean={mean} sd={sd}");
+            assert!(si.discretize_weekly(8).is_err(), "mean={mean} sd={sd}");
+        }
+        // A mean of at most one day is valid in general but not for the shifted daily form.
+        let short = SerialInterval {
+            mean_days: 1.0,
+            sd_days: 0.5,
+        };
+        assert!(short.validate().is_ok());
+        assert!(short.discretize_daily_cori(32).is_err());
+        assert!(SerialInterval::MEASLES.validate().is_ok());
     }
 
     #[test]
