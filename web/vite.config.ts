@@ -1,7 +1,11 @@
 import { defineConfig } from 'vitest/config';
+import { fileURLToPath } from 'node:url';
+import { syntheticFixtures } from './build/synthetic-fixtures';
+import { productionDataGuard } from './build/production-data';
 
 export default defineConfig({
   base: process.env.KOPLIK_BASE_PATH || '/',
+  plugins: [productionDataGuard(), syntheticFixtures(fileURLToPath(new URL('../data/fixtures/web/synthetic-v1/', import.meta.url)), process.env.VITE_SYNTHETIC_FIXTURES === '1')],
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.ts'],
