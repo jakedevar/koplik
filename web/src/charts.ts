@@ -1,6 +1,6 @@
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { RtEstimate } from './generated/RtEstimate';
-import { caseDefinitionLabels, caseDefinitionWords, compareWeeks } from './data';
+import { caseDefinitionLabels, compareWeeks, type CaseDefinition } from './data';
 import { bindProvenance } from './provenance';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -28,17 +28,36 @@ function chart(title: string, maximum: number, unit: string): SVGSVGElement {
   }
   const label = svgElement('text', { x: 40, y: 14, class: 'axis-label' });
   label.textContent = unit;
+  label.classList.add('series-legend');
   svg.append(label);
   return svg;
 }
 const x = (week: number) => 45 + (week - 1) * 10.7;
 const y = (value: number, maximum: number) => 170 - value / maximum * 145;
 
-export function caseChart(rows: WeeklyCaseCount[], year: number, synthetic = false): SVGSVGElement {
+/** One plotted series: every row shares one case definition. Definitions are never mixed or summed. */
+export interface CaseSeries {
+  definition: CaseDefinition;
+  /** The definition in words, e.g. "confirmed cases". */
+  label: string;
+  rows: WeeklyCaseCount[];
+}
+
+/** The chart model: one series per case definition among the year's rows, in a fixed order. */
+export function caseSeries(rows: WeeklyCaseCount[], year: number): CaseSeries[] {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
+  return (Object.keys(caseDefinitionLabels) as CaseDefinition[])
+    .map((definition) => ({ definition, label: caseDefinitionLabels[definition], rows: selected.filter((r) => r.case_definition === definition) }))
+    .filter((series) => series.rows.length > 0);
+}
+
+function seriesChart(series: CaseSeries, year: number, synthetic: boolean, separate: boolean): SVGSVGElement {
+  const selected = series.rows;
   const max = Math.max(1, ...selected.map((r) => r.cases.status === 'reported' ? r.cases.count : 0));
-  const words = caseDefinitionWords(selected);
-  const svg = chart(`Weekly ${words}, MMWR ${year}. Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, `New ${words}`);
+  const words = series.label;
+  const apart = separate ? ' Charted separately from other case definitions; they are never added together.' : '';
+  const svg = chart(`Weekly ${words}, MMWR ${year}.${apart} Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, `New ${words}`);
+  svg.dataset.caseDefinition = series.definition;
   bindProvenance(svg, { label: `Weekly ${words} chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
     note: 'Sources attached to the plotted weekly reports. Axis ticks are display guides.' });
   for (const row of selected) {
@@ -54,6 +73,12 @@ export function caseChart(rows: WeeklyCaseCount[], year: number, synthetic = fal
     svg.append(bar);
   }
   return svg;
+}
+
+/** One chart per case definition, each with its own axis and a legend naming the definition; never one mixed series. */
+export function caseCharts(rows: WeeklyCaseCount[], year: number, synthetic = false): SVGSVGElement[] {
+  const series = caseSeries(rows, year);
+  return series.map((one) => seriesChart(one, year, synthetic, series.length > 1));
 }
 
 export function rtLabel(row: RtEstimate): string {

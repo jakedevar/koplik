@@ -193,6 +193,41 @@ export function metricValue(data: Dataset, id: string, metric: Metric): Value {
     detail: `${caseDefinitionLabels[definition!]} · Reported weeks ${rows[0].week.week}–${rows.at(-1)!.week.week}, MMWR ${year} (${rows.length} weeks); not a full-year total` };
 }
 
+const levelOf = (id: string): 'state' | 'county' => id.length === 2 ? 'state' : 'county';
+
+/** The case definitions present among a level's weekly rows, in a fixed order; each gets its own map scale. */
+export function caseDefinitionsAt(data: Dataset, level: 'state' | 'county'): CaseDefinition[] {
+  const present = new Set(data.cases.filter((r) => levelOf(r.geography) === level).map((r) => r.case_definition));
+  return (Object.keys(caseDefinitionLabels) as CaseDefinition[]).filter((definition) => present.has(definition));
+}
+/** The CDC definition for the states view when present, otherwise the first definition available. */
+export function defaultCaseDefinition(definitions: CaseDefinition[]): CaseDefinition | undefined {
+  return definitions.includes('confirmed_or_unknown_status') ? 'confirmed_or_unknown_status' : definitions[0];
+}
+function caseYear(metric: Metric) { return metric === 'cases-2025' ? 2025 : 2026; }
+/** The definition a geography's rows report under for the metric's year; null for none or for mixed definitions. */
+function geographyDefinition(data: Dataset, id: string, metric: Metric): CaseDefinition | null {
+  return commonCaseDefinition(data.cases.filter((r) => r.geography === id && r.week.year === caseYear(metric)));
+}
+/**
+ * The value to colour on the map. A case value is coloured only on the scale of its own case definition:
+ * a geography whose rows use any other definition is "No data" here, never placed on this definition's scale.
+ */
+export function mapMetricValue(data: Dataset, id: string, metric: Metric, definition?: CaseDefinition): Value {
+  if (metric !== 'coverage' && definition) {
+    const own = geographyDefinition(data, id, metric);
+    if (own && own !== definition) return { value: null, label: 'No data',
+      detail: `Reports ${caseDefinitionLabels[own]}, not ${caseDefinitionLabels[definition]}; not shown on this scale` };
+  }
+  return metricValue(data, id, metric);
+}
+/** Geographies at a level whose rows use a case definition other than the selected one (greyed on the map). */
+export function otherDefinitionGeographies(data: Dataset, level: 'state' | 'county', metric: Metric, definition: CaseDefinition): string[] {
+  if (metric === 'coverage') return [];
+  return [...new Set(data.cases.filter((r) => levelOf(r.geography) === level).map((r) => r.geography))]
+    .filter((id) => { const own = geographyDefinition(data, id, metric); return own !== null && own !== definition; });
+}
+
 export function compareWeeks(a: { week: { year: number; week: number } }, b: { week: { year: number; week: number } }): number {
   return a.week.year - b.week.year || a.week.week - b.week.week;
 }

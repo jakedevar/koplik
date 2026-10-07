@@ -122,7 +122,7 @@ export function mountProvenanceDrawer(root: HTMLElement): () => void {
       }
       // Terms and attribution sit next to the recorded licence id (which is never rewritten).
       const terms = licenceTerms(record.licence_id);
-      const attribution = attributionFor(record.source_id, record.licence_id);
+      const attribution = attributionFor(record.source_id, record.licence_id, record.url);
       const termsDetail = element('dd');
       termsDetail.className = 'provenance-terms';
       termsDetail.textContent = terms ? `${terms.ruling}. ${terms.terms}` : 'Terms not recorded for this licence id.';
