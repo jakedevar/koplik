@@ -65,6 +65,9 @@ describe('forecast panel', () => {
     expect(evaluation.querySelector('h2')?.textContent).toBe('How we evaluate forecasts');
     expect(evaluation.querySelector('.forecast-headline')?.textContent).toBe('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50.0% of the time (2 of 4); about 50% would be expected.');
     expect(evaluation.textContent).toContain('Mean CRPS 3.50 cases');
+    // The table uses the prose's precision: percent with one decimal plus the exact count.
+    const all = [...evaluation.querySelectorAll('tbody tr')].find((row) => row.querySelector('th')?.textContent === 'All')!;
+    expect([...all.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['4', '3.50', '50.0% (2 of 4)', '50.0% (2 of 4)']);
     expect(evaluation.querySelector('.forecast-narrow')?.textContent).toContain('In this backtest the intervals were too narrow');
     expect(evaluation.querySelector('.forecast-evaluation-scope')?.textContent).toContain('This backtest does not measure how the forecasts above will do. None of the 1 series forecast above (confirmed or unknown-status cases) is the series that was scored');
     // The report is named, not linked, for a synthetic fixture.

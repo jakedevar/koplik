@@ -1,6 +1,6 @@
 import { caseDefinitionLabels, type Dataset } from './data';
 import {
-  backtestReportPath, evaluationScope, insufficientWords, loadForecast, noMeasuredSkill, parameterValue, quantileAt, seriesRows, skillWords, weekLabel, weekOrdinal,
+  backtestReportPath, evaluationScope, insufficientWords, loadForecast, noMeasuredSkill, parameterValue, percent, quantileAt, seriesRows, skillWords, weekLabel, weekOrdinal,
   type Forecast, type ForecastProvenance, type ForecastSeries, type PublishedForecast, type Week,
 } from './forecast';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
@@ -260,7 +260,9 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
         const tr = element('tr');
         const weeks = element('th', text); weeks.scope = 'row';
         const number = (value: number | null | undefined, digits: number) => (value == null ? 'no targets' : value.toFixed(digits));
-        tr.append(weeks, element('td', String(n)), element('td', number(crps, 2)), element('td', number(c50, 2)), element('td', number(c90, 2)));
+        // Coverage uses the prose's precision: one-decimal percent plus the exact count (covered of n).
+        const coverage = (value: number | null | undefined) => (value == null ? 'no targets' : `${percent(value)} (${Math.round(value * n)} of ${n})`);
+        tr.append(weeks, element('td', String(n)), element('td', number(crps, 2)), element('td', coverage(c50)), element('td', coverage(c90)));
         return tr;
       };
       for (const h of skill.by_horizon) body.append(rowOf(String(h.horizon), h.n, h.mean_crps, h.coverage_50, h.coverage_90));
