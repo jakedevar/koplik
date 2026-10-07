@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! koplik-pipeline <ingest|validate|infer|forecast|build|all> [--from-fixtures]
-//!                 [--store DIR] [--work DIR] [--out DIR] [--fixtures DIR]
+//!                 [--store DIR] [--work DIR] [--out DIR] [--fixtures DIR] [--reports DIR]
 //! ```
 //!
 //! `ingest` is the only stage that uses the network. It identifies the client through
@@ -17,19 +17,21 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use koplik_pipeline::{
-    Config, DEFAULT_FIXTURES, DEFAULT_OUT, DEFAULT_WORK, Mode, PipelineError, Stage,
+    Config, DEFAULT_FIXTURES, DEFAULT_OUT, DEFAULT_REPORTS, DEFAULT_WORK, Mode, PipelineError,
+    Stage,
 };
 
 const USAGE: &str = "usage:
   koplik-pipeline <ingest|validate|infer|forecast|build|all> [--from-fixtures]
-                  [--store DIR] [--work DIR] [--out DIR] [--fixtures DIR]
+                  [--store DIR] [--work DIR] [--out DIR] [--fixtures DIR] [--reports DIR]
 
   --from-fixtures  ingest seeds the store from data/fixtures/ (offline); the store defaults
                    to <work>/fixture-snapshots so live and fixture snapshots never mix
   --store DIR      snapshot store (default data/snapshots, or <work>/fixture-snapshots)
   --work DIR       stage outputs and manifests (default data/pipeline)
   --out DIR        web artifacts (default web/public/data)
-  --fixtures DIR   fixture root for --from-fixtures (default data/fixtures)";
+  --fixtures DIR   fixture root for --from-fixtures (default data/fixtures)
+  --reports DIR    committed reports; forecast reads backtest/west-texas-2025.json (default data/reports)";
 
 struct Flags(Vec<String>);
 
@@ -102,6 +104,11 @@ fn run(args: Vec<String>) -> Result<(), PipelineError> {
             .take("--fixtures")?
             .unwrap_or_else(|| DEFAULT_FIXTURES.to_owned()),
     );
+    let reports = PathBuf::from(
+        flags
+            .take("--reports")?
+            .unwrap_or_else(|| DEFAULT_REPORTS.to_owned()),
+    );
     flags.done()?;
     let config = Config {
         mode,
@@ -109,6 +116,7 @@ fn run(args: Vec<String>) -> Result<(), PipelineError> {
         work,
         out,
         fixtures,
+        reports,
     };
     for stage in stages {
         let manifest = koplik_pipeline::run_stage(stage, &config)?;
