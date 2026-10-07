@@ -6,6 +6,7 @@ import { parseForecast } from './forecast';
 import { fixtureDataset, fixtureRoot } from './fixtures.test-utils';
 
 const read = (name: string) => JSON.parse(readFileSync(resolve(fixtureRoot, `synthetic-v1/${name}`), 'utf8'));
+const cdc = JSON.parse(readFileSync(resolve(process.cwd(), '../data/reports/backtest/cdc-states.json'), 'utf8')).primary;
 const published = () => parseForecast(read('synthetic-forecast.json'), read('synthetic-forecast.provenance.json'), true);
 afterEach(() => { document.body.replaceChildren(); });
 const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
@@ -48,10 +49,10 @@ describe('forecast panel', () => {
     expect(banner.className).toContain('forecast-measured');
     expect(banner.firstElementChild?.textContent).toBe('Measured skill for this series.');
     expect(banner.querySelector('.forecast-series-headline')?.textContent).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 83.3% of the time (5 of 6); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50.0% of the time (3 of 6); about 50% would be expected.');
-    expect(banner.textContent).toContain('Mean CRPS 12.25 cases (lower is better); carrying the latest count forward instead scored 7.00.');
+    expect(banner.textContent).toContain('Mean CRPS 6.50 cases (lower is better); carrying the latest count forward instead scored 7.00.');
     expect(banner.textContent).toContain('6 forecasts of later weeks for this series, made from 3 distinct origin weeks');
     expect(banner.textContent).toContain('Basis: pseudo-real-time (revised counts truncated at each forecast date), not real-time.');
-    expect(banner.textContent).toContain("the method's mean error was larger than that of carrying the latest count forward");
+    expect(banner.textContent).toContain("the method's mean error was smaller than that of carrying the latest count forward");
     // The numbers are provenance buttons that open the report they were read from.
     expect(banner.querySelector('button')?.getAttribute('aria-label')).toContain('Measured skill · Texas');
     expect(result.querySelector('svg.forecast-chart')).not.toBeNull();
@@ -62,14 +63,84 @@ describe('forecast panel', () => {
     cleanup();
   });
 
-  it('says first that a series with insufficient data for a skill has none, and what was scored for it', async () => {
+  it('says for a withheld series that no forecast is published, why, its own measured numbers and the rule, and draws no forecast', async () => {
     const { main, cleanup } = mount(undefined, '20');
     await flush();
-    const banner = main.querySelector('.forecast-result')!.firstElementChild!;
-    expect(banner.className).toContain('forecast-no-skill');
-    expect(banner.textContent).toBe('No measured skill for this series. The pseudo-real-time (revised counts truncated at each forecast date) backtest on the synthetic fixture state series ran on it but it scored 2 forecasts of later weeks for this series, from 1 origin week, too little to state a skill: a measured skill needs at least 4 from at least 2 origin weeks, a floor fixed before any score. Treat the bands as illustrative, not as calibrated uncertainty.');
-    expect(main.querySelector('.forecast-measured')).toBeNull();
+    const result = main.querySelector('.forecast-result')!;
+    const banner = result.firstElementChild!;
+    expect(banner.className).toContain('forecast-withheld');
+    expect(banner.querySelector('.forecast-withheld-headline')?.textContent).toBe('We do not publish a forecast for Kansas.');
+    expect(banner.textContent).toContain("Its measured skill does not meet our rule: its 90% intervals contained the true count 50.0% of the time, below the 75.0% our rule asks for, and its mean error (9.00 cases) was larger than that of simply repeating the latest complete week's count (5.00).");
+    expect(banner.querySelector('.forecast-series-headline')?.textContent).toContain('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 50.0% of the time (2 of 4)');
+    expect(banner.querySelector('.forecast-policy')?.textContent).toContain('Our publication rule: a forecast is shown only if');
+    // No chart, no forecast values: only the method and its parameters.
+    expect(result.querySelector('svg')).toBeNull();
+    expect(result.textContent).not.toContain('Exact forecast values');
+    expect(result.textContent).toContain('the forecast the method made for this series is withheld and is not published');
+    expect(result.querySelectorAll('.parameter-citations tbody tr')).toHaveLength(3);
     cleanup();
+  });
+
+  it('says a series with insufficient data for a skill, or never tested, is withheld for that, with no numbers', async () => {
+    const base = published();
+    const variant = (skill: 'insufficient data for a measured skill' | 'not backtested; no measured skill', why: 'insufficient_data_for_skill' | 'not_backtested') => ({
+      ...base,
+      provenance: {
+        ...base.provenance,
+        series: base.provenance.series.map((s) => (s.geography === '20' ? { ...s, skill, withheld: why } : s)),
+        series_backtest: { ...base.provenance.series_backtest!, by_series: base.provenance.series_backtest!.by_series.map((e) => (e.geography === '20' ? { ...e, measured: null, targets: 2, origin_weeks: 1 } : e)),
+          pooled: { ...base.provenance.series_backtest!.pooled!, forecasts: 4, scores: { ...base.provenance.series_backtest!.pooled!.scores, targets: 8, by_horizon: base.provenance.series_backtest!.pooled!.scores.by_horizon.map((h, i) => (i === 0 ? { ...h, n: 4 } : { ...h, n: 4 })) } } },
+      },
+    });
+    const insufficient = mount(vi.fn().mockResolvedValue(variant('insufficient data for a measured skill', 'insufficient_data_for_skill')), '20');
+    await flush();
+    const text = insufficient.main.querySelector('.forecast-result')!.firstElementChild!.textContent!;
+    expect(text).toContain('We do not publish a forecast for Kansas.');
+    expect(text).toContain('it scored 2 forecasts of later weeks for this series, from 1 origin week, too little to state a skill');
+    expect(insufficient.main.querySelector('.forecast-result .forecast-series-headline')).toBeNull();
+    insufficient.cleanup();
+    const untested = mount(vi.fn().mockResolvedValue(variant('not backtested; no measured skill', 'not_backtested')), '20');
+    await flush();
+    expect(untested.main.querySelector('.forecast-result')!.firstElementChild!.textContent).toContain('No test has measured this method on this series, so there is no measured skill to meet our rule.');
+    untested.cleanup();
+  });
+
+  it('says at the very top of the panel, before anything else, that forecasts are withheld, with the measured numbers', async () => {
+    // Texas is published and Kansas withheld: it says which, and the evaluation numbers behind it.
+    const some = mount();
+    await flush();
+    const panel = some.main.querySelector('.forecast')!;
+    expect([...panel.children].slice(0, 3).map((c) => c.tagName)).toEqual(['H2', 'DIV', 'P']);
+    expect(panel.querySelector('.forecast-withheld-top')?.textContent).toContain('We publish forecasts only for the 1 series whose own test result meets our rule, and we do not publish forecasts for the other 1.');
+    expect(panel.querySelector('.forecast-status')?.textContent).toContain('1 of 4 series have a forecast that meets our publication rule; 1 more are withheld');
+    expect([...panel.querySelectorAll<HTMLSelectElement>('#forecast-geography optgroup')].map((g) => g.label)).toEqual(['Forecast available', 'Forecast withheld: not published', 'Insufficient data: no forecast']);
+    some.cleanup();
+
+    // Every forecast withheld, with the committed NNDSS report's pooled numbers: no chart anywhere, the exact notice first.
+    const base = published();
+    const pooled = base.provenance.series_backtest!.pooled!;
+    const none = {
+      ...base,
+      rows: [],
+      provenance: {
+        ...base.provenance,
+        series: base.provenance.series.map((s) => (s.status === 'forecast' ? { ...s, status: 'withheld' as const, withheld: 'skill_below_policy' as const } : s)),
+        series_backtest: { ...base.provenance.series_backtest!, by_series: base.provenance.series_backtest!.by_series.map((e) => (e.geography === '48' ? { ...e, measured: { ...e.measured!, mean_crps: 9 } } : e)),
+          pooled: { ...pooled, series: 22, forecasts: 239, scores: { ...pooled.scores, targets: cdc.pooled.n, mean_crps: cdc.pooled.mean_crps, coverage_50: cdc.pooled.coverage_50, coverage_90: cdc.pooled.coverage_90, mean_persistence_abs_error: cdc.pooled.mean_persistence_abs_error } } },
+      },
+    };
+    const all = mount(vi.fn().mockResolvedValue(none), '48');
+    await flush();
+    const top = all.main.querySelector('.forecast-withheld-top')!;
+    expect(top.textContent).toBe("We do not publish forecasts for these series. In our pseudo-real-time (revised counts truncated at each forecast date) test on CDC state data, the method's 90% intervals contained the true count only 39.0% of the time (682 of 1748) and it did worse than simply repeating the latest complete week's count (mean error 23049631.33 cases against 15.42). See \"How we evaluate forecasts\" below.");
+    expect(all.main.querySelector('.forecast')!.children[1]).toBe(top.parentElement);
+    expect(all.main.querySelector('.forecast-status')?.textContent).toBe('No forecast is published: the method made forecasts for 2 of 4 series and our publication rule withheld every one; the other 2 have insufficient data.');
+    expect(all.main.querySelector('svg.forecast-chart')).toBeNull();
+    expect(all.main.querySelector('.forecast-result')!.firstElementChild!.textContent).toContain('We do not publish a forecast for Texas.');
+    // Both evaluations stay, each with its numbers and scope.
+    expect(all.main.querySelector('.forecast-evaluation')!.textContent).toContain('Test on the synthetic fixture state series');
+    expect(all.main.querySelector('.forecast-evaluation')!.textContent).toContain('Test on the synthetic fixture outbreak');
+    all.cleanup();
   });
 
   it('says a series no backtest scored has no measured skill, in the one fixed sentence', async () => {
@@ -98,16 +169,18 @@ describe('forecast panel', () => {
     ]);
     // The series test: labelled pseudo-real-time, pooled, with its floor and its own scope.
     const series = evaluation.querySelector('.forecast-series-headline')!;
-    expect(series.textContent).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on the synthetic fixture state series, pooled over 2 series and 4 forecasts, 90% intervals contained the true count 75.0% of the time (6 of 8); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 37.5% of the time (3 of 8); about 50% would be expected.');
+    expect(series.textContent).toBe('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on the synthetic fixture state series, pooled over 2 series and 5 forecasts, 90% intervals contained the true count 70.0% of the time (7 of 10); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 40.0% of the time (4 of 10); about 50% would be expected.');
     expect(evaluation.querySelector('.forecast-series-basis')?.textContent).toContain('pseudo-real-time (revised counts truncated at each forecast date)');
     expect(evaluation.textContent).toContain('at least 4 forecasts of it from at least 2 origin weeks, a floor fixed before any score was computed');
-    expect(evaluation.querySelector('.forecast-series-scope')?.textContent).toBe("Of the 2 series forecast above, 1 has a measured skill from this test, 1 has insufficient data for one and 0 were not part of it. A series' skill is its own: no other series' number is evidence about it.");
-    expect(evaluation.textContent).toContain('1 of the 4 state series have a measured skill; 1 more had forecasts scored but too few for one; the other 2 never had a forecast in the test');
+    expect(evaluation.querySelector('.forecast-series-scope')?.textContent).toBe("Of the 2 series the method forecast, 2 have a measured skill from this test, 0 have insufficient data for one and 0 were not part of it; 1 is published. A series' skill is its own: no other series' number is evidence about it.");
+    expect(evaluation.querySelector('.forecast-policy')?.textContent).toContain('Our publication rule: a forecast is shown only if, in our test on that very series');
+    expect(evaluation.textContent).toContain('2 of the 4 state series have a measured skill; 0 more had forecasts scored but too few for one; the other 2 never had a forecast in the test');
     const measured = [...evaluation.querySelectorAll('.series-skill tbody tr')];
-    expect(measured).toHaveLength(1);
-    expect([...measured[0].children].map((cell) => cell.textContent)).toEqual(['Texas', '6', '3', '12.25', '50.0% (3 of 6)', '83.3% (5 of 6)', '7.00']);
+    expect(measured).toHaveLength(2);
+    expect([...measured[0].children].map((cell) => cell.textContent)).toEqual(['Kansas', '4', '2', '9.00', '25.0% (1 of 4)', '50.0% (2 of 4)', '5.00']);
+    expect([...measured[1].children].map((cell) => cell.textContent)).toEqual(['Texas', '6', '3', '6.50', '50.0% (3 of 6)', '83.3% (5 of 6)', '7.00']);
     const pooledAll = [...evaluation.querySelectorAll('.series-pooled tbody tr')].find((row) => row.querySelector('th')?.textContent === 'All')!;
-    expect([...pooledAll.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['8', '9.50', '37.5% (3 of 8)', '75.0% (6 of 8)']);
+    expect([...pooledAll.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['10', '7.50', '40.0% (4 of 10)', '70.0% (7 of 10)']);
     // The West Texas test is its own block with its own headline and scope, unchanged.
     expect(evaluation.querySelector('.forecast-headline')?.textContent).toBe('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4); a well-calibrated 90% interval would, about 90%. 50% intervals contained it 50.0% of the time (2 of 4); about 50% would be expected.');
     expect(evaluation.textContent).toContain('Mean CRPS 3.50 cases');
@@ -115,7 +188,7 @@ describe('forecast panel', () => {
     const all = [...evaluation.querySelectorAll('tbody tr')].find((row) => row.querySelector('th')?.textContent === 'All' && row.parentElement?.parentElement?.querySelector('caption')?.textContent?.startsWith('Backtest on'))!;
     expect([...all.querySelectorAll('td')].map((cell) => cell.textContent)).toEqual(['4', '3.50', '50.0% (2 of 4)', '50.0% (2 of 4)']);
     expect(evaluation.querySelector('.forecast-narrow')?.textContent).toContain('In this backtest the intervals were too narrow');
-    expect(evaluation.querySelector('.forecast-evaluation-scope')?.textContent).toContain('This backtest does not measure how the forecasts above will do. None of the 2 series forecast above (confirmed or unknown-status cases) is the series that was scored by this test');
+    expect(evaluation.querySelector('.forecast-evaluation-scope')?.textContent).toContain("This backtest does not measure how any other series' forecast will do. None of the 2 series the method forecast (confirmed or unknown-status cases) is the series that was scored by this test");
     // The reports are named, not linked, for a synthetic fixture.
     expect(evaluation.querySelector('a')).toBeNull();
     expect(evaluation.textContent).toContain('data/reports/synthetic-backtest.json');
@@ -151,7 +224,7 @@ describe('forecast panel', () => {
     expect(select.value).toBe('40');
     expect(main.querySelector('svg.forecast-chart')).toBeNull();
     expect(main.querySelector('.forecast-insufficient')?.textContent).toContain('2 cases were reported in the last 3 complete weeks');
-    expect([...select.querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Forecast available', 'Insufficient data: no forecast']);
+    expect([...select.querySelectorAll('optgroup')].map((g) => g.label)).toEqual(['Forecast available', 'Forecast withheld: not published', 'Insufficient data: no forecast']);
     select.value = '48'; select.dispatchEvent(new Event('change'));
     expect(main.querySelector('svg.forecast-chart')).not.toBeNull();
     expect(main.querySelector('.forecast-insufficient')).toBeNull();
@@ -162,9 +235,10 @@ describe('forecast panel', () => {
     const { root, main, cleanup } = mount();
     await flush();
     const select = main.querySelector<HTMLSelectElement>('#forecast-geography')!;
-    expect(select.value).toBe('20');
-    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '48' } }));
     expect(select.value).toBe('48');
+    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '20' } }));
+    expect(select.value).toBe('20');
+    expect(main.querySelector('.forecast-withheld')?.textContent).toContain('We do not publish a forecast for Kansas.');
     root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '35' } }));
     expect(select.value).toBe('35');
     expect(main.querySelector('.forecast-insufficient')?.textContent).toContain('missing or not reported');

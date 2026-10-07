@@ -1,7 +1,7 @@
 import { caseDefinitionLabels, type Dataset } from './data';
 import {
   backtestReportPath, basisLabel, evaluationScope, insufficientSkillStatus, insufficientWords, loadForecast, noMeasuredSkill, noSkillWords, parameterValue, percent, pooledWords, quantileAt,
-  seriesBacktestReportPath, seriesEvaluationScope, seriesRows, seriesSkillWords, skillWords, weekLabel, weekOrdinal,
+  policyWords, seriesBacktestReportPath, seriesEvaluationScope, seriesRows, seriesSkillWords, skillWords, weekLabel, weekOrdinal, withheldNotice, withheldSeriesWords,
   type BacktestSkill, type Forecast, type ForecastProvenance, type ForecastSeries, type PublishedForecast, type SeriesBacktest, type Week,
 } from './forecast';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
@@ -128,6 +128,8 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   const panel = element('section', undefined, 'panel forecast');
   panel.setAttribute('aria-label', 'Forecast');
   panel.append(element('h2', 'Where next? · forecast'));
+  // First under the heading, before anything else: when forecasts are withheld, why (filled once the forecast loads).
+  const withheldBox = element('div');
   const status = element('p', 'Loading forecast…', 'forecast-status');
   status.setAttribute('role', 'status');
   const notices = element('div');
@@ -139,7 +141,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   controls.append(label, select);
   controls.hidden = true;
   const result = element('div', undefined, 'forecast-result');
-  panel.append(status, notices, controls, result);
+  panel.append(withheldBox, status, notices, controls, result);
   // The backtest has its own section, after the forecasts and not beside any chart; it fills in once the forecast loads.
   const evaluation = element('section', undefined, 'panel forecast-evaluation');
   evaluation.setAttribute('aria-label', 'How we evaluate forecasts');
@@ -177,6 +179,29 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     return element('p', noMeasuredSkill, 'notice forecast-no-skill');
   }
 
+  /** Above a withheld series: that no forecast is published for it, why, its own measured numbers when it has them, and the rule. */
+  function withheldNotice_(series: ForecastSeries, name: string): Element {
+    const { provenance } = published!;
+    const words = withheldSeriesWords(provenance, series, name);
+    const backtest = provenance.series_backtest;
+    const box = element('div', undefined, 'notice forecast-withheld');
+    box.append(element('p', words.headline, 'forecast-withheld-headline'), element('p', words.reason));
+    if (words.measured) {
+      const info: ProvenanceInfo = {
+        label: `Measured skill · ${name}`, records: [], synthetic: options.synthetic,
+        note: backtest
+          ? `Measured by koplik-epi on ${backtest.series}, for this series alone. Read exactly from the committed report ${backtest.report_path} (sha256 ${backtest.report_sha256}), run on the source snapshot sha256 ${backtest.input_sha256}. ${backtest.protocol} A measurement of the method on this series' past, not of any forecast.`
+          : 'Measured by koplik-epi on the series the report-vintage backtest scored; see "How we evaluate forecasts".',
+        citations: citationsOf(provenance),
+      };
+      const measured = element('p', undefined, 'forecast-series-headline');
+      measured.append(provenanceNumber(words.measured, info));
+      box.append(measured);
+    }
+    box.append(element('p', words.rule, 'forecast-policy'));
+    return box;
+  }
+
   function renderSeries(id: string) {
     const { provenance } = published!;
     const series = provenance.series.find((s) => s.geography === id) as ForecastSeries;
@@ -192,9 +217,12 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     // A forecast says first, before the reader sees the chart, what is measured about its own series: its measured
     // skill from the series backtest (in plain words, with the basis), or that it has none.
     if (series.status === 'forecast') blocks.push(skillNotice(series, name));
+    if (series.status === 'withheld') blocks.push(withheldNotice_(series, name));
     blocks.push(element('h3', `${name} · weekly ${caseWords}`));
     if (series.status === 'insufficient_data') {
       blocks.push(element('p', insufficientWords(provenance, series), 'notice forecast-insufficient'));
+    } else if (series.status === 'withheld') {
+      blocks.push(element('p', 'No chart and no forecast values are shown: the forecast the method made for this series is withheld and is not published.', 'chart-note'));
     } else {
       const history = (options.data?.cases ?? []).filter((r) => r.geography === id && r.case_definition === series.case_definition);
       const chart = forecastChart({ name, caseWords, history, rows, provenance, info, synthetic: Boolean(options.synthetic) });
@@ -328,6 +356,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       blocks.push(element('p', 'The pooled result is below the floor for a measured skill: insufficient data.', 'notice'));
     }
     blocks.push(element('p', seriesEvaluationScope(provenance), 'notice forecast-series-scope'));
+    blocks.push(element('p', policyWords(provenance.publication_policy), 'forecast-policy'));
 
     const measured = backtest.by_series.filter((e) => e.measured);
     const scored = backtest.by_series.filter((e) => e.targets > 0).length;
@@ -403,9 +432,14 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       return optgroup;
     };
     const forecast = provenance.series.filter((s) => s.status === 'forecast');
+    const withheld = provenance.series.filter((s) => s.status === 'withheld');
     const insufficient = provenance.series.filter((s) => s.status === 'insufficient_data');
-    select.replaceChildren(...(forecast.length ? [options_(forecast, 'Forecast available')] : []), ...(insufficient.length ? [options_(insufficient, 'Insufficient data: no forecast')] : []));
-    const initial = [preferred, forecast[0]?.geography, insufficient[0]?.geography].find((id) => id && provenance.series.some((s) => s.geography === id));
+    select.replaceChildren(
+      ...(forecast.length ? [options_(forecast, 'Forecast available')] : []),
+      ...(withheld.length ? [options_(withheld, 'Forecast withheld: not published')] : []),
+      ...(insufficient.length ? [options_(insufficient, 'Insufficient data: no forecast')] : []),
+    );
+    const initial = [preferred, forecast[0]?.geography, withheld[0]?.geography, insufficient[0]?.geography].find((id) => id && provenance.series.some((s) => s.geography === id));
     if (initial) choose(initial);
   }
   select.addEventListener('change', () => choose(select.value));
@@ -421,10 +455,16 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     if (!loaded) { status.textContent = 'Forecast not yet available: the pipeline has not published one. Nothing is shown rather than a guess.'; return; }
     published = loaded;
     const { provenance } = loaded;
-    const made = provenance.series.filter((s) => s.status === 'forecast').length;
-    status.textContent = made
-      ? `${made} of ${provenance.series.length} series have enough data to forecast; the rest are shown as insufficient data. Forecast origin ${weekLabel(provenance.origin_week)}, ${provenance.horizon_weeks} weeks ahead.`
-      : `No series has enough data to forecast: all ${provenance.series.length} are insufficient data.`;
+    const published_ = provenance.series.filter((s) => s.status === 'forecast').length;
+    const withheld = provenance.series.filter((s) => s.status === 'withheld').length;
+    const insufficient = provenance.series.length - published_ - withheld;
+    status.textContent = published_
+      ? `${published_} of ${provenance.series.length} series have a forecast that meets our publication rule${withheld ? `; ${withheld} more are withheld` : ''}; the rest have insufficient data. Forecast origin ${weekLabel(provenance.origin_week)}, ${provenance.horizon_weeks} weeks ahead.`
+      : withheld
+        ? `No forecast is published: the method made forecasts for ${withheld} of ${provenance.series.length} series and our publication rule withheld every one; the other ${insufficient} have insufficient data.`
+        : `No series has enough data to forecast: all ${provenance.series.length} are insufficient data.`;
+    const top = withheldNotice(provenance);
+    withheldBox.replaceChildren(...(top ? [element('p', top, 'notice forecast-withheld-top')] : []));
     notices.replaceChildren(
       ...(options.synthetic ? [element('p', 'SYNTHETIC FORECAST · Invented values for development only; not a model projection of any observed series.', 'synthetic notice')] : []),
       element('p', 'Model projection from reported counts, not a prediction of what will happen.', 'notice'));

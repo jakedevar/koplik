@@ -5,17 +5,24 @@
  */
 export type GeoId = string;
 /**
- * Why a series could not be forecast (the renewal estimator's reason at the origin week).
+ * Why the method made no forecast for a series (the renewal estimator's reason at the origin week,
+ * or the method's refusal of a projection that grew past its limit).
  */
-export type InsufficientReason = "incomplete_window" | "missing_count" | "below_threshold" | "no_infectivity";
+export type InsufficientReason =
+  "incomplete_window" | "missing_count" | "below_threshold" | "no_infectivity" | "projection_overflow";
 /**
- * Whether a series was forecast.
+ * Whether a series was forecast, and if the method made one, whether it is published.
  */
-export type ForecastStatus = "forecast" | "insufficient_data";
+export type ForecastStatus = "forecast" | "withheld" | "insufficient_data";
+/**
+ * Why a forecast the method made is not published.
+ */
+export type WithheldReason = "not_backtested" | "insufficient_data_for_skill" | "skill_below_policy";
 
 /**
  * Companion of a published set of v1 [`Forecast`] rows. Rows are only published beside a
- * companion for which [`ForecastProvenance::check_against`] holds.
+ * companion for which [`ForecastProvenance::check_against`] holds, and only for the series whose
+ * status is `forecast`: the series the publication policy admits.
  */
 export interface ForecastProvenance {
   /**
@@ -55,6 +62,7 @@ export interface ForecastProvenance {
    * citation (non-empty, unique).
    */
   parameters: ParameterProvenance[];
+  publication_policy: PublicationPolicy;
   /**
    * Ensemble members behind every row's quantiles.
    */
@@ -254,6 +262,24 @@ export interface ParameterProvenance {
   };
 }
 /**
+ * The rule that decides which forecasts are published, with its thresholds.
+ */
+export interface PublicationPolicy {
+  /**
+   * The measured mean CRPS must be at most this multiple of the persistence baseline's mean
+   * absolute error (1 is "no worse than carrying the latest count forward").
+   */
+  maximum_crps_over_persistence: number;
+  /**
+   * The measured 90% interval coverage must be at least this.
+   */
+  minimum_coverage_90: number;
+  /**
+   * The rule in plain words, with the reasons for its thresholds (non-empty).
+   */
+  rule: string;
+}
+/**
  * One series the pipeline considered: forecast, or not and why.
  */
 export interface ForecastSeries {
@@ -276,6 +302,11 @@ export interface ForecastSeries {
    */
   skill: "backtested" | "measured" | "insufficient data for a measured skill" | "not backtested; no measured skill";
   status: ForecastStatus;
+  /**
+   * Present exactly when `status` is `withheld`: why the forecast the method made is not
+   * published.
+   */
+  withheld?: WithheldReason | null;
 }
 /**
  * A backtest of the forecast over a family of series (#1503), with the scope and information

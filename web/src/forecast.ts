@@ -12,6 +12,7 @@ export type BacktestSkill = NonNullable<ForecastProvenance['backtest']>;
 export type SeriesBacktest = NonNullable<ForecastProvenance['series_backtest']>;
 export type SeriesBacktestEntry = SeriesBacktest['by_series'][number];
 export type MeasuredScores = NonNullable<SeriesBacktestEntry['measured']>;
+export type PublicationPolicy = ForecastProvenance['publication_policy'];
 export interface PublishedForecast { rows: Forecast[]; provenance: ForecastProvenance }
 export interface Week { year: number; week: number }
 
@@ -67,6 +68,17 @@ export function mismatch(rows: Forecast[], provenance: ForecastProvenance): stri
   return null;
 }
 
+/** The measured scores a series' skill rests on: the series backtest's entry for a measured series, the report-vintage backtest for the series it scored; none otherwise. */
+export function measuredScoresOf(provenance: ForecastProvenance, series: ForecastSeries): { coverage_90: number; mean_crps: number; mean_persistence_abs_error: number } | null {
+  if (series.skill === 'backtested') return provenance.backtest ?? null;
+  if (series.skill === 'measured') return provenance.series_backtest?.by_series.find((e) => e.geography === series.geography)?.measured ?? null;
+  return null;
+}
+/** Whether measured scores meet the publication policy: the same rule as `PublicationPolicy::admits` in koplik-contracts. */
+export function admits(policy: PublicationPolicy, scores: { coverage_90: number; mean_crps: number; mean_persistence_abs_error: number } | null): boolean {
+  return scores != null && scores.coverage_90 >= policy.minimum_coverage_90 && scores.mean_crps <= policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error;
+}
+
 export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, synthetic = false): PublishedForecast {
   if (rowsRaw && typeof rowsRaw === 'object' && 'contract_version' in rowsRaw) rowsRaw = expandRowArtifact('forecast', rowsRaw);
   if (!Array.isArray(rowsRaw)) return fail('expected an array of forecast rows');
@@ -99,13 +111,24 @@ export function parseForecast(rowsRaw: unknown, provenanceRaw: unknown, syntheti
       if (reaches !== (e.measured != null)) fail(`series ${e.geography}: a measured skill is present exactly when the floor is reached`);
     }
   }
+  const policy = provenance.publication_policy;
+  if (blank(policy.rule) || !(policy.minimum_coverage_90 >= 0 && policy.minimum_coverage_90 <= 1) || !(policy.maximum_crps_over_persistence >= 0)) fail('the publication policy is malformed');
   for (const s of provenance.series) {
-    if ((s.status === 'forecast') !== (s.reason == null)) fail(`series ${s.geography}: status and reason disagree`);
+    if ((s.status === 'insufficient_data') !== (s.reason != null)) fail(`series ${s.geography}: status and reason disagree`);
+    if ((s.status === 'withheld') !== (s.withheld != null)) fail(`series ${s.geography}: status and the reason it is withheld disagree`);
     if (s.skill === 'backtested' && (!provenance.backtest || s.geography !== provenance.backtest.geography || s.case_definition !== provenance.backtest.case_definition)) fail(`series ${s.geography} is marked backtested but is not the backtested series`);
     if (s.skill === 'measured' || s.skill === insufficientSkillStatus) {
       const entry = entries.get(s.geography);
       if (!backtest || !entry || s.case_definition !== backtest.case_definition) fail(`series ${s.geography} cites a series backtest that did not run on it`);
       else if ((s.skill === 'measured') !== (entry.measured != null)) fail(`series ${s.geography}: its skill disagrees with the backtest's entry for it`);
+    }
+    // The publication policy, re-applied: a series is published exactly when its own measured scores meet it.
+    const admitted = admits(policy, measuredScoresOf(provenance, s));
+    if (s.status === 'forecast' && !admitted) fail(`series ${s.geography} is published but its measured skill does not meet the publication policy`);
+    if (s.status === 'withheld') {
+      const expected = s.skill === 'not backtested; no measured skill' ? 'not_backtested' : s.skill === insufficientSkillStatus ? 'insufficient_data_for_skill' : 'skill_below_policy';
+      if (s.withheld !== expected) fail(`series ${s.geography} is withheld for the wrong reason`);
+      if (admitted) fail(`series ${s.geography} meets the publication policy but is withheld`);
     }
   }
   const problem = mismatch(rows, provenance);
@@ -145,6 +168,8 @@ export function insufficientWords(provenance: ForecastProvenance, series: Foreca
       return `Insufficient data: this series does not reach back far enough before the forecast origin to estimate from. No forecast is published.`;
     case 'no_infectivity':
       return `Insufficient data: there were no cases in the weeks before the last ${window} complete weeks, so the growth rate cannot be estimated. No forecast is published rather than a guess.`;
+    case 'projection_overflow':
+      return `No forecast: the method's projection for this series grew past the limit it will publish (2^40 cases a week), which happens after a burst of cases that follows weeks of almost none. No number is published rather than a clipped one.`;
     default:
       return 'Insufficient data: no forecast is published.';
   }
@@ -180,18 +205,18 @@ export function skillWords(skill: BacktestSkill) {
   return { headline, scores, narrow };
 }
 
-/** Which of the forecast series the report-vintage backtest scored, in words: it measures the method on its own series only. */
+/** Which of the series the method forecast the report-vintage backtest scored, in words: it measures the method on its own series only. */
 export function evaluationScope(provenance: ForecastProvenance): string {
-  const forecast = provenance.series.filter((s) => s.status === 'forecast');
-  const unmeasured = forecast.filter((s) => s.skill !== 'backtested');
-  if (!forecast.length) return 'No series was forecast, so there is nothing for this backtest to speak to.';
+  const made = provenance.series.filter((s) => s.status !== 'insufficient_data');
+  const unmeasured = made.filter((s) => s.skill !== 'backtested');
+  if (!made.length) return 'The method forecast no series, so there is nothing for this backtest to speak to.';
   const definitions = [...new Set(unmeasured.map((s) => caseDefinitionLabels[s.case_definition]))].join(' and ');
-  const which = unmeasured.length === forecast.length
-    ? `None of the ${forecast.length} series forecast above (${definitions}) is the series that was scored by this test.`
+  const which = unmeasured.length === made.length
+    ? `None of the ${made.length} series the method forecast (${definitions}) is the series that was scored by this test.`
     : unmeasured.length
-      ? `${unmeasured.length} of the ${forecast.length} series forecast above (${definitions}) are not the series that was scored by this test.`
-      : `Every one of the ${forecast.length} series forecast above is the series that was scored.`;
-  return `This backtest does not measure how the forecasts above will do. ${which}`;
+      ? `${unmeasured.length} of the ${made.length} series the method forecast (${definitions}) are not the series that was scored by this test.`
+      : `Every one of the ${made.length} series the method forecast is the series that was scored.`;
+  return `This backtest does not measure how any other series' forecast will do. ${which}`;
 }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -244,17 +269,86 @@ export function pooledWords(backtest: SeriesBacktest) {
   return { ...words, scores };
 }
 
-/** Which of the forecast series the series backtest measured, in words: each series has its own skill or none. */
+/** Which of the series the method forecast the series backtest measured, in words: each series has its own skill or none. */
 export function seriesEvaluationScope(provenance: ForecastProvenance): string {
-  const forecast = provenance.series.filter((s) => s.status === 'forecast');
-  if (!forecast.length) return 'No series was forecast, so there is nothing for this test to speak to.';
-  const count = (skill: string) => forecast.filter((s) => s.skill === skill).length;
+  const made = provenance.series.filter((s) => s.status !== 'insufficient_data');
+  if (!made.length) return 'The method forecast no series, so there is nothing for this test to speak to.';
+  const count = (skill: string) => made.filter((s) => s.skill === skill).length;
   const [measured, insufficient] = [count('measured'), count(insufficientSkillStatus)];
-  const rest = forecast.length - measured - insufficient;
-  return `Of the ${plural(forecast.length, 'series', 'series')} forecast above, ${measured} ${measured === 1 ? 'has' : 'have'} a measured skill from this test, ${insufficient} ${insufficient === 1 ? 'has' : 'have'} insufficient data for one and ${rest} ${rest === 1 ? 'was' : 'were'} not part of it. A series' skill is its own: no other series' number is evidence about it.`;
+  const rest = made.length - measured - insufficient;
+  const published = made.filter((s) => s.status === 'forecast').length;
+  return `Of the ${plural(made.length, 'series', 'series')} the method forecast, ${measured} ${measured === 1 ? 'has' : 'have'} a measured skill from this test, ${insufficient} ${insufficient === 1 ? 'has' : 'have'} insufficient data for one and ${rest} ${rest === 1 ? 'was' : 'were'} not part of it; ${published} ${published === 1 ? 'is' : 'are'} published. A series' skill is its own: no other series' number is evidence about it.`;
 }
 
 /** Where the pipeline publishes the exact series backtest report. */
 export const seriesBacktestReportPath = 'data/forecasts/backtest-cdc-states.json';
 /** Where the pipeline publishes the exact backtest report the skill was read from. */
 export const backtestReportPath = 'data/forecasts/backtest-west-texas-2025.json';
+
+/** The publication rule in plain words, with its thresholds. */
+export function policyWords(policy: PublicationPolicy): string {
+  const crps = policy.maximum_crps_over_persistence === 1 ? 'no worse than' : `no more than ${policy.maximum_crps_over_persistence} times the error of`;
+  return `Our publication rule: a forecast is shown only if, in our test on that very series, its 90% intervals contained the true count at least ${percent(policy.minimum_coverage_90)} of the time and its mean error was ${crps} simply repeating the latest complete week's count.`;
+}
+
+/**
+ * The notice at the top of the forecast panel when any forecast is withheld, in plain words with the pooled numbers exactly as
+ * measured. It says the pseudo-real-time basis wherever the numbers come from a pseudo-real-time test. Null when nothing is withheld.
+ */
+export function withheldNotice(provenance: ForecastProvenance): string | null {
+  const withheld = provenance.series.filter((s) => s.status === 'withheld').length;
+  if (!withheld) return null;
+  const published = provenance.series.filter((s) => s.status === 'forecast').length;
+  const first = published === 0
+    ? 'We do not publish forecasts for these series.'
+    : `We publish forecasts only for the ${plural(published, 'series', 'series')} whose own test result meets our rule, and we do not publish forecasts for the other ${withheld}.`;
+  const backtest = provenance.series_backtest;
+  const pooled = backtest?.pooled?.scores;
+  let second: string;
+  if (backtest && pooled) {
+    const against = pooled.mean_crps > pooled.mean_persistence_abs_error ? 'it did worse than'
+      : pooled.mean_crps < pooled.mean_persistence_abs_error ? 'it did better than' : 'it did no better than';
+    const calibrated = pooled.coverage_90 < 0.9 ? 'only ' : '';
+    second = `In our ${basisLabel(backtest.basis)} test on CDC state data, the method's 90% intervals contained the true count ${calibrated}${percent(pooled.coverage_90)} of the time${outOf(pooled.coverage_90, pooled.targets)} and ${against} simply repeating the latest complete week's count (mean error ${twoDecimals(pooled.mean_crps)} cases against ${twoDecimals(pooled.mean_persistence_abs_error)}).`;
+  } else if (backtest) {
+    second = `Our ${basisLabel(backtest.basis)} test on CDC state data scored too few forecasts to state a pooled result.`;
+  } else {
+    second = 'No test has measured this method on these series.';
+  }
+  return `${first} ${second} See "How we evaluate forecasts" below.`;
+}
+
+/** Why one series' forecast is withheld, in plain words: the reason, its own measured numbers when it has them, and the rule it did not meet. */
+export function withheldSeriesWords(provenance: ForecastProvenance, series: ForecastSeries, name: string): { headline: string; reason: string; measured: string; rule: string } {
+  const backtest = provenance.series_backtest;
+  const entry = backtest?.by_series.find((e) => e.geography === series.geography);
+  const scores = measuredScoresOf(provenance, series);
+  let reason = '';
+  let measured = '';
+  switch (series.withheld) {
+    case 'not_backtested':
+      reason = 'No test has measured this method on this series, so there is no measured skill to meet our rule.';
+      break;
+    case 'insufficient_data_for_skill':
+      reason = backtest && entry ? noSkillWords(backtest, entry).replace('No measured skill for this series. ', '').replace(' Treat the bands as illustrative, not as calibrated uncertainty.', '') : 'Our test scored too little of this series to state a skill.';
+      break;
+    case 'skill_below_policy':
+      if (scores && backtest && entry?.measured) {
+        const words = seriesSkillWords(backtest, entry);
+        measured = `${words.headline} ${words.detail}`;
+        const failures = [
+          scores.coverage_90 < provenance.publication_policy.minimum_coverage_90 ? `its 90% intervals contained the true count ${percent(scores.coverage_90)} of the time, below the ${percent(provenance.publication_policy.minimum_coverage_90)} our rule asks for` : '',
+          scores.mean_crps > provenance.publication_policy.maximum_crps_over_persistence * scores.mean_persistence_abs_error ? `its mean error (${twoDecimals(scores.mean_crps)} cases) was larger than that of simply repeating the latest complete week's count (${twoDecimals(scores.mean_persistence_abs_error)})` : '',
+        ].filter(Boolean);
+        reason = `Its measured skill does not meet our rule: ${failures.join(', and ')}.`;
+      } else if (scores && provenance.backtest) {
+        const words = skillWords(provenance.backtest);
+        measured = `${words.headline} ${words.scores}`;
+        reason = 'Its measured skill does not meet our rule.';
+      }
+      break;
+    default:
+      reason = 'The method made a forecast for this series, but it is not published.';
+  }
+  return { headline: `We do not publish a forecast for ${name}.`, reason, measured, rule: policyWords(provenance.publication_policy) };
+}

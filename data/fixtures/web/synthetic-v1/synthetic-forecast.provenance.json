@@ -50,20 +50,27 @@
       "note": "Recent weeks not used."
     }
   ],
+  "publication_policy": {
+    "rule": "SYNTHETIC FIXTURE: a forecast is published only if its own measured skill meets the criterion (invented thresholds shaped like the real ones).",
+    "minimum_coverage_90": 0.75,
+    "maximum_crps_over_persistence": 1
+  },
   "series": [
     {
       "geography": "20",
       "case_definition": "confirmed_or_unknown_status",
-      "status": "forecast",
+      "status": "withheld",
       "reason": null,
+      "withheld": "skill_below_policy",
       "cases_in_window": 14,
-      "skill": "insufficient data for a measured skill"
+      "skill": "measured"
     },
     {
       "geography": "35",
       "case_definition": "confirmed_or_unknown_status",
       "status": "insufficient_data",
       "reason": "missing_count",
+      "withheld": null,
       "cases_in_window": null,
       "skill": "not backtested; no measured skill"
     },
@@ -72,6 +79,7 @@
       "case_definition": "confirmed_or_unknown_status",
       "status": "insufficient_data",
       "reason": "below_threshold",
+      "withheld": null,
       "cases_in_window": 2,
       "skill": "not backtested; no measured skill"
     },
@@ -80,6 +88,7 @@
       "case_definition": "confirmed_or_unknown_status",
       "status": "forecast",
       "reason": null,
+      "withheld": null,
       "cases_in_window": 15,
       "skill": "measured"
     }
@@ -132,28 +141,28 @@
     "minimum_targets": 4,
     "minimum_origin_weeks": 2,
     "pooled": {
-      "forecasts": 4,
+      "forecasts": 5,
       "series": 2,
       "scores": {
-        "targets": 8,
-        "mean_crps": 9.5,
-        "coverage_50": 0.375,
-        "coverage_90": 0.75,
-        "mean_persistence_abs_error": 6.25,
+        "targets": 10,
+        "mean_crps": 7.5,
+        "coverage_50": 0.4,
+        "coverage_90": 0.7,
+        "mean_persistence_abs_error": 6.2,
         "by_horizon": [
           {
             "horizon": 1,
-            "n": 4,
-            "mean_crps": 8,
-            "coverage_50": 0.25,
-            "coverage_90": 0.75
+            "n": 5,
+            "mean_crps": 7,
+            "coverage_50": 0.4,
+            "coverage_90": 0.6
           },
           {
             "horizon": 2,
-            "n": 4,
-            "mean_crps": 11,
-            "coverage_50": 0.5,
-            "coverage_90": 0.75
+            "n": 5,
+            "mean_crps": 8,
+            "coverage_50": 0.4,
+            "coverage_90": 0.8
           }
         ]
       }
@@ -161,10 +170,32 @@
     "by_series": [
       {
         "geography": "20",
-        "forecasts": 1,
-        "origin_weeks": 1,
-        "targets": 2,
-        "measured": null
+        "forecasts": 2,
+        "origin_weeks": 2,
+        "targets": 4,
+        "measured": {
+          "targets": 4,
+          "mean_crps": 9,
+          "coverage_50": 0.25,
+          "coverage_90": 0.5,
+          "mean_persistence_abs_error": 5,
+          "by_horizon": [
+            {
+              "horizon": 1,
+              "n": 2,
+              "mean_crps": 8,
+              "coverage_50": 0.5,
+              "coverage_90": 0.5
+            },
+            {
+              "horizon": 2,
+              "n": 2,
+              "mean_crps": 10,
+              "coverage_50": 0,
+              "coverage_90": 0.5
+            }
+          ]
+        }
       },
       {
         "geography": "35",
@@ -187,7 +218,7 @@
         "targets": 6,
         "measured": {
           "targets": 6,
-          "mean_crps": 12.25,
+          "mean_crps": 6.5,
           "coverage_50": 0.5,
           "coverage_90": 0.8333333333333334,
           "mean_persistence_abs_error": 7,
@@ -195,14 +226,14 @@
             {
               "horizon": 1,
               "n": 3,
-              "mean_crps": 11,
+              "mean_crps": 6,
               "coverage_50": 0.3333333333333333,
               "coverage_90": 0.6666666666666666
             },
             {
               "horizon": 2,
               "n": 3,
-              "mean_crps": 13.5,
+              "mean_crps": 7,
               "coverage_50": 0.6666666666666666,
               "coverage_90": 1
             }

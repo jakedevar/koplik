@@ -308,6 +308,23 @@ fn the_synthetic_web_fixture_is_a_valid_companion_that_describes_its_rows() {
     companion.check_against(&rows).unwrap();
     let backtest = companion.series_backtest.as_ref().unwrap();
     assert_eq!(backtest.basis, InformationBasis::PseudoRealTime);
+    // Texas is published (its measured skill meets the policy); Kansas is measured but below it, so withheld.
+    let status = |g: &str| {
+        companion
+            .series
+            .iter()
+            .find(|s| s.geography.to_string() == g)
+            .map(|s| (s.status, s.withheld))
+            .unwrap()
+    };
+    assert_eq!(status("48"), (ForecastStatus::Forecast, None));
+    assert_eq!(
+        status("20"),
+        (
+            ForecastStatus::Withheld,
+            Some(WithheldReason::SkillBelowPolicy)
+        )
+    );
     let skills: Vec<_> = companion
         .series
         .iter()
@@ -316,7 +333,7 @@ fn the_synthetic_web_fixture_is_a_valid_companion_that_describes_its_rows() {
     assert_eq!(
         skills,
         [
-            ("20".to_owned(), SeriesSkill::InsufficientData),
+            ("20".to_owned(), SeriesSkill::Measured),
             ("35".to_owned(), SeriesSkill::NotBacktested),
             ("40".to_owned(), SeriesSkill::NotBacktested),
             ("48".to_owned(), SeriesSkill::Measured),
