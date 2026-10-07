@@ -9,7 +9,7 @@ import { buildData, cargo, command, digest, files, verifyStore } from './data.mj
 import { scanHistory } from './scans.mjs';
 
 const gitEnvironment = (env) => Object.fromEntries(Object.entries(env).filter(([key]) =>
-  !key.startsWith('GIT_') && !['KOPLIK_ALLOW_NETWORK_TESTS', 'KOPLIK_CENSUS_CONTACT', 'PUBLISH_REMOTE', 'PUBLISH_DRY_RUN', 'PUBLISH_PREPARE_OUTPUT', 'PUBLISH_EXPECTED_PARENT'].includes(key)));
+  !key.startsWith('GIT_') && !['KOPLIK_ALLOW_NETWORK_TESTS', 'KOPLIK_CENSUS_CONTACT', 'KOPLIK_ENV_LOCAL', 'PUBLISH_REMOTE', 'PUBLISH_DRY_RUN', 'PUBLISH_PREPARE_OUTPUT', 'PUBLISH_EXPECTED_PARENT'].includes(key)));
 
 export async function pathGuard(root, run = command) {
   const names = new Set();
@@ -94,6 +94,10 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     const stageWork = join(work, 'data/pipeline');
     if (ingest) await ingest({ work, release, stageWork, env: runtime });
     else await cargo(['run', '--locked', '--release', '-p', 'koplik-pipeline', '--', 'ingest', '--store', release, '--work', stageWork], work, runtime);
+    // The operator's contact config belongs only to live ingest. QA CLI tests
+    // provide their own temporary config; inheriting this override both defeats
+    // that isolation and can turn a contact-refusal test into a network attempt.
+    delete runtime.KOPLIK_ENV_LOCAL;
     const current = JSON.parse(await readFile(join(stageWork, 'ingest.manifest.json'), 'utf8'));
     ingestGreen(previous, current);
     await cp(join(stageWork, 'ingest.manifest.json'), join(release, 'ingest.manifest.json'));

@@ -174,7 +174,8 @@ exit 0
           await fixtureIngest(args, mode);
           if (scenario === 'path-red') await writeFile(join(args.work, 'code.txt'), 'Changed\n');
         },
-        qa: async ({ work, gates }) => {
+        qa: async ({ work, gates, env }) => {
+          assert.equal(Object.hasOwn(env, 'KOPLIK_ENV_LOCAL'), false, 'ingest config must not override QA fixtures');
           assert.deepEqual(gates, ['check', 'test', 'web-test', 'determinism']);
           assert.equal(git(work, 'status', '--porcelain'), '', 'QA runs on committed D');
           assert.notEqual(git(work, 'rev-parse', 'HEAD'), context.base);

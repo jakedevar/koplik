@@ -76,6 +76,7 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
       },
       build: (options) => buildData({ ...options, env: { ...options.env, CARGO_TARGET_DIR: candidateTarget } }),
       qa: async ({ work, env: runtime, gates }) => {
+        assert.equal(Object.hasOwn(runtime, 'KOPLIK_ENV_LOCAL'), false);
         assert.equal(JSON.parse(await readFile(join(work, 'data/release/ingest.manifest.json'))).mode, 'live');
         assert.equal((await verifyStore(join(work, 'data/release'))).length, 44);
         assert.equal(await git(work, 'status', '--porcelain'), '');
