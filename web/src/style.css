@@ -81,3 +81,10 @@ th, td { padding: 12px; border-bottom: 1px solid #e3ebe6; line-height: 1.5; }
 .provenance-record dd { margin: 5px 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .dashboard-grid { grid-template-columns: 1fr; } .map { height: 360px; } .tagline { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
+
+.attribution { padding: 16px 20px; }
+.attribution h3 { margin: 0 0 6px; }
+.attribution-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 14px; }
+.attribution-list a { font-weight: 650; }
+.attribution-ruling { font-size: 12px; color: #557069; }
+.attribution-text { margin: 4px 0 0; font-size: 12px; line-height: 1.6; color: #354b42; overflow-wrap: anywhere; }

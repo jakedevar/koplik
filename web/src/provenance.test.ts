@@ -52,7 +52,7 @@ describe('provenance drawer', () => {
     const { root, dialog, cleanup } = drawer();
     const unsafe = provenanceNumber('1', { label: '<img src=x onerror=alert(1)>', records: [{ source_id: '<script>bad</script>', url: 'javascript:alert(1)' }] });
     root.append(unsafe); unsafe.click();
-    expect([...dialog.querySelectorAll('dd')].map((node) => node.textContent)).toEqual(['<script>bad</script>', 'Missing', 'javascript:alert(1)', 'Missing', 'Missing']);
+    expect([...dialog.querySelectorAll('dd:not(.provenance-terms):not(.provenance-attribution)')].map((node) => node.textContent)).toEqual(['<script>bad</script>', 'Missing', 'javascript:alert(1)', 'Missing', 'Missing']);
     expect(dialog.querySelectorAll('a[href], img, script')).toHaveLength(0);
     expect(dialog.querySelector('h2')?.textContent).toBe('<img src=x onerror=alert(1)>');
     const absent = provenanceNumber('95%', { label: 'User-selected coverage', records: [], note: 'Configuration, not an observation.' });

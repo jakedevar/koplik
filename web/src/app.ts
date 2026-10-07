@@ -1,5 +1,6 @@
 import { caseChart, rtChart, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
+import { attributionSection } from './attribution-view';
 import { createMap, type MapView } from './map';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
@@ -103,6 +104,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   comparisons.append(element('summary', 'Compare geography values and sources'));
   const comparisonRows = element('div', undefined, 'table-scroll');
   comparisons.append(comparisonRows); main.append(comparisons);
+  main.append(attributionSection(data));
   let map: MapView | undefined;
   function available() {
     return data.geographies.filter((g) => g.level === level && (level !== 'county' || g.id.startsWith('48')))

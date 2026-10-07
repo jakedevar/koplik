@@ -1,4 +1,5 @@
 import type { Provenance } from './generated/Provenance';
+import { attributionFor, licenceTerms } from './attribution';
 
 // Local display metadata, not a new published artifact shape. Partial records stay partial.
 export interface ProvenanceInfo {
@@ -119,6 +120,16 @@ export function mountProvenanceDrawer(root: HTMLElement): () => void {
         else detail.textContent = displayed(value);
         list.append(element('dt', label), detail);
       }
+      // Terms and attribution sit next to the recorded licence id (which is never rewritten).
+      const terms = licenceTerms(record.licence_id);
+      const attribution = attributionFor(record.source_id, record.licence_id);
+      const termsDetail = element('dd');
+      termsDetail.className = 'provenance-terms';
+      termsDetail.textContent = terms ? `${terms.ruling}. ${terms.terms}` : 'Terms not recorded for this licence id.';
+      const attributionDetail = element('dd');
+      attributionDetail.className = 'provenance-attribution';
+      attributionDetail.textContent = attribution.length ? attribution.join(' ') : terms ? 'No attribution is shown for this record.' : 'Attribution not recorded for this source.';
+      list.append(element('dt', 'Terms (ruling)'), termsDetail, element('dt', 'Attribution'), attributionDetail);
       section.append(list); content.append(section);
     }
     if (!dialog.open) {

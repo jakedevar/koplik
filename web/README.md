@@ -88,6 +88,17 @@ accessible week/status label and a visible legend; absent rows remain blank.
 Provisional estimates remain withheld. Reported zero cases have baseline ticks,
 distinct from missing-week gaps.
 
+## Terms and attribution
+
+`SOURCES.md` records each source's terms and attribution text (ruled 2026-10-07: CDC and
+Census are US federal public domain, 17 USC 105; Texas DSHS is public information used with
+attribution and a link; Internet Archive captures fall under the Archive's terms plus the
+publisher's). `src/attribution.ts` is the web copy, keyed by the licence id recorded in rows;
+ids that say "unconfirmed" are immutable data and are mapped to the ruling there, never
+rewritten. The dashboard shows a "Data sources and attribution" section, and the provenance
+drawer shows the ruling, terms and attribution next to each record's licence id. A unit test
+checks the table against `SOURCES.md`; edit both together.
+
 ## Explicit synthetic development mode
 
 Until ingestion/pipeline artifacts are available, run `npm run dev:synthetic`.
