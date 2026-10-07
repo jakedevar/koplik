@@ -1,13 +1,18 @@
 import { spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { constants } from 'node:fs';
+import { constants, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
+// Do not let an inherited repository/index override escape the isolated workspace.
+const environment = { ...process.env };
+for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_ALTERNATE_OBJECT_DIRECTORIES']) {
+  delete environment[key];
+}
+
 function run(command, args, cwd, options = {}) {
   const result = spawnSync(command, args, {
-    cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options,
+    cwd, env: environment, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options,
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
@@ -57,19 +62,19 @@ try {
   } else {
     console.log('Building WASM in the temporary workspace');
     run('make', ['wasm'], build, {
-      stdio: 'inherit', env: { ...process.env, CARGO_TARGET_DIR: join(build, 'target') },
+      stdio: 'inherit', env: { ...environment, CARGO_TARGET_DIR: join(build, 'target') },
     });
   }
   const web = join(build, 'web');
   if (existsSync(join(root, 'web/node_modules/.package-lock.json'))) {
-    await cp(join(root, 'web/node_modules'), join(web, 'node_modules'), {
-      recursive: true, dereference: true, mode: constants.COPYFILE_FICLONE,
+    await cp(await realpath(join(root, 'web/node_modules')), join(web, 'node_modules'), {
+      recursive: true, mode: constants.COPYFILE_FICLONE,
     });
   } else {
     run('npm', ['ci', '--no-audit', '--no-fund'], web, { stdio: 'inherit' });
   }
   run('npm', ['run', 'build'], web, {
-    stdio: 'inherit', env: { ...process.env, KOPLIK_BASE_PATH: '/koplik/' },
+    stdio: 'inherit', env: { ...environment, KOPLIK_BASE_PATH: '/koplik/' },
   });
   const dist = join(web, 'dist');
   await writeFile(join(dist, '.nojekyll'), '');

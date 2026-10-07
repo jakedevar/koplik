@@ -8,6 +8,7 @@ CARGO := $(shell if [ -x $(HOME)/.rsi/bin/cargo-slot ]; then echo $(HOME)/.rsi/b
 
 PUBLISH_REMOTE ?= origin
 PUBLISH_DRY_RUN ?= 0
+export PUBLISH_REMOTE PUBLISH_DRY_RUN
 
 .PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline serve publish
 
@@ -53,4 +54,4 @@ serve: wasm web/node_modules/.package-lock.json
 	cd web && KOPLIK_BASE_PATH=/ npm run build && KOPLIK_BASE_PATH=/ npm run preview
 
 publish:
-	PUBLISH_REMOTE="$(PUBLISH_REMOTE)" PUBLISH_DRY_RUN="$(PUBLISH_DRY_RUN)" node tools/publish.mjs
+	node tools/publish.mjs

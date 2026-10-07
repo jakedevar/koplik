@@ -74,7 +74,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     };
     const refs = () => git('--git-dir', remote, 'for-each-ref', '--format=%(refname) %(objectname)');
     const pages = () => git('--git-dir', remote, 'rev-parse', 'refs/heads/gh-pages');
-    const rootDryRun = await successfulPublish({ PUBLISH_DRY_RUN: '1' });
+    const rootDryRun = await successfulPublish({ PUBLISH_DRY_RUN: '1', GIT_INDEX_FILE: join(caller, '.git/index') });
     assert.match(rootDryRun, /Would push .*HEAD:refs\/heads\/gh-pages \(parent root\)/);
     assert.equal(refs(), '');
 
