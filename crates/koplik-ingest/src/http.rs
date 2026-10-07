@@ -31,13 +31,26 @@ pub struct UreqClient {
 
 impl UreqClient {
     pub fn new(timeout: Duration, max_body_bytes: u64) -> Self {
-        let agent: ureq::Agent = ureq::Agent::config_builder()
+        Self::build(timeout, max_body_bytes, true)
+    }
+
+    /// Test-only client that ignores HTTP_PROXY/HTTPS_PROXY/ALL_PROXY, so a loopback test can
+    /// never send traffic off the machine whatever the environment (AGENTS.md rule 7).
+    #[cfg(test)]
+    fn loopback_only(timeout: Duration, max_body_bytes: u64) -> Self {
+        Self::build(timeout, max_body_bytes, false)
+    }
+
+    fn build(timeout: Duration, max_body_bytes: u64, proxy_from_env: bool) -> Self {
+        let mut config = ureq::Agent::config_builder()
             .timeout_global(Some(timeout))
             .timeout_connect(Some(Duration::from_secs(10)))
             .max_redirects(0)
-            .http_status_as_error(false)
-            .build()
-            .into();
+            .http_status_as_error(false);
+        if !proxy_from_env {
+            config = config.proxy(None);
+        }
+        let agent: ureq::Agent = config.build().into();
         Self {
             agent,
             max_body_bytes,
@@ -153,7 +166,7 @@ mod tests {
                 .unwrap();
             String::from_utf8_lossy(&seen).into_owned()
         });
-        let client = UreqClient::new(Duration::from_secs(10), 1024);
+        let client = UreqClient::loopback_only(Duration::from_secs(10), 1024);
         let r = client
             .get(&format!("http://127.0.0.1:{port}/x"), UA)
             .unwrap();
