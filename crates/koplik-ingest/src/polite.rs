@@ -14,22 +14,43 @@ use crate::robots::Robots;
 /// Hard floor for the gap between two requests to one host.
 pub const MIN_HOST_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Project identification sent with every request: project name and version only, because no
-/// contact has been verified yet. When `KOPLIK_CONTACT` (a verified contact address or
-/// repository URL, supplied by the operator) is set, it is appended.
-pub fn default_user_agent() -> String {
-    user_agent_with(std::env::var("KOPLIK_CONTACT").ok().as_deref())
+/// Environment variable holding the operator-verified contact (an e-mail address or a
+/// repository URL) that identifies this client to the data hosts.
+pub const CONTACT_ENV: &str = "KOPLIK_CONTACT";
+
+/// The configured contact, if any (blank counts as none).
+pub fn contact_from_env() -> Option<String> {
+    std::env::var(CONTACT_ENV)
+        .ok()
+        .map(|c| c.trim().to_owned())
+        .filter(|c| !c.is_empty())
 }
 
-/// The User-Agent for an optional contact (blank counts as none).
+/// Offline User-Agent: project name and version, plus the contact from `KOPLIK_CONTACT` when
+/// set. Live fetching must not use this: it goes through [`live_user_agent`], which refuses
+/// to run without a contact.
+pub fn default_user_agent() -> String {
+    user_agent_with(contact_from_env().as_deref())
+}
+
+/// `koplik-ingest/<version> (measles data demonstration project[; <contact>])` (a blank
+/// contact counts as none). Nothing is ever invented: with no contact there is none.
 pub fn user_agent_with(contact: Option<&str>) -> String {
     let base = format!(
         "koplik-ingest/{} (measles data demonstration project",
         env!("CARGO_PKG_VERSION")
     );
     match contact.map(str::trim).filter(|c| !c.is_empty()) {
-        Some(c) => format!("{base}; contact: {c})"),
+        Some(c) => format!("{base}; {c})"),
         None => format!("{base})"),
+    }
+}
+
+/// The User-Agent for live requests: requires a non-blank, operator-supplied contact.
+pub fn live_user_agent(contact: Option<&str>) -> Result<String> {
+    match contact.map(str::trim).filter(|c| !c.is_empty()) {
+        Some(c) => Ok(user_agent_with(Some(c))),
+        None => Err(IngestError::ContactRequired),
     }
 }
 
@@ -83,6 +104,17 @@ pub struct PoliteConfig {
     /// Longest robots.txt `Crawl-delay` that is honoured. A larger delay is never shortened:
     /// the fetch is refused with [`IngestError::CrawlDelayTooLong`] instead.
     pub max_crawl_delay: Duration,
+}
+
+impl PoliteConfig {
+    /// Configuration for live fetching: identifies the client with `contact` (normally
+    /// [`contact_from_env`]) and refuses, before any request, when there is none.
+    pub fn live(contact: Option<&str>) -> Result<Self> {
+        Ok(Self {
+            user_agent: live_user_agent(contact)?,
+            ..Self::default()
+        })
+    }
 }
 
 impl Default for PoliteConfig {
@@ -435,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn default_user_agent_names_project_and_version_and_invents_no_contact() {
+    fn user_agent_names_project_version_and_contact_and_invents_nothing() {
         let ua = user_agent_with(None);
         assert_eq!(
             ua,
@@ -449,10 +481,40 @@ mod tests {
         assert_eq!(
             user_agent_with(Some(" ops@example.org ")),
             format!(
-                "koplik-ingest/{} (measles data demonstration project; contact: ops@example.org)",
+                "koplik-ingest/{} (measles data demonstration project; ops@example.org)",
                 env!("CARGO_PKG_VERSION")
             )
         );
+    }
+
+    #[test]
+    fn live_fetching_requires_a_contact_before_any_request() {
+        for missing in [None, Some(""), Some("   \t")] {
+            assert!(
+                matches!(
+                    PoliteConfig::live(missing),
+                    Err(IngestError::ContactRequired)
+                ),
+                "{missing:?}"
+            );
+            assert!(matches!(
+                live_user_agent(missing),
+                Err(IngestError::ContactRequired)
+            ));
+        }
+        // A configured contact reaches the wire in the User-Agent of every request.
+        let cfg = PoliteConfig::live(Some(" https://example.org/koplik ")).unwrap();
+        let c = FakeClient::default();
+        c.on(ROBOTS, FakeClient::status(404, b""));
+        c.on(URL, FakeClient::ok(b"[]"));
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        f.fetch(URL).unwrap();
+        let want = format!(
+            "koplik-ingest/{} (measles data demonstration project; https://example.org/koplik)",
+            env!("CARGO_PKG_VERSION")
+        );
+        assert!(!c.calls.borrow().is_empty());
+        assert!(c.calls.borrow().iter().all(|(_, ua)| *ua == want));
     }
 
     #[test]

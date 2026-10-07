@@ -6,10 +6,12 @@
 //! koplik-ingest list [--store DIR] [--source ID]
 //! ```
 //!
-//! `fetch` is the only command that uses the network. `parse` is offline: it reads the latest
-//! stored CDC snapshot (re-verifying its SHA-256) and writes contracts v1 weekly-case rows as
-//! JSON (stdout, or `--out`). Set `KOPLIK_CONTACT` to a verified contact address or repository URL to
-//! identify the client to the data hosts.
+//! `fetch` is the only command that uses the network, and it refuses to run unless
+//! `KOPLIK_CONTACT` holds a verified contact (an e-mail address or repository URL) that is
+//! sent in the User-Agent; nothing is ever invented. `parse` and `list` are offline and need no
+//! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
+//! contracts v2 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
+//! as JSON (stdout, or `--out`).
 
 use std::process::ExitCode;
 use std::time::Duration;
@@ -18,7 +20,7 @@ use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
-use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
+use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
 use koplik_ingest::source::fetch_to_store;
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 
@@ -87,11 +89,12 @@ fn run(args: Vec<String>) -> Result<()> {
                 u16::try_from(Utc::now().year()).unwrap_or(cdc::FIRST_YEAR),
             )?;
             flags.done()?;
+            // Identify the client before anything else: no contact, no request (and no store).
+            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
             let spec = cdc::source_spec(first, last)?;
             let store = SnapshotStore::open(&store_dir)?;
             let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
-            let mut fetcher =
-                PoliteFetcher::new(client, SystemTimekeeper::new(), PoliteConfig::default());
+            let mut fetcher = PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
             let (r, outcome) = fetch_to_store(&mut fetcher, &store, &spec)?;
             let note = match outcome {
                 PutOutcome::Created => "new snapshot",

@@ -18,6 +18,10 @@ pub enum IngestError {
     BlobMissing(String),
     #[error("retrieval log line {line} is not valid: {message}")]
     BadLogLine { line: usize, message: String },
+    #[error(
+        "live fetching needs a contact to identify this client to the data hosts: set KOPLIK_CONTACT to a verified e-mail address or repository URL (see SOURCES.md)"
+    )]
+    ContactRequired,
     #[error("invalid argument: {0}")]
     Invalid(String),
     #[error("http: {0}")]

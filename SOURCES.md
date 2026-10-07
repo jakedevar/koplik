@@ -36,8 +36,11 @@ page could not be used: an automated request to `https://www.cdc.gov/measles/dat
 returned HTTP 403 on 2026-10-07 (and I did not work around the block), so it cannot be fetched
 reproducibly. data.cdc.gov's `robots.txt` allows `/resource/` with `Crawl-delay: 1`.
 
-**Client identification.** Requests send `koplik-ingest/<version> (measles data demonstration project)`. No
-contact is sent until the operator verifies one and sets `KOPLIK_CONTACT`, which is then appended.
+**Client identification.** Requests send `koplik-ingest/<version> (measles data demonstration project; <contact>)`.
+The contact is whatever the operator verified and put in the `KOPLIK_CONTACT` environment variable (an e-mail
+address or repository URL); `koplik-ingest fetch` refuses to run, before any request, if it is unset or blank,
+and Koplik never invents one. `make pipeline` fetches, so it needs `KOPLIK_CONTACT` until the operator's
+verified default is committed (decision record `ingest-contact`). Offline parsing and all tests need none.
 
 **Columns used.** `states` (reporting jurisdiction name), `year` and `week` (MMWR reporting year and
 week of the weekly table), `label` (`Measles, Indigenous` or `Measles, Imported`), `m3` (cumulative
