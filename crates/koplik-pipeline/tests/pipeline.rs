@@ -1142,6 +1142,46 @@ fn the_series_backtest_is_the_committed_report_exactly_and_labelled_pseudo_real_
         "{}",
         p.scope_note
     );
+    // The publication policy, applied mechanically to the committed measurements: no NNDSS state
+    // series qualifies (every series with a measured skill has a mean CRPS above its persistence
+    // error), so no forecast of any is published; Pennsylvania, measured, is withheld for being
+    // below the policy, and the others for having insufficient data for a skill.
+    let policy = &p.publication_policy;
+    assert_eq!(
+        (
+            policy.minimum_coverage_90,
+            policy.maximum_crps_over_persistence
+        ),
+        (0.75, 1.0)
+    );
+    for e in b.by_series.iter().filter_map(|e| e.measured.as_ref()) {
+        assert!(!policy.admits(e.coverage_90, e.mean_crps, e.mean_persistence_abs_error));
+    }
+    assert!(
+        !p.series
+            .iter()
+            .any(|s| s.status == ForecastStatus::Forecast),
+        "no state series qualifies today"
+    );
+    use koplik_contracts::v7::WithheldReason::{InsufficientDataForSkill, SkillBelowPolicy};
+    let withheld: Vec<(String, _)> = p
+        .series
+        .iter()
+        .filter(|s| s.status == ForecastStatus::Withheld)
+        .map(|s| (s.geography.to_string(), s.withheld.unwrap()))
+        .collect();
+    assert_eq!(
+        withheld,
+        [
+            ("21".to_owned(), InsufficientDataForSkill),
+            ("24".to_owned(), InsufficientDataForSkill),
+            ("36".to_owned(), InsufficientDataForSkill),
+            ("39".to_owned(), InsufficientDataForSkill),
+            ("42".to_owned(), SkillBelowPolicy),
+            ("55".to_owned(), InsufficientDataForSkill),
+        ]
+    );
+    assert!(read::<Vec<Forecast>>(&config.work.join("forecast/forecast.json")).is_empty());
     // The report is copied byte for byte beside the rows, and published by build.
     assert_eq!(
         fs::read(config.work.join("forecast/backtest-cdc-states.json")).unwrap(),
