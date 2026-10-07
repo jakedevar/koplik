@@ -146,7 +146,7 @@ number). `m1` ("current week") is not used.
 Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` identifies the client with the contact described under "Client identification" above (default `https://github.com/jakedevar/koplik`, override `KOPLIK_CONTACT`; a blank value refuses). Commands:
 `koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
 `koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), the
-cumulative-by-report-date series (`cumulative-cases.json`, contracts v7 rows), unmapped names, parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
+cumulative-by-report-date series (`cumulative-cases.json`, contracts v8 rows), unmapped names, parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
 
 **Three formats, found by reading the archived pages** (the manifest `data/dshs/vintage-manifest.json` lists every
 version held):
@@ -223,8 +223,8 @@ take part.
    matching total in the confirmed table is the only evidence that the counted population is confirmed cases, so
    re-check with DSHS before the UI says so for March. The PDF footnote's 182 unclassifiable Gaines County reports are
    not in any count.
-5. *Cumulative by report date* (contracts **v7**, `CumulativeCaseReport`, #1439; published as
-   `v7/cumulative-cases.json` and charted per county as "Cumulative confirmed cases as reported by Texas DSHS").
+5. *Cumulative by report date* (contracts **v8**, `CumulativeCaseReport`, #1439; published as
+   `v8/cumulative-cases.json` and charted per county as "Cumulative confirmed cases as reported by Texas DSHS").
    The cumulative counts the reports print, one row per county and report date, `case_definition: confirmed`,
    each citing the report's snapshot and the Census county file that keyed the name. Nothing is derived or inferred:
    no weekly or interval counts, no interpolation between reports, no value carried forward, and no zero inferred

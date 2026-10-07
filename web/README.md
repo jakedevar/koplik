@@ -64,7 +64,7 @@ observation file contains a versioned envelope:
 | `weekly-cases.json` | `schema/v6/WeeklyCaseCountArtifact.schema.json` (expanded v3 rows with `cases` and `case_definition`) |
 | `coverage.json` | `schema/v6/KindergartenMmrCoverageArtifact.schema.json` |
 | `rt.json` | `schema/v6/RtEstimateArtifact.schema.json` |
-| `../v7/cumulative-cases.json` | `schema/v7/CumulativeCaseReportArtifact.schema.json` (Texas DSHS cumulative confirmed cases by report date, #1439) |
+| `../v8/cumulative-cases.json` | `schema/v8/CumulativeCaseReportArtifact.schema.json` (Texas DSHS cumulative confirmed cases by report date, #1439) |
 | `us-states.json` | GeoJSON FeatureCollection, Polygon/MultiPolygon, `properties.GEOID` = state FIPS |
 | `texas-counties.json` | GeoJSON FeatureCollection, Polygon/MultiPolygon, `properties.GEOID` = Texas county FIPS |
 
@@ -77,7 +77,7 @@ same source URL, retrieval time, snapshot hash and licence as before. GeoJSON
 boundaries retain their existing shapes. Forecast rows use the same v6 envelope
 at `data/forecasts/weekly-cases.json`; their v5 companion is unchanged.
 
-The Texas county drill-down also charts `data/v7/cumulative-cases.json` (contracts v7, the same
+The Texas county drill-down also charts `data/v8/cumulative-cases.json` (contracts v8, the same
 per-file provenance envelope with `contract_version: 7`): "Cumulative confirmed cases as reported
 by Texas DSHS", one point per DSHS report date, from `CumulativeCaseReport` rows. It is a separate
 series from the weekly one and nothing is derived between them. Points only: no line, step or fill
@@ -120,8 +120,8 @@ published: nothing in the web reads one.
 At load time Ajv validates rows against the committed v1 schemas and the client
 checks contract cross-field semantics, duplicates and geography references.
 `npm run generate:types` regenerates all TypeScript types from those same schemas;
-tests and builds run `npm run check:types` to detect drift. The v7 cumulative types are generated into
-`src/generated/v7/`.
+tests and builds run `npm run check:types` to detect drift. The v8 cumulative types are generated into
+`src/generated/v8/`.
 
 Case rows are contracts v3: `cases` plus a required `case_definition`. The web
 app says in words which cases a number counts: `confirmed_or_unknown_status` (CDC

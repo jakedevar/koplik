@@ -1,6 +1,6 @@
-//! The v7 cumulative case report row and its artifact envelope (#1439).
+//! The v8 cumulative case report row and its artifact envelope (#1439).
 
-use koplik_contracts::v7::{
+use koplik_contracts::v8::{
     CaseDefinition, CumulativeCaseReport, CumulativeCaseReportArtifact, CumulativeCount,
     CumulativeMissingReason, ReportDate,
 };
@@ -21,7 +21,7 @@ fn reported(count: u32) -> Value {
 }
 
 fn artifact() -> Value {
-    json!({"contract_version":7, "provenance":[record("a")],
+    json!({"contract_version":8, "provenance":[record("a")],
         "rows":[row("48165", "2025-03-04", reported(107), json!([0]))]})
 }
 
@@ -46,7 +46,7 @@ fn rows_round_trip_through_a_shared_provenance_table() {
     .unwrap();
     let artifact = CumulativeCaseReportArtifact { rows };
     let wire = serde_json::to_value(&artifact).unwrap();
-    assert_eq!(wire["contract_version"], json!(7));
+    assert_eq!(wire["contract_version"], json!(8));
     assert_eq!(wire["provenance"], json!([a, b]));
     assert_eq!(wire["rows"][0]["provenance"], json!([0, 1]));
     assert_eq!(wire["rows"][1]["provenance"], json!([1, 0, 1]));
@@ -59,7 +59,7 @@ fn rows_round_trip_through_a_shared_provenance_table() {
 
 #[test]
 fn a_real_zero_and_a_missing_count_stay_different() {
-    let wire = json!({"contract_version":7, "provenance":[record("a")], "rows":[
+    let wire = json!({"contract_version":8, "provenance":[record("a")], "rows":[
         row("48165", "2025-03-04", reported(0), json!([0])),
         row("48445", "2025-03-04",
             json!({"status":"missing", "reason":"not_listed_in_county_table"}), json!([0])),
@@ -150,7 +150,7 @@ fn malformed_envelopes_indices_and_rows_are_rejected() {
         assert!(parse(wire).is_err());
     }
     let mut wire = artifact();
-    wire["contract_version"] = json!(6);
+    wire["contract_version"] = json!(7);
     assert!(parse(wire).is_err());
     let mut wire = artifact();
     wire["provenance"][0]["sha256"] = json!("bad");
@@ -180,13 +180,13 @@ fn malformed_envelopes_indices_and_rows_are_rejected() {
 
 #[test]
 fn one_row_per_geography_and_report_date() {
-    let wire = json!({"contract_version":7, "provenance":[record("a")], "rows":[
+    let wire = json!({"contract_version":8, "provenance":[record("a")], "rows":[
         row("48165", "2025-03-04", reported(107), json!([0])),
         row("48165", "2025-03-04", reported(108), json!([0])),
     ]});
     assert!(parse(wire).is_err());
     // The same date for another county, or another date for the same county, is fine.
-    let wire = json!({"contract_version":7, "provenance":[record("a")], "rows":[
+    let wire = json!({"contract_version":8, "provenance":[record("a")], "rows":[
         row("48165", "2025-03-04", reported(107), json!([0])),
         row("48445", "2025-03-04", reported(22), json!([0])),
         row("48165", "2025-03-25", reported(226), json!([0])),
@@ -200,7 +200,7 @@ fn an_empty_artifact_has_an_empty_table() {
     let wire = serde_json::to_value(&empty).unwrap();
     assert_eq!(
         wire,
-        json!({"contract_version":7, "provenance":[], "rows":[]})
+        json!({"contract_version":8, "provenance":[], "rows":[]})
     );
     assert_eq!(parse(wire).unwrap(), empty);
 }
@@ -209,7 +209,7 @@ fn an_empty_artifact_has_an_empty_table() {
 fn a_cumulative_row_is_not_a_weekly_count() {
     // The v3 weekly shape needs `week` and `cases` with a different `status` payload; a
     // cumulative row must not parse as one (and the reverse).
-    use koplik_contracts::v7::WeeklyCaseCount;
+    use koplik_contracts::v8::WeeklyCaseCount;
     let cumulative = row("48165", "2025-03-04", reported(107), json!([record("a")]));
     assert!(serde_json::from_value::<WeeklyCaseCount>(cumulative).is_err());
     let weekly = json!({"geography":"48165", "week":{"year":2025,"week":10},

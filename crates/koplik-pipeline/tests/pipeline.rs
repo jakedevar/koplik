@@ -13,7 +13,7 @@ use koplik_contracts::v1::{
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
 use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason, SeriesSkill};
-use koplik_contracts::v7::{
+use koplik_contracts::v8::{
     CumulativeCaseReport, CumulativeCaseReportArtifact, CumulativeCount, CumulativeMissingReason,
 };
 use koplik_ingest::store::sha256_of;
@@ -228,11 +228,11 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
             && r["cases"]["status"] == "reported"
             && r["cases"]["count"].as_u64().unwrap() > 0
     }));
-    // The cumulative-by-report-date series (#1439): contracts v7 rows in the per-file provenance
+    // The cumulative-by-report-date series (#1439): contracts v8 rows in the per-file provenance
     // envelope, one row per county and report date held (9 reports x 38 counties), expanding to
     // exactly the validated stage output.
     let published_cumulative: CumulativeCaseReportArtifact =
-        read(&config.out.join("v7/cumulative-cases.json"));
+        read(&config.out.join("v8/cumulative-cases.json"));
     let staged_cumulative: Vec<CumulativeCaseReport> =
         read(&config.work.join("validate/cumulative-cases.json"));
     assert_eq!(published_cumulative.rows, staged_cumulative);
@@ -318,7 +318,7 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
         built
             .outputs
             .iter()
-            .any(|f| f.path == "v7/cumulative-cases.json")
+            .any(|f| f.path == "v8/cumulative-cases.json")
     );
     assert!(matches!(
         built.items["cumulative-cases"],
@@ -612,7 +612,7 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
     }
     // The cumulative series is never filled from anything else: an explicitly empty artifact.
     let cumulative: CumulativeCaseReportArtifact =
-        read(&empty.out.join("v7/cumulative-cases.json"));
+        read(&empty.out.join("v8/cumulative-cases.json"));
     assert!(cumulative.rows.is_empty());
     // No source, no scenario: nothing stale in the work or web tree, and both stages say why.
     assert!(matches!(
@@ -749,7 +749,7 @@ fn build_refuses_cumulative_rows_that_are_not_valid_contract_rows() {
     fs::write(&path, &original).unwrap();
     run_stage(Stage::Build, &config).unwrap();
     let published: CumulativeCaseReportArtifact =
-        read(&config.out.join("v7/cumulative-cases.json"));
+        read(&config.out.join("v8/cumulative-cases.json"));
     assert_eq!(published.rows.len(), 342);
 }
 

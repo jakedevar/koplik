@@ -63,7 +63,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   so decimal parsing cannot change published numbers. Empty rows
   have an empty table. Companions, GeoJSON and stage outputs retain their current
   contracts; released v1–v5 sources and schemas are unchanged. Schema: `schema/v6/`.
-- **v7** (`CONTRACT_VERSION` 7): v6 plus `CumulativeCaseReport` and its artifact
+- **v8** (`CONTRACT_VERSION` 8): v7 plus `CumulativeCaseReport` and its artifact
   `CumulativeCaseReportArtifact` (#1439): a *cumulative* case count as one source printed it on
   one report date (`ReportDate`, `YYYY-MM-DD`), for one geography, with an explicit
   `case_definition`. It is not a `WeeklyCaseCount` and is never differenced into weeks,
@@ -76,14 +76,14 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   even where the table's rows add up to its total) or `ambiguous` (an unreadable or duplicated
   county cell). The artifact keeps the v6 envelope (a per-file `provenance` table that each
   row indexes; the whole record is deduplicated; row and provenance order are preserved) with
-  `contract_version: 7`, and rejects a second row for the same geography and report date. Every
-  other type is re-exported from v6 unchanged. Schema: `schema/v7/`. Freeze it in
-  `tests/frozen.rs` when v8 is added.
+  `contract_version: 8`, and rejects a second row for the same geography and report date. Every
+  other type is re-exported from v7 unchanged. Schema: `schema/v8/`. Freeze it in
+  `tests/frozen.rs` when v9 is added.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6 --test schema_v7
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6 --test schema_v8
 git add crates/koplik-contracts/schema
 ```
 

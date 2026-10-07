@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { cumulativeChart, cumulativeGapRuns, cumulativeHeading, cumulativeMissingWords, cumulativeNone, cumulativeSection, cumulativeSeries, cumulativeTable, cumulativeText } from './cumulative';
-import type { CumulativeCaseReport } from './generated/v7/CumulativeCaseReport';
+import type { CumulativeCaseReport } from './generated/v8/CumulativeCaseReport';
 import { fixtureDataset } from './fixtures.test-utils';
 
 afterEach(() => document.body.replaceChildren());

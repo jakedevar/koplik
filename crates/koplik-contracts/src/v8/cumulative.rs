@@ -156,7 +156,7 @@ pub struct CumulativeCaseReport {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Published artifact: the v6 envelope (a per-file provenance table that rows index), version 7.
+// Published artifact: the v6 envelope (a per-file provenance table that rows index), version 8.
 
 /// The artifact as validated, expanded rows in Rust. Serialization interns provenance by the
 /// complete record, preserving row order and the order and repetition of each row's records;
@@ -224,7 +224,7 @@ impl Serialize for CumulativeCaseReportArtifact {
             indices.push(row_indices);
         }
         PackedArtifact {
-            contract_version: 7,
+            contract_version: 8,
             provenance: &table,
             rows: self
                 .rows
@@ -247,9 +247,9 @@ impl<'de> Deserialize<'de> for CumulativeCaseReportArtifact {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         use serde::de::Error;
         let wire = WireArtifact::deserialize(deserializer)?;
-        if wire.contract_version != 7 {
+        if wire.contract_version != 8 {
             return Err(D::Error::custom(
-                "cumulative case artifact contract_version must be 7",
+                "cumulative case artifact contract_version must be 8",
             ));
         }
         let mut seen = BTreeSet::new();
@@ -317,7 +317,7 @@ impl JsonSchema for CumulativeCaseReportArtifact {
             "type": "object", "additionalProperties": false,
             "required": ["contract_version", "provenance", "rows"],
             "properties": {
-                "contract_version": { "const": 7, "type": "integer" },
+                "contract_version": { "const": 8, "type": "integer" },
                 "provenance": { "type": "array", "items": provenance },
                 "rows": { "type": "array", "items": row }
             },

@@ -27,7 +27,7 @@ const rt = all.flatMap((g) => g.rt.map((estimate, i) => ({ geography: g.id, week
   status: estimate === null ? 'insufficient_data' : 'ok', provisional: i === g.rt.length - 1,
   mean: estimate?.[0] ?? null, lower: estimate?.[1] ?? null, upper: estimate?.[2] ?? null, interval_level: 0.9, provenance,
 })));
-// Synthetic cumulative-by-report-date rows (contracts v7 shape) for the Texas counties only, so the county
+// Synthetic cumulative-by-report-date rows (contracts v8 shape) for the Texas counties only, so the county
 // drill-down has a series to draw in the dev server and the tests: invented counts at invented report dates, one of
 // them a report with no county table. Real rows come from the pipeline (koplik-ingest dshs_series).
 const cumulativeDates = ['2025-03-04', '2025-03-25', '2025-03-28', '2025-11-24'];

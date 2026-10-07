@@ -1,8 +1,8 @@
-import type { CumulativeCaseReport, CumulativeMissingReason } from './generated/v7/CumulativeCaseReport';
+import type { CumulativeCaseReport, CumulativeMissingReason } from './generated/v8/CumulativeCaseReport';
 import { bindProvenance, provenanceNumber, type ProvenanceInfo } from './provenance';
 
 /**
- * The Texas DSHS cumulative-by-report-date series (contracts v7, #1439): the cumulative count each DSHS
+ * The Texas DSHS cumulative-by-report-date series (contracts v8, #1439): the cumulative count each DSHS
  * report printed for a county, one point per report. It is a different thing from the weekly series:
  * weekly counts are never derived from it, no value is interpolated between reports, and no value is
  * carried forward to a date DSHS did not report.

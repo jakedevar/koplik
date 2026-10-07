@@ -47,40 +47,40 @@ describe('v6 provenance expansion', () => {
   });
   it('loads v6 through the production path and still checks expanded synthetic provenance', async () => {
     const read = vi.fn(async (url: RequestInfo | URL) => {
-      // Row artifacts sit under the contract version of their envelope: v6, and v7 for the cumulative series.
-      expect(String(url)).toMatch(/^\/koplik\/data\/(v6\/(?!cumulative)|v7\/cumulative-cases)/);
+      // Row artifacts sit under the contract version of their envelope: v6, and v8 for the cumulative series.
+      expect(String(url)).toMatch(/^\/koplik\/data\/(v6\/(?!cumulative)|v8\/cumulative-cases)/);
       const name = String(url).split('/').at(-1)!.replace('.json', '');
       const input = fixtureJson(name);
-      return { ok: true, json: async () => Array.isArray(input) ? pack(input, name === 'cumulative-cases' ? 7 : 6) : input } as Response;
+      return { ok: true, json: async () => Array.isArray(input) ? pack(input, name === 'cumulative-cases' ? 8 : 6) : input } as Response;
     });
     await expect(loadDataset('/koplik/', false, read)).rejects.toThrow('Synthetic artifacts require');
     expect(read).toHaveBeenCalledTimes(7);
   });
-  it('expands the v7 cumulative artifact and refuses what the v7 contract refuses', () => {
+  it('expands the v8 cumulative artifact and refuses what the v8 contract refuses', () => {
     const legacy = parseRows('cumulative', fixtureJson('cumulative-cases'));
     expect(legacy.length).toBeGreaterThan(0);
-    expect(parseRows('cumulative', pack(legacy, 7))).toEqual(legacy);
-    expect(parseRows('cumulative', pack([], 7))).toEqual([]);
-    // The v6 envelope is not a v7 envelope, and neither is an index outside the file's table.
-    expect(() => parseRows('cumulative', pack(legacy, 6))).toThrow('invalid v6 artifact');
+    expect(parseRows('cumulative', pack(legacy, 8))).toEqual(legacy);
+    expect(parseRows('cumulative', pack([], 8))).toEqual([]);
+    // The v7 envelope number is not a v8 envelope, and neither is an index outside the file's table.
+    expect(() => parseRows('cumulative', pack(legacy, 7))).toThrow('invalid v6 artifact');
     for (const indices of [[], [-1], [0.5], [99], ['0']]) {
-      const artifact = pack(legacy, 7);
+      const artifact = pack(legacy, 8);
       artifact.rows[0].provenance = indices as number[];
       expect(() => parseRows('cumulative', artifact)).toThrow(/invalid v6 artifact|outside this file's table/);
     }
     // One row per geography and report date.
-    expect(() => parseRows('cumulative', pack([legacy[0], legacy[0]], 7))).toThrow('duplicate row 48165:2025-03-04');
+    expect(() => parseRows('cumulative', pack([legacy[0], legacy[0]], 8))).toThrow('duplicate row 48165:2025-03-04');
     // A missing count says why with a reason the contract knows; nothing else is accepted.
     const missing = legacy.find((r) => r.cases.status === 'missing')!;
     for (const cases of [{ status: 'missing', reason: 'estimated' }, { status: 'missing' }, { status: 'reported' }, { status: 'reported', count: -1 }, { status: 'reported', count: 3, reason: 'ambiguous' }]) {
-      expect(() => parseRows('cumulative', [{ ...missing, cases }])).toThrow('invalid v7 row');
+      expect(() => parseRows('cumulative', [{ ...missing, cases }])).toThrow('invalid v8 row');
     }
     for (const report_date of ['2025-3-4', '2025-02-30', '2025-03-04T00:00:00Z', '03/04/2025']) {
-      expect(() => parseRows('cumulative', pack([{ ...legacy[0], report_date } as typeof legacy[0]], 7))).toThrow('invalid v6 artifact');
+      expect(() => parseRows('cumulative', pack([{ ...legacy[0], report_date } as typeof legacy[0]], 8))).toThrow('invalid v6 artifact');
     }
-    expect(() => parseRows('cumulative', [{ ...legacy[0], case_definition: 'everything' }])).toThrow('invalid v7 row');
+    expect(() => parseRows('cumulative', [{ ...legacy[0], case_definition: 'everything' }])).toThrow('invalid v8 row');
     // A weekly row is not a cumulative row, and the reverse.
-    expect(() => parseRows('cumulative', fixtureJson('weekly-cases'))).toThrow('invalid v7 row');
+    expect(() => parseRows('cumulative', fixtureJson('weekly-cases'))).toThrow('invalid v8 row');
     expect(() => parseRows('cases', legacy)).toThrow('invalid v3 row');
   });
   it('expands forecast rows before checking their v5 provenance companion', () => {
@@ -101,9 +101,9 @@ it.skipIf(!existsSync(resolve(published, 'rt.json')))('expands every real publis
     expect(expanded).toEqual(parseRows(kind, original));
     expanded.forEach((row, i) => expect(row.provenance).toEqual(original[i].provenance));
   }
-  // The v7 cumulative series expands to exactly the validated stage output, every report date and reason intact.
+  // The v8 cumulative series expands to exactly the validated stage output, every report date and reason intact.
   const stagedCumulative = read(resolve('../data/pipeline/validate/cumulative-cases.json'));
-  const expandedCumulative = parseRows('cumulative', read(resolve('public/data/v7/cumulative-cases.json')));
+  const expandedCumulative = parseRows('cumulative', read(resolve('public/data/v8/cumulative-cases.json')));
   expect(expandedCumulative).toEqual(parseRows('cumulative', stagedCumulative));
   expandedCumulative.forEach((row, i) => expect(row.provenance).toEqual(stagedCumulative[i].provenance));
   const original = read(resolve('../data/pipeline/forecast/forecast.json'));

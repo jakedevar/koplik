@@ -39,9 +39,9 @@
 //! * The week is the week the report is dated, i.e. when DSHS published the cumulative, not
 //!   the week of rash onset. Reporting lags onset; treat recent weeks as provisional.
 //!
-//! # Cumulative by report date (contract v7, #1439)
+//! # Cumulative by report date (contract v8, #1439)
 //! [`Series::cumulative_reports`] publishes the printed cumulative counts themselves, one row per
-//! county and report date, as contracts v7 [`CumulativeCaseReport`] rows with
+//! county and report date, as contracts v8 [`CumulativeCaseReport`] rows with
 //! `case_definition: confirmed`. Nothing is derived from them: no weekly or interval counts, no
 //! interpolation between reports, no value carried forward. Each report date is read from one
 //! vintage, by this precedence:
@@ -69,7 +69,7 @@ use koplik_contracts::v3::{
     CaseCount, CaseDefinition, CountyFips, GeoId, MissingReason, MmwrWeek, Provenance, Provenances,
     Sha256Hex, WeeklyCaseCount,
 };
-use koplik_contracts::v7::{
+use koplik_contracts::v8::{
     CumulativeCaseReport, CumulativeCount, CumulativeMissingReason, ReportDate,
 };
 use serde::{Deserialize, Serialize};

@@ -652,7 +652,7 @@ fn derived_rows_and_the_manifest_cite_the_census_snapshot_that_keyed_the_countie
 
 #[test]
 fn the_real_reports_give_a_cumulative_series_by_report_date_with_stated_gaps() {
-    use koplik_contracts::v7::{CumulativeCount, CumulativeMissingReason};
+    use koplik_contracts::v8::{CumulativeCount, CumulativeMissingReason};
     let (_d, store) = store_with_fixtures();
     let lookup = CountyLookup::from_store(&store, texas()).unwrap();
     let built = dshs_series::build_from_store(&store, &lookup).unwrap();

@@ -7,14 +7,14 @@ import casesSchema from '../../crates/koplik-contracts/schema/v3/WeeklyCaseCount
 import coverageSchema from '../../crates/koplik-contracts/schema/v1/KindergartenMmrCoverage.schema.json';
 import rtSchema from '../../crates/koplik-contracts/schema/v1/RtEstimate.schema.json';
 import provenanceSchema from '../../crates/koplik-contracts/schema/v1/Provenance.schema.json';
-import cumulativeSchema from '../../crates/koplik-contracts/schema/v7/CumulativeCaseReport.schema.json';
+import cumulativeSchema from '../../crates/koplik-contracts/schema/v8/CumulativeCaseReport.schema.json';
 import type { Provenance } from './generated/Provenance';
 import type { Geography } from './generated/Geography';
 import type { WeeklyCaseCount as WeeklyCaseCountV1 } from './generated/WeeklyCaseCount';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { KindergartenMmrCoverage } from './generated/KindergartenMmrCoverage';
 import type { RtEstimate } from './generated/RtEstimate';
-import type { CumulativeCaseReport } from './generated/v7/CumulativeCaseReport';
+import type { CumulativeCaseReport } from './generated/v8/CumulativeCaseReport';
 import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 
 export type Boundaries = FeatureCollection<Polygon | MultiPolygon, { GEOID: string; provenance?: Provenance[] }>;
@@ -23,7 +23,7 @@ export interface Dataset {
   cases: WeeklyCaseCount[];
   coverage: KindergartenMmrCoverage[];
   rt: RtEstimate[];
-  /** Texas DSHS cumulative counts by report date (contracts v7); never converted to weekly counts. */
+  /** Texas DSHS cumulative counts by report date (contracts v8); never converted to weekly counts. */
   cumulative: CumulativeCaseReport[];
   states: Boundaries;
   counties: Boundaries;
@@ -96,7 +96,7 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
       if (!validateCasesV1(inputRow)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validateCasesV1.errors)}`);
       inputRow = upgradeV1Case(inputRow as unknown as WeeklyCaseCountV1);
     }
-    if (!validate(inputRow)) throw new Error(`${kind}: invalid ${kind === 'cases' ? 'v3' : kind === 'cumulative' ? 'v7' : 'v1'} row: ${ajv.errorsText(validate.errors)}`);
+    if (!validate(inputRow)) throw new Error(`${kind}: invalid ${kind === 'cases' ? 'v3' : kind === 'cumulative' ? 'v8' : 'v1'} row: ${ajv.errorsText(validate.errors)}`);
     rows.push(inputRow);
     if (kind === 'geographies') {
       const row = inputRow as unknown as Geography;
@@ -162,15 +162,15 @@ export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boun
 /** Read only static, same-origin artifacts; no external source or tile requests. */
 export async function loadDataset(base: string, synthetic = false, read: typeof fetch = fetch): Promise<Dataset> {
   const dataRoot = `${base.replace(/\/$/, '')}/data/`;
-  // Row artifacts live under the contract version of their envelope: v6 for the original files, v7 for the cumulative series.
-  async function json(name: string, version: 'v6' | 'v7' = 'v6'): Promise<unknown> {
+  // Row artifacts live under the contract version of their envelope: v6 for the original files, v8 for the cumulative series.
+  async function json(name: string, version: 'v6' | 'v8' = 'v6'): Promise<unknown> {
     const response = await read(`${dataRoot}${synthetic ? 'synthetic-v1/synthetic-' : `${version}/`}${name}.json`);
     if (!response.ok) throw new Error(`${name}: artifact unavailable (${response.status})`);
     return response.json();
   }
   const [geographies, cases, coverage, rt, states, counties, cumulative] = await Promise.all([
     json('geographies'), json('weekly-cases'), json('coverage'), json('rt'), json('us-states'), json('texas-counties'),
-    json('cumulative-cases', 'v7'),
+    json('cumulative-cases', 'v8'),
   ]);
   const result: Dataset = {
     geographies: parseRows('geographies', geographies), cases: parseRows('cases', cases),

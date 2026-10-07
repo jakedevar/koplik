@@ -101,7 +101,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   }
   const chartControls = element('div', undefined, 'chart-controls');
   chartControls.append(yearLabel, yearSelect);
-  // Texas counties only: the cumulative count each DSHS report printed (contracts v7), above the weekly series.
+  // Texas counties only: the cumulative count each DSHS report printed (contracts v8), above the weekly series.
   const cumulative = element('div', undefined, 'cumulative-reports');
   const charts = element('div', undefined, 'charts');
   detail.append(summary, chartControls, cumulative, charts);
