@@ -71,7 +71,7 @@ impl Robots {
                         if !value.is_empty() {
                             g.rules.push(Rule {
                                 allow: key == "allow",
-                                pattern: normalize_encoding(value),
+                                pattern: normalize_encoding(value, Mode::Rule),
                             });
                         }
                     }
@@ -121,7 +121,7 @@ impl Robots {
 
     /// Whether `path_and_query` (starting with `/`) may be fetched.
     pub fn allowed(&self, path_and_query: &str) -> bool {
-        let path_and_query = &normalize_encoding(path_and_query);
+        let path_and_query = &normalize_encoding(path_and_query, Mode::Uri);
         let mut best: Option<(&Rule, usize)> = None;
         for r in &self.rules {
             if matches(&r.pattern, path_and_query) {
@@ -139,13 +139,22 @@ impl Robots {
     }
 }
 
-/// RFC 9309 section 2.2.2 percent-encoding normalisation, applied to both rule patterns and
-/// request paths before comparing: an escaped unreserved octet (`%62` for `b`) is decoded;
-/// any other escape keeps its escape with upper-case hex (`%2f` -> `%2F`, so an escaped
-/// reserved character never turns into a separator or wildcard); octets outside ASCII, and
-/// ASCII that is neither unreserved nor reserved, are escaped. `*` and `$` stay literal so
-/// patterns keep their wildcard meaning.
-fn normalize_encoding(s: &str) -> String {
+/// What is being normalised: a robots.txt rule path or a request URI path.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    /// `*` is a wildcard and a final `$` an end anchor; any other `$` is a literal.
+    Rule,
+    /// Every `*` and `$` is a literal octet, so it is escaped and can only match a rule that
+    /// spells it `%2A`/`%24` or covers it with a wildcard (RFC 9309 section 2.2.3, Figure 6).
+    Uri,
+}
+
+/// RFC 9309 section 2.2.2 percent-encoding normalisation, applied to rule paths and request
+/// paths before comparing: an escaped unreserved octet (`%62` for `b`) is decoded; any other
+/// escape keeps its escape with upper-case hex (`%2f` -> `%2F`, so an escaped reserved
+/// character never turns into a separator or wildcard); octets outside ASCII, and ASCII that
+/// is neither unreserved nor reserved, are escaped. The `*`/`$` handling differs by [`Mode`].
+fn normalize_encoding(s: &str, mode: Mode) -> String {
     const RESERVED: &[u8] = b":/?#[]@!$&'()*+,;=";
     let bytes = s.as_bytes();
     let mut out = String::with_capacity(s.len());
@@ -169,6 +178,12 @@ fn normalize_encoding(s: &str) -> String {
             Some(c) => {
                 out.push_str(&format!("%{c:02X}"));
                 i += 3;
+            }
+            None if matches!(b, b'*' | b'$')
+                && (mode == Mode::Uri || (b == b'$' && i + 1 < bytes.len())) =>
+            {
+                out.push_str(&format!("%{b:02X}"));
+                i += 1;
             }
             None if unreserved(b) || RESERVED.contains(&b) || b == b'%' => {
                 out.push(char::from(b));
@@ -272,9 +287,54 @@ mod tests {
         let r = Robots::parse("User-agent: *\nDisallow: /x%2A\n", AGENT);
         assert!(r.allowed("/xyz"));
         assert!(!r.allowed("/x%2a"));
+        assert!(!r.allowed("/x*"));
         // Stray `%` that is not an escape stays as it is.
         let r = Robots::parse("User-agent: *\nDisallow: /100%\n", AGENT);
         assert!(!r.allowed("/100%"));
+    }
+
+    /// RFC 9309 section 2.2.3, Figure 6 (and the forms that must keep their pattern meaning):
+    /// `(rule path, URI path, rule matches)`.
+    const FIGURE_6: &[(&str, &str, bool)] = &[
+        ("/foo/bar?baz=quz", "/foo/bar?baz=quz", true),
+        ("/foo/bar/\u{30c4}", "/foo/bar/%E3%83%84", true),
+        ("/foo/bar/%E3%83%84", "/foo/bar/%E3%83%84", true),
+        ("/foo/bar/%E3%83%84", "/foo/bar/\u{30c4}", true),
+        ("/foo/bar/%62%61%7A", "/foo/bar/baz", true),
+        (
+            "/path/file-with-a-%2A.html",
+            "/path/file-with-a-%2A.html",
+            true,
+        ),
+        (
+            "/path/file-with-a-%2A.html",
+            "/path/file-with-a-*.html",
+            true,
+        ),
+        (
+            "/path/file-with-a-%2A.html",
+            "/path/file-with-a-x.html",
+            false,
+        ),
+        ("/path/foo-%24", "/path/foo-%24", true),
+        ("/path/foo-%24", "/path/foo-$", true),
+        ("/path/foo-%24", "/path/foo-x", false),
+        // Unescaped specials in a rule keep their syntax: `*` wildcard, final `$` anchor,
+        // a non-final `$` is a literal.
+        ("/path/file-with-a-*.html", "/path/file-with-a-*.html", true),
+        ("/path/file-with-a-*.html", "/path/file-with-a-x.html", true),
+        ("/path/foo-$", "/path/foo-", true),
+        ("/path/foo-$", "/path/foo-x", false),
+        ("/path/a$b", "/path/a$b", true),
+        ("/path/a$b", "/path/a%24b", true),
+    ];
+
+    #[test]
+    fn rfc_9309_figure_6_percent_encoding_rows() {
+        for (rule, uri, blocked) in FIGURE_6 {
+            let r = Robots::parse(&format!("User-agent: *\nDisallow: {rule}\n"), AGENT);
+            assert_eq!(!r.allowed(uri), *blocked, "Disallow: {rule} vs {uri}");
+        }
     }
 
     #[test]

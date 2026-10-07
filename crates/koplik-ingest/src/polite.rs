@@ -616,6 +616,46 @@ mod tests {
     }
 
     #[test]
+    fn encoded_special_character_rules_block_the_literal_urls_without_a_request() {
+        // RFC 9309 section 2.2.3, Figure 6: `%2A` and `%24` in a rule match a literal `*`
+        // and `$` in the requested URI.
+        let c = FakeClient::default();
+        c.on(
+            ROBOTS,
+            FakeClient::ok(
+                b"User-agent: *\nDisallow: /path/file-with-a-%2A.html\nDisallow: /path/foo-%24\n",
+            ),
+        );
+        let literal = [
+            "https://data.example.gov/path/file-with-a-*.html",
+            "https://data.example.gov/path/foo-$",
+        ];
+        for url in literal {
+            c.on(url, FakeClient::ok(b"x"));
+        }
+        let mut f = fetcher(&c, &FakeTime::default());
+        for url in literal {
+            assert!(
+                matches!(f.fetch(url), Err(IngestError::RobotsDisallowed { .. })),
+                "{url}"
+            );
+        }
+        assert!(
+            c.calls
+                .borrow()
+                .iter()
+                .all(|(u, _)| !literal.contains(&u.as_str())),
+            "no request may be sent for a forbidden URL"
+        );
+        // A different path on the same host is still fetched.
+        c.on("https://data.example.gov/path/other", FakeClient::ok(b"ok"));
+        assert_eq!(
+            f.fetch("https://data.example.gov/path/other").unwrap().body,
+            b"ok"
+        );
+    }
+
+    #[test]
     fn default_ports_normalise_into_one_origin() {
         let a = split_url("HTTPS://Data.Example.Gov:443/x").unwrap();
         let b = split_url("https://data.example.gov/y").unwrap();
