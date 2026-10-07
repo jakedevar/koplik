@@ -2,7 +2,7 @@
 //! Usage: cargo run -p koplik-ingest --example coverage_fetch -- ID URL LICENCE OUTPUT
 use koplik_ingest::{
     http::UreqClient,
-    polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env},
+    polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper},
     source::{SourceSpec, fetch_to_store},
     store::SnapshotStore,
 };
@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         url: a[1].clone(),
         licence_id: a[2].clone(),
     };
-    let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+    let cfg = PoliteConfig::live_from_env()?;
     let store = SnapshotStore::open("data/snapshots")?;
     let mut fetcher = PoliteFetcher::new(
         UreqClient::new(Duration::from_secs(90), 64 * 1024 * 1024),

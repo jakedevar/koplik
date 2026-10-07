@@ -11,7 +11,7 @@ fn dshs_and_census_fetches_refuse_without_a_contact_and_touch_nothing() {
         "dshs-reports",
         "census-counties",
     ] {
-        for contact in [None, Some(""), Some("  ")] {
+        for contact in [Some(""), Some("  "), Some("\t")] {
             let dir = tempfile::tempdir().unwrap();
             let store = dir.path().join("snapshots");
             let mut cmd = Command::new(env!("CARGO_BIN_EXE_koplik-ingest"));

@@ -15,7 +15,11 @@ pub enum IngestError {
     #[error("blob {sha256} failed verification: bytes hash to {actual}")]
     BlobCorrupt { sha256: String, actual: String },
     #[error("Census pin mismatch for {url}: expected {expected}, fetched {actual}")]
-    PinMismatch { url: String, expected: String, actual: String },
+    PinMismatch {
+        url: String,
+        expected: String,
+        actual: String,
+    },
     #[error("named Census file already requested in this pipeline run: {0}")]
     NamedFileAlreadyRequested(String),
     #[error("blob {0} is not in the snapshot store")]
@@ -23,7 +27,7 @@ pub enum IngestError {
     #[error("retrieval log line {line} is not valid: {message}")]
     BadLogLine { line: usize, message: String },
     #[error(
-        "live fetching needs a contact to identify this client to the data hosts: set KOPLIK_CONTACT to a verified e-mail address or repository URL (see SOURCES.md)"
+        "live fetching is disabled because KOPLIK_CONTACT is set but blank: unset it to use the default contact, or set it to a verified e-mail address or repository URL (see SOURCES.md)"
     )]
     ContactRequired,
     #[error("invalid argument: {0}")]

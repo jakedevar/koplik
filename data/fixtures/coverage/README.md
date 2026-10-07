@@ -20,8 +20,9 @@ requested no credentials. See #1374 and SOURCES.md. The DSHS crosswalk is the id
 To repeat a capture with the exact recorded URL, source id and terms id, choose a new output
 path and use the fixture recorder (run from the repository root):
 
-Live capture requires an operator-supplied contact in `KOPLIK_CONTACT`; a missing or blank
-contact refuses before creating a store or sending a request. Offline parsing needs no contact.
+Live capture identifies the client with the contact from `KOPLIK_CONTACT` (default
+`https://github.com/jakedevar` when unset); a blank value refuses before creating a store or
+sending a request. Offline parsing needs no contact.
 
 ```bash
 ~/.rsi/bin/cargo-slot cargo run -p koplik-ingest --example coverage_fetch -- SOURCE_ID 'EXACT_URL' LICENCE_ID NEW_OUTPUT_PATH

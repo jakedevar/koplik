@@ -15,7 +15,7 @@ fn run(contact: Option<&str>, store: &std::path::Path) -> std::process::Output {
 
 #[test]
 fn fetch_refuses_without_a_contact_and_touches_nothing() {
-    for contact in [None, Some(""), Some("  ")] {
+    for contact in [Some(""), Some("  "), Some("\t")] {
         let dir = tempfile::tempdir().unwrap();
         let store = dir.path().join("snapshots");
         let out = run(contact, &store);

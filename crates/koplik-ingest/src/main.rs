@@ -8,9 +8,10 @@
 //! koplik-ingest list [--store DIR] [--source ID]
 //! ```
 //!
-//! `fetch` is the only command that uses the network, and it refuses to run unless
-//! `KOPLIK_CONTACT` holds a verified contact (an e-mail address or repository URL) that is
-//! sent in the User-Agent; nothing is ever invented. `parse` and `list` are offline and need no
+//! `fetch` is the only command that uses the network. Every live fetch identifies the client in
+//! the User-Agent with a contact resolved by `polite::contact_from_env`: `KOPLIK_CONTACT` when
+//! set and non-blank, `polite::DEFAULT_CONTACT` when unset, and a refusal (before the store is
+//! opened or any request is sent) when set but blank. `parse` and `list` are offline and need no
 //! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
 //! contracts v3 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
 //! as JSON (stdout, or `--out`). Census parsing writes both GeoJSON files to `--out DIR`.
@@ -27,7 +28,7 @@ use koplik_ingest::dshs_series;
 use koplik_ingest::dshs_sources::{self, FetchOutcome};
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
-use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
+use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper};
 use koplik_ingest::source::{SourceSpec, fetch_to_store};
 use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 
@@ -89,7 +90,7 @@ fn live_fetcher(interval_secs: u64) -> Result<PoliteFetcher<UreqClient, SystemTi
     let cfg = PoliteConfig {
         min_interval: Duration::from_secs(interval_secs.max(1)),
         max_attempts: 5,
-        ..PoliteConfig::live(contact_from_env().as_deref())?
+        ..PoliteConfig::live_from_env()?
     };
     let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
     Ok(PoliteFetcher::new(client, SystemTimekeeper::new(), cfg))
@@ -161,7 +162,7 @@ fn run(args: Vec<String>) -> Result<()> {
             if cmd == "fetch" {
                 flags.done()?;
                 // Match the reviewed CDC fetch path: no contact, no request or store.
-                let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+                let cfg = PoliteConfig::live_from_env()?;
                 let store = SnapshotStore::open(&store_dir)?;
                 let mut fetcher = PoliteFetcher::new(
                     UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES),
@@ -231,7 +232,7 @@ fn run(args: Vec<String>) -> Result<()> {
             )?;
             flags.done()?;
             // Identify the client before anything else: no contact, no request (and no store).
-            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+            let cfg = PoliteConfig::live_from_env()?;
             let spec = cdc::source_spec(first, last)?;
             let store = SnapshotStore::open(&store_dir)?;
             let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
@@ -374,7 +375,7 @@ fn run(args: Vec<String>) -> Result<()> {
         }
         ("fetch", Some("census-boundaries")) => {
             flags.done()?;
-            let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+            let cfg = PoliteConfig::live_from_env()?;
             let store = SnapshotStore::open(&store_dir)?;
             let client = UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES);
             let mut fetcher = PoliteFetcher::new(client, SystemTimekeeper::new(), cfg);
