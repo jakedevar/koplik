@@ -44,6 +44,9 @@ describe('contracts and artifact loading', () => {
     expect(() => parseRows('coverage', [{ ...data.coverage[0], school_year: '2024-26' }])).toThrow('school year');
     expect(() => parseRows('coverage', [{ ...data.coverage[0], imputed: true }])).toThrow('imputation');
     expect(() => parseBoundaries(data.states, 'county')).toThrow('invalid');
+    const broken = structuredClone(data.states);
+    broken.features[0].geometry.coordinates = [];
+    expect(() => parseBoundaries(broken, 'state')).toThrow('polygon coordinates');
   });
 });
 

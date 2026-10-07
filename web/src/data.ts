@@ -88,6 +88,13 @@ export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boun
       ids.has(id) || !['Polygon', 'MultiPolygon'].includes(feature.geometry?.type)) {
       throw new Error(`${level}: invalid or duplicate GeoJSON boundary`);
     }
+    const polygons = feature.geometry.type === 'Polygon' ? [feature.geometry.coordinates] : feature.geometry.coordinates;
+    if (!Array.isArray(polygons) || !polygons.length || polygons.some((polygon) => !Array.isArray(polygon) || !polygon.length ||
+      polygon.some((ring) => !Array.isArray(ring) || ring.length < 4 || ring.some((point) => !Array.isArray(point) || point.length < 2 ||
+        !point.every(Number.isFinite) || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 90) ||
+        ring[0][0] !== ring.at(-1)![0] || ring[0][1] !== ring.at(-1)![1]))) {
+      throw new Error(`${level}: invalid GeoJSON polygon coordinates`);
+    }
     ids.add(id);
   }
   return collection;
