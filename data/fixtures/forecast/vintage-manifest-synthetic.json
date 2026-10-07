@@ -1,0 +1,97 @@
+{
+  "synthetic": true,
+  "manifest_version": 1,
+  "description": "SYNTHETIC test fixture in the shape of data/dshs/vintage-manifest.json (koplik-ingest, manifest_version 1). Not observations: the totals, dates and hashes are invented for crates/koplik-epi/tests/backtest.rs.",
+  "entries": [
+    {
+      "report_date": "2025-03-04",
+      "format": "html_county_table",
+      "outbreak_total": 159,
+      "county_detail": true,
+      "confirmed_basis": "synthetic: labelled confirmed",
+      "county_rows": 2,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-05T18:45:28Z",
+      "first_snapshot": {
+        "source_id": "synthetic-vintage-fixture",
+        "url": "https://example.test/synthetic/2025-03-04",
+        "original_url": "https://example.test/synthetic/page",
+        "capture_time": "2025-03-05T18:45:28Z",
+        "retrieved_at": "2026-10-07T02:42:17Z",
+        "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+        "licence_id": "synthetic"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-03-05T18:45:28Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-07",
+      "format": "html_county_table",
+      "outbreak_total": 198,
+      "county_detail": true,
+      "confirmed_basis": "synthetic: labelled confirmed",
+      "county_rows": 2,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-13T01:40:05Z",
+      "first_snapshot": {
+        "source_id": "synthetic-vintage-fixture",
+        "url": "https://example.test/synthetic/2025-03-07",
+        "original_url": "https://example.test/synthetic/page",
+        "capture_time": "2025-03-13T01:40:05Z",
+        "retrieved_at": "2026-10-07T02:42:43Z",
+        "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdce",
+        "licence_id": "synthetic"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-03-13T01:40:05Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-11",
+      "format": "html_narrative_only",
+      "outbreak_total": 223,
+      "county_detail": false,
+      "confirmed_basis": "synthetic: labelled confirmed",
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-12T19:05:52Z",
+      "first_snapshot": {
+        "source_id": "synthetic-vintage-fixture",
+        "url": "https://example.test/synthetic/2025-03-11",
+        "original_url": "https://example.test/synthetic/page",
+        "capture_time": "2025-03-12T19:05:52Z",
+        "retrieved_at": "2026-10-07T02:43:08Z",
+        "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcf",
+        "licence_id": "synthetic"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-03-12T19:05:52Z",
+      "issues": []
+    },
+    {
+      "report_date": "2025-03-14",
+      "format": "html_narrative_only",
+      "outbreak_total": 259,
+      "county_detail": false,
+      "confirmed_basis": "synthetic: labelled confirmed",
+      "county_rows": 0,
+      "data_as_of": null,
+      "first_seen_at": "2025-03-15T03:50:09Z",
+      "first_snapshot": {
+        "source_id": "synthetic-vintage-fixture",
+        "url": "https://example.test/synthetic/2025-03-14",
+        "original_url": "https://example.test/synthetic/page",
+        "capture_time": "2025-03-15T03:50:09Z",
+        "retrieved_at": "2026-10-07T02:43:30Z",
+        "sha256": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdd0",
+        "licence_id": "synthetic"
+      },
+      "snapshot_count": 1,
+      "last_seen_at": "2025-03-15T03:50:09Z",
+      "issues": []
+    }
+  ],
+  "unretrieved_captures": [],
+  "county_lookup": null
+}
