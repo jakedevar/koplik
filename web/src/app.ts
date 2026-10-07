@@ -118,9 +118,9 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const cases = data.cases.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
     const rt = data.rt.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
     charts.replaceChildren(element('h3', 'Weekly confirmed cases'), caseChart(cases, year),
-      element('p', 'Gaps mean no data. Bars show new cases reported in each MMWR week.', 'chart-note'),
+      element('p', 'Bars show new cases in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.', 'chart-note'),
       element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year),
-      element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. Provisional estimates are withheld; insufficient data has no estimate. Exact interval levels appear in the report table.', 'chart-note'));
+      element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
     if (!cases.length) charts.prepend(element('p', 'No case data for this geography and year.', 'notice'));
     if (!rt.some((r) => r.status === 'ok' && !r.provisional)) charts.append(element('p', 'No final R_t estimate for this geography and year.', 'notice'));
     const table = element('table');
