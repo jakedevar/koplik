@@ -335,7 +335,7 @@ fn offline_cli_writes_v1_rows_and_complete_gaps() {
 #[test]
 fn live_coverage_fetch_requires_contact_before_creating_store() {
     for source in ["cdc-coverage", "texas-coverage"] {
-        for contact in [None, Some(""), Some("   ")] {
+        for contact in [Some(""), Some("   "), Some("\t")] {
             let dir = tempfile::tempdir().unwrap();
             let store = dir.path().join("snapshots");
             let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_koplik-ingest"));

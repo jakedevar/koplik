@@ -51,11 +51,15 @@ page could not be used: an automated request to `https://www.cdc.gov/measles/dat
 returned HTTP 403 on 2026-10-07 (and I did not work around the block), so it cannot be fetched
 reproducibly. data.cdc.gov's `robots.txt` allows `/resource/` with `Crawl-delay: 1`.
 
-**Client identification.** Requests send `koplik-ingest/<version> (measles data demonstration project; <contact>)`.
-The contact is whatever the operator verified and put in the `KOPLIK_CONTACT` environment variable (an e-mail
-address or repository URL); `koplik-ingest fetch` refuses to run, before any request, if it is unset or blank,
-and Koplik never invents one. `make pipeline` fetches, so it needs `KOPLIK_CONTACT` until the operator's
-verified default is committed (decision record `ingest-contact`). Offline parsing and all tests need none.
+**Client identification.** Every live request, from every source in this file, sends
+`koplik-ingest/<version> (measles data demonstration project; <contact>)`. The contact is
+resolved in one place (`polite::contact_from_env`, via `PoliteConfig::live_from_env`): the
+`KOPLIK_CONTACT` environment variable when set and non-blank (an e-mail address or repository URL);
+the committed default `polite::DEFAULT_CONTACT = https://github.com/jakedevar` (the operator's public
+GitHub profile, no e-mail; decision `ingest-contact`, 2026-10-07, #1413) when it is unset; and
+**a refusal, before the store is opened or any request is sent, when it is set but empty or blank**
+(an explicit opt-out). When a public Koplik repository exists, switch the default to its URL.
+Offline parsing and all tests need no contact.
 
 **Columns used.** `states` (reporting jurisdiction name), `year` and `week` (MMWR reporting year and
 week of the weekly table), `label` (`Measles, Indigenous` or `Measles, Imported`), `m3` (cumulative
@@ -103,7 +107,7 @@ number). `m1` ("current week") is not used.
 
 ## Texas DSHS 2025 West Texas outbreak, cases by county over time (`dshs-*`)
 
-Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` needs `KOPLIK_CONTACT` (a contact address or repository URL; it refuses without one). Commands:
+Code: `crates/koplik-ingest/src/{dshs_sources,dshs,dshs_series,census_counties}.rs`. Every `fetch` identifies the client with the contact described under "Client identification" above (default `https://github.com/jakedevar`, override `KOPLIK_CONTACT`; a blank value refuses). Commands:
 `koplik-ingest fetch census-counties | dshs-live | dshs-reports | dshs-wayback`, then the offline
 `koplik-ingest parse dshs-cases --out DIR` (manifest, cumulative, interval and weekly series (contracts v3 rows), unmapped names,
 parse failures). Fixtures and their provenance: `data/fixtures/dshs/README.md`.
@@ -248,8 +252,8 @@ connector's manifest is `crates/koplik-ingest/manifests/census-boundaries-2024.j
 Use one shared `PoliteFetcher` per pipeline run: it tracks attempts and makes at most one
 GET per named file, including failures (no retries or redirects). Requests remain
 sequential, paced at least one second apart, and carry the polite identifying User-Agent.
-`PoliteConfig::live(contact_from_env().as_deref())` requires `KOPLIK_CONTACT`; the approved
-`ingest-contact` value is `https://github.com/jakedevar` pending its committed default.
+`PoliteConfig::live_from_env()` resolves the contact (`KOPLIK_CONTACT`, else the committed
+`ingest-contact` default `https://github.com/jakedevar`; blank refuses).
 Every other URL and host still follows the reviewed robots policy.
 
 `census_files::fetch_to_store` re-verifies cached bytes against their content address and

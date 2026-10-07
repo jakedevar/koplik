@@ -18,21 +18,41 @@ use crate::robots::Robots;
 /// Hard floor for the gap between two requests to one host.
 pub const MIN_HOST_INTERVAL: Duration = Duration::from_secs(1);
 
-/// Environment variable holding the operator-verified contact (an e-mail address or a
-/// repository URL) that identifies this client to the data hosts.
+/// Environment variable that overrides the contact sent in the User-Agent (an e-mail address
+/// or a repository URL). Unset: [`DEFAULT_CONTACT`]. Set but empty or blank: an explicit opt-out,
+/// so live fetching refuses.
 pub const CONTACT_ENV: &str = "KOPLIK_CONTACT";
 
-/// The configured contact, if any (blank counts as none).
-pub fn contact_from_env() -> Option<String> {
-    std::env::var(CONTACT_ENV)
-        .ok()
-        .map(|c| c.trim().to_owned())
-        .filter(|c| !c.is_empty())
+/// Contact sent in the User-Agent when `KOPLIK_CONTACT` is unset: the operator's public GitHub
+/// profile (no personal e-mail). Decision `ingest-contact`, ruled 2026-10-07 by the global
+/// manager (node 73306b5f) under the operator's standing directive; issue #1413. When a public
+/// Koplik repository exists, switch this to that repository's URL.
+pub const DEFAULT_CONTACT: &str = "https://github.com/jakedevar";
+
+/// Pure contact resolution from the raw value of `KOPLIK_CONTACT` (`None` = unset):
+/// non-blank value -> that value, trimmed; unset -> [`DEFAULT_CONTACT`]; set but empty/blank
+/// -> `None` (explicit opt-out; live fetching refuses).
+pub fn resolve_contact(env_value: Option<&str>) -> Option<String> {
+    match env_value {
+        None => Some(DEFAULT_CONTACT.to_owned()),
+        Some(v) => Some(v.trim().to_owned()).filter(|c| !c.is_empty()),
+    }
 }
 
-/// Offline User-Agent: project name and version, plus the contact from `KOPLIK_CONTACT` when
-/// set. Live fetching must not use this: it goes through [`live_user_agent`], which refuses
-/// to run without a contact.
+/// THE contact resolver: every live fetch (all CLI arms, the pipeline's ingest stage, examples)
+/// reads the contact through this function, via [`PoliteConfig::live_from_env`]. Reads
+/// `KOPLIK_CONTACT` as [`resolve_contact`] describes; a value that is not valid UTF-8 counts as
+/// set-but-unusable, so it refuses rather than falling back to the default.
+pub fn contact_from_env() -> Option<String> {
+    match std::env::var(CONTACT_ENV) {
+        Ok(v) => resolve_contact(Some(&v)),
+        Err(std::env::VarError::NotPresent) => resolve_contact(None),
+        Err(std::env::VarError::NotUnicode(_)) => None,
+    }
+}
+
+/// Offline User-Agent for tests and diagnostics: [`user_agent_with`] the resolved contact.
+/// Live fetching goes through [`live_user_agent`], which refuses when the contact was blanked.
 pub fn default_user_agent() -> String {
     user_agent_with(contact_from_env().as_deref())
 }
@@ -118,6 +138,14 @@ impl PoliteConfig {
             user_agent: live_user_agent(contact)?,
             ..Self::default()
         })
+    }
+}
+
+impl PoliteConfig {
+    /// [`PoliteConfig::live`] with the contact from [`contact_from_env`]: the one entry point
+    /// for live fetching. Refuses (before any request) only when `KOPLIK_CONTACT` is set blank.
+    pub fn live_from_env() -> Result<Self> {
+        Self::live(contact_from_env().as_deref())
     }
 }
 
@@ -573,6 +601,78 @@ mod tests {
         );
         assert!(!c.calls.borrow().is_empty());
         assert!(c.calls.borrow().iter().all(|(_, ua)| *ua == want));
+    }
+
+    #[test]
+    fn contact_resolution_unset_default_override_blank_refuse() {
+        // The committed default is the operator's public profile: a URL, never an e-mail.
+        assert_eq!(DEFAULT_CONTACT, "https://github.com/jakedevar");
+        // (raw KOPLIK_CONTACT value, resolved contact); `None` raw = unset.
+        let table: [(Option<&str>, Option<&str>); 6] = [
+            (None, Some(DEFAULT_CONTACT)),
+            (
+                Some("https://example.org/koplik"),
+                Some("https://example.org/koplik"),
+            ),
+            (Some("  ops@example.org\n"), Some("ops@example.org")),
+            (Some(""), None),
+            (Some("   "), None),
+            (Some("\t\n"), None),
+        ];
+        for (raw, want) in table {
+            assert_eq!(resolve_contact(raw).as_deref(), want, "{raw:?}");
+        }
+    }
+
+    /// One injected-client fetch with the config for a raw `KOPLIK_CONTACT` value; returns the
+    /// User-Agents that reached the (fake) wire.
+    fn user_agents_for(raw: Option<&str>) -> Result<Vec<String>> {
+        let cfg = PoliteConfig::live(resolve_contact(raw).as_deref())?;
+        let c = FakeClient::default();
+        c.on(ROBOTS, FakeClient::status(404, b""));
+        c.on(URL, FakeClient::ok(b"[]"));
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        f.fetch(URL)?;
+        let uas = c.calls.borrow().iter().map(|(_, ua)| ua.clone()).collect();
+        Ok(uas)
+    }
+
+    #[test]
+    fn unset_contact_sends_the_default_and_an_override_replaces_it() {
+        let ua = |contact: &str| {
+            format!(
+                "koplik-ingest/{} (measles data demonstration project; {contact})",
+                env!("CARGO_PKG_VERSION")
+            )
+        };
+        let unset = user_agents_for(None).unwrap();
+        assert!(!unset.is_empty());
+        assert!(
+            unset
+                .iter()
+                .all(|u| *u == ua("https://github.com/jakedevar"))
+        );
+        let over = user_agents_for(Some("https://example.org/koplik")).unwrap();
+        assert!(!over.is_empty());
+        assert!(over.iter().all(|u| *u == ua("https://example.org/koplik")));
+    }
+
+    #[test]
+    fn blank_contact_refuses_before_any_request() {
+        for blank in ["", "  ", "\t"] {
+            // Refused while building the config, so no fetcher and no request can exist.
+            assert!(
+                matches!(
+                    PoliteConfig::live(resolve_contact(Some(blank)).as_deref()),
+                    Err(IngestError::ContactRequired)
+                ),
+                "{blank:?}"
+            );
+            assert!(matches!(
+                user_agents_for(Some(blank)),
+                Err(IngestError::ContactRequired)
+            ));
+        }
     }
 
     #[test]
