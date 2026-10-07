@@ -1,10 +1,11 @@
-//! Portable, bounded binomial sampling; no platform distribution implementations.
+//! Portable binomial and Poisson sampling; no platform distribution implementations.
 //!
-//! Every transcendental call (`log`, `log1p`, `sqrt`, `floor`) goes through `libm`
-//! so the seeded path is bit-identical natively and on `wasm32` (spec E4). All
-//! draws are `u64`/`i64`/`f64`; no `usize` touches a random value. A Poisson
-//! sampler is deliberately absent: every SEIR transition here has a finite source
-//! pool and is drawn binomially, which cannot overshoot.
+//! Every transcendental call (`log`, `log1p`, `exp`, `sqrt`, `floor`, `lgamma`) goes
+//! through `libm` so the seeded path is bit-identical natively and on `wasm32` (spec
+//! E4). All draws are `u64`/`i64`/`f64`; no `usize` touches a random value. Every SEIR
+//! transition has a finite source pool and is drawn binomially, which cannot overshoot;
+//! the Poisson sampler exists only for the renewal-equation forecast
+//! (`crate::forecast`), whose offspring counts have no finite pool.
 
 use rand_core::RngCore;
 
@@ -197,6 +198,81 @@ fn btpe_log_ratio_bound(n: i64, r: f64, m: i64, y: i64) -> f64 {
         - stirling(w)
 }
 
+/// Below this mean the multiplication (Knuth) method is used; at or above it PTRS. The
+/// same threshold as NumPy (`random_poisson`: `lam >= 10` → `random_poisson_ptrs`). Both
+/// methods are exact, so it only trades the O(mean) loop against PTRS's set-up. Part of the
+/// seeded path, so fixed here and never configurable at run time.
+const PTRS_THRESHOLD: f64 = 10.0;
+
+/// Exact-distribution Poisson draw with the given mean (finite, `>= 0`). Mean 0 gives 0.
+///
+/// `mean < 10`: Knuth's multiplication method (D. E. Knuth, *The Art of Computer
+/// Programming* vol. 2, §3.4.1, algorithm Q): count uniforms until their product falls
+/// below `exp(-mean)`. `mean >= 10`: PTRS, the transformed rejection method with squeeze
+/// (W. Hörmann, *The transformed rejection method for generating Poisson random
+/// variables*, Insurance: Mathematics and Economics 12 (1993) 39-45,
+/// doi:10.1016/0167-6687(93)90997-4), constants and steps as in NumPy's
+/// `random_poisson_ptrs` (numpy/random/src/distributions/distributions.c). Both paths
+/// use only `libm` transcendentals and fixed-width integers.
+pub(crate) fn poisson(rng: &mut impl RngCore, mean: f64) -> u64 {
+    debug_assert!(mean.is_finite() && mean >= 0.0);
+    if mean <= 0.0 {
+        return 0;
+    }
+    if mean < PTRS_THRESHOLD {
+        poisson_multiplication(rng, mean)
+    } else {
+        poisson_ptrs(rng, mean)
+    }
+}
+
+/// Knuth's method: the number of exponential(1) arrivals before `mean`, found as the number
+/// of uniforms whose running product stays above `exp(-mean)`. Cost O(1 + mean).
+fn poisson_multiplication(rng: &mut impl RngCore, mean: f64) -> u64 {
+    let threshold = libm::exp(-mean);
+    let mut count = 0_u64;
+    let mut product = 1.0_f64;
+    loop {
+        product *= uniform(rng);
+        if product > threshold {
+            count += 1;
+        } else {
+            return count;
+        }
+    }
+}
+
+/// PTRS (Hörmann 1993, algorithm PTRS; NumPy `random_poisson_ptrs`), for `mean >= 10`.
+/// The candidate is `floor((2a/us + b)·U + mean + 0.43)`; the squeeze accepts it when
+/// `us >= 0.07` and `V <= vr`, rejects it cheaply when `k < 0` or (`us < 0.013` and
+/// `V > us`), and otherwise compares `log(V·α / (a/us² + b))` with the log pmf
+/// `-mean + k·log(mean) - lgamma(k + 1)`.
+fn poisson_ptrs(rng: &mut impl RngCore, mean: f64) -> u64 {
+    let slam = libm::sqrt(mean);
+    let loglam = libm::log(mean);
+    let b = 0.931 + 2.53 * slam;
+    let a = -0.059 + 0.02483 * b;
+    let invalpha = 1.1239 + 1.1328 / (b - 3.4);
+    let vr = 0.9277 - 3.6224 / (b - 2.0);
+    loop {
+        let u = uniform(rng) - 0.5;
+        let v = uniform(rng);
+        let us = 0.5 - u.abs();
+        let k = libm::floor((2.0 * a / us + b) * u + mean + 0.43);
+        if us >= 0.07 && v <= vr {
+            return k as u64;
+        }
+        if k < 0.0 || (us < 0.013 && v > us) {
+            continue;
+        }
+        if libm::log(v) + libm::log(invalpha) - libm::log(a / (us * us) + b)
+            <= -mean + k * loglam - libm::lgamma(k + 1.0)
+        {
+            return k as u64;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -368,5 +444,77 @@ mod tests {
                 "n={n} p={p}: chi2={chi_square} bins={bins}"
             );
         }
+    }
+
+    /// Exact Poisson pmf (in log space, so large means do not underflow) up to a tail
+    /// that holds less than 1e-12 of the mass.
+    fn exact_poisson_pmf(mean: f64) -> Vec<f64> {
+        let mut pmf = Vec::new();
+        let mut k = 0.0;
+        loop {
+            let mass = libm::exp(-mean + k * libm::log(mean) - libm::lgamma(k + 1.0));
+            pmf.push(mass);
+            if k > mean && mass < 1e-12 {
+                return pmf;
+            }
+            k += 1.0;
+        }
+    }
+
+    /// Chi-square goodness of fit for the Poisson sampler against the exact pmf, with both
+    /// the multiplication (mean < 10) and the PTRS (mean >= 10) paths exercised.
+    /// Deterministic seed, so the thresholds are fixed, not flaky.
+    #[test]
+    fn poisson_samples_match_exact_pmf() {
+        for (seed, mean) in [
+            (11_u8, 0.3_f64),
+            (12, 2.5),
+            (13, 9.9),
+            (14, 10.0),
+            (15, 37.0),
+            (16, 250.0),
+            (17, 4_000.0),
+        ] {
+            let mut rng = ChaCha8Rng::from_seed([seed; 32]);
+            let draws = 200_000_u32;
+            let pmf = exact_poisson_pmf(mean);
+            let mut observed = vec![0_u32; pmf.len()];
+            for _ in 0..draws {
+                let x = poisson(&mut rng, mean);
+                let x = usize::try_from(x).unwrap().min(pmf.len() - 1);
+                observed[x] += 1;
+            }
+            let mut chi_square = 0.0;
+            let mut bins = 0_u32;
+            let (mut expected_bin, mut observed_bin) = (0.0, 0.0);
+            for (k, mass) in pmf.iter().enumerate() {
+                expected_bin += mass * f64::from(draws);
+                observed_bin += f64::from(observed[k]);
+                if expected_bin >= 20.0 {
+                    chi_square += (observed_bin - expected_bin).powi(2) / expected_bin;
+                    bins += 1;
+                    expected_bin = 0.0;
+                    observed_bin = 0.0;
+                }
+            }
+            if expected_bin > 0.0 {
+                chi_square += (observed_bin - expected_bin).powi(2) / expected_bin;
+                bins += 1;
+            }
+            let degrees = f64::from(bins - 1);
+            assert!(
+                chi_square < degrees + 8.0 * libm::sqrt(2.0 * degrees),
+                "mean={mean}: chi2={chi_square} bins={bins}"
+            );
+        }
+    }
+
+    #[test]
+    fn poisson_zero_mean_is_zero_and_consumes_no_draws() {
+        let mut rng = ChaCha8Rng::from_seed([9; 32]);
+        let before = rng.next_u64();
+        let mut rng = ChaCha8Rng::from_seed([9; 32]);
+        assert_eq!(poisson(&mut rng, 0.0), 0);
+        assert_eq!(rng.next_u64(), before);
     }
 }
