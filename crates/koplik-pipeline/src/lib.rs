@@ -22,6 +22,8 @@
 //! guessed one. Population and centroids (#1352) have no connector yet, so the what-if
 //! scenario is absent until a stage supplies it.
 
+pub mod scenario;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
