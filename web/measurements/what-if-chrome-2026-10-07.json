@@ -1,0 +1,59 @@
+{
+  "measured_at": "2026-10-07T03:06:31.555Z",
+  "browser_version": "Chrome/155.0.8059.39",
+  "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+  "headless": true,
+  "synthetic": true,
+  "fixture": "data/fixtures/seir/synthetic-scenario.json",
+  "runs": 1000,
+  "counties": 7,
+  "horizon_days": 180,
+  "seed": "1353",
+  "measured_scope": "Coverage input through debounce, worker init (cold only), WASM ensemble, message transfer and DOM render. through_paint_ms additionally includes two animation frames and automation observation.",
+  "cold": {
+    "elapsed_ms": 514.5999999977648,
+    "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+    "coverage": "70"
+  },
+  "warm": [
+    {
+      "elapsed_ms": 601.1999999992549,
+      "fingerprint": "ede244b5c3e949645ee851a0f3580f4148a393b74273f2a80a334eb66b3d4063",
+      "coverage": "75",
+      "through_paint_ms": 648.6000000014901,
+      "heartbeat_ticks_during_update": 32
+    },
+    {
+      "elapsed_ms": 605.5,
+      "fingerprint": "97149103e93d3aa72211fd9c56939f701e10be1106c830acab3bd2e6651926bb",
+      "coverage": "80",
+      "through_paint_ms": 643.8000000007451,
+      "heartbeat_ticks_during_update": 32
+    },
+    {
+      "elapsed_ms": 600.3999999985099,
+      "fingerprint": "08a26ee6ad86c40b8cbe41d814501ce10ffc16b33ed8db4dab7ac9eb5c6c35c8",
+      "coverage": "85",
+      "through_paint_ms": 631.8000000007451,
+      "heartbeat_ticks_during_update": 31
+    },
+    {
+      "elapsed_ms": 601.3000000007451,
+      "fingerprint": "f8150a2ade7b01cf5fa12d05460742f220499d0053d5df10e5b7678f1b9252c9",
+      "coverage": "90",
+      "through_paint_ms": 632.1999999992549,
+      "heartbeat_ticks_during_update": 32
+    },
+    {
+      "elapsed_ms": 559.8999999985099,
+      "fingerprint": "befacf0c49e8e735ce38fd8d7bfacb9c34cd133bbc420d28e95ca64a691b54de",
+      "coverage": "95",
+      "through_paint_ms": 599.1000000014901,
+      "heartbeat_ticks_during_update": 30
+    }
+  ],
+  "warm_median_ms": 601.1999999992549,
+  "target_ms": 3000,
+  "warm_median_meets_target": true,
+  "checks": "Worker, responsive heartbeat, changed ensemble, Node WASM member-0 replay, restored fingerprint, u64::MAX browser replay, unavailable-data state, same-origin requests"
+}
