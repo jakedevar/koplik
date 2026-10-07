@@ -94,6 +94,29 @@ fn print(report: &Report) {
             if s.measured { "yes" } else { "no" }
         );
     }
+    // Descriptive only, added after the first run and never used for a decision or a published
+    // number: how often a forecast's CRPS was below the persistence baseline's absolute error,
+    // and the origins the method refused to forecast.
+    let (mut scored, mut better) = (0_u32, 0_u32);
+    for s in &p.series {
+        for t in s.origins.iter().flat_map(|o| o.scores.iter()) {
+            if let (Some(crps), Some(persistence)) = (t.crps, t.persistence_abs_error) {
+                scored += 1;
+                better += u32::from(crps < persistence);
+            }
+        }
+    }
+    let considered: u32 = p.series.iter().map(|s| s.origins_considered).sum();
+    let forecast: u32 = p.series.iter().map(|s| s.origins_forecast).sum();
+    let mut why: std::collections::BTreeMap<&str, u32> = std::collections::BTreeMap::new();
+    for s in &p.series {
+        for (reason, n) in &s.not_forecast {
+            *why.entry(reason.as_str()).or_default() += n;
+        }
+    }
+    println!(
+        "\ndescriptive: forecast CRPS below the persistence error in {better} of {scored} scored targets; {considered} origins considered, {forecast} forecast, none: {why:?}"
+    );
     let unscored: Vec<String> = p
         .series
         .iter()
@@ -133,7 +156,7 @@ fn go(retrieval_path: &Path, out: &Path) -> Result<(), Box<dyn std::error::Error
     let bytes_path: PathBuf = retrieval_path.with_file_name(format!("{name}.json"));
     let bytes = fs::read(&bytes_path)?;
     let report = run(&bytes, &record)?;
-    let mut json = serde_json::to_vec_pretty(&report)?;
+    let mut json = serde_json::to_vec(&report)?;
     json.push(b'\n');
     fs::write(out, &json)?;
     print(&report);

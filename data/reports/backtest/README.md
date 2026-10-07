@@ -28,3 +28,23 @@ report unchanged to `forecasts/backtest-west-texas-2025.json` so the numbers on 
 against it. Re-running the backtest with a different configuration therefore detaches the skill rather
 than mislabelling it.
 
+
+## `cdc-states.json` (#1503)
+
+The same method scored on the CDC NNDSS state series the site publishes
+(`confirmed_or_unknown_status`, by CDC report week), written by
+`crates/koplik-pipeline/examples/backtest_cdc_states.rs`. It is **pseudo-real-time (revised counts
+truncated at each forecast date)**, not real-time: one retrieval of the source is held and CDC
+publishes no revision history. It records the snapshot it was run on (`input.sha256`, retrieval
+time and URL), the published configuration, the pre-registered floors for a "measured" skill, and
+for each of the 56 geographies the truth series, every origin at which a forecast was made (with
+every scored target) and why the other origins made none. It is compact JSON; read it with `jq`.
+Protocol, amendments and results: `thoughts/shared/research/backtest-cdc-states.md`.
+
+```bash
+~/.rsi/bin/cargo-slot cargo run --release -p koplik-pipeline --example backtest_cdc_states -- \
+  data/fixtures/cdc/nndss-measles-weekly.retrieval.json data/reports/backtest/cdc-states.json
+```
+
+Deterministic: the same snapshot gives the same bytes. The forecast stage reads it and attaches each
+state series' measured skill, or its absence, to the companion (contract v6).

@@ -2,14 +2,14 @@
 date: 2026-10-07
 issue: 1503
 topic: backtest of the 4-8 week forecast on the CDC NNDSS state series the site publishes
-status: PRE-REGISTERED (this section was committed before any score on the NNDSS series was computed); results are appended below the line "Results" in a later commit
+status: protocol pre-registered at commit 99785dc (before any score on the NNDSS series was computed; amendment 1 at 4b348c9, also before any score); results measured at the run recorded under Results
 ---
 
 # Forecast backtest: CDC NNDSS state series
 
-This file is committed **twice**. The first commit holds only the protocol below, written
-before the backtest code existed and before any score on these series was computed. The
-second adds the results exactly as measured. Nothing in the protocol is changed after the
+This file is committed in stages. The first commit (99785dc) holds only the protocol below,
+written before the backtest code existed and before any score on these series was computed.
+The results section was added after the run, exactly as measured. Nothing in the protocol is changed after the
 first commit; if something has to change it is added as a dated amendment with its reason,
 never edited in place.
 
@@ -153,3 +153,135 @@ publish. The rule, fixed now and not from a score:
 
 Nothing else in the protocol changes: the floors, the origins, the targets and the scores are as
 registered above.
+
+## Results (exactly as measured)
+
+Run: `~/.rsi/bin/cargo-slot cargo run --release -p koplik-pipeline --example backtest_cdc_states -- data/fixtures/cdc/nndss-measles-weekly.retrieval.json data/reports/backtest/cdc-states.json`.
+The report holds every scored target. The run is deterministic: two runs gave a byte-identical
+report (SHA-256 of the committed file is recorded in the published companion; compute it with
+`sha256sum`).
+
+**Label: pseudo-real-time (revised counts truncated at each forecast date). Not real-time.**
+One retrieval of the NNDSS series is held; see "What that may hide" above.
+
+**Data and configuration.** Snapshot `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
+(retrieved 2026-10-07T02:19:30Z), 5,096 weekly rows, 56 geographies, MMWR 2025-W01 to 2026-W38; truth
+through 2026-W36 (the last two weeks are provisional and never truth). The published configuration
+(`ForecastConfig::default()`, window 3, look-back 3, minimum 11 cases, 8 weeks, 1,000 members, seed
+20250101, two provisional weeks), unchanged.
+
+**Origins.** 4,984 (series, origin) pairs were considered (56 series x 89 origin weeks, 2025-W01 to
+2026-W36). The method made a forecast at **245** of them; at the other 4,739 it made none:
+below the 11-case minimum 4,354, incomplete window 168, a missing count in the window or look-back 208,
+no infectivity 8, and **1** refused projection (Utah, `projection_overflow`, amendment 1). Of the 245
+forecasts, 239 have at least one scored target (the other six are the newest origins, whose targets
+are in the provisional tail). **22 of the 56 series were ever forecast with a scored target; 34 never
+were** (their counts never reached 11 in a 3-week window with a known look-back, or were missing):
+01, 02, 05, 09, 10, 11, 13, 15, 16, 17, 18, 19, 22, 23, 25, 28, 29, 31, 32, 33, 34, 37, 40, 44, 46,
+47, 50, 54, 56, 60, 66, 69, 72, 78.
+
+**Pooled, all 22 series (1,748 scored targets from 239 forecasts).** Plain means; CRPS and persistence
+error are in cases, so the series with the largest counts and the largest projections dominate.
+
+| horizon | n | mean CRPS (cases) | persistence MAE | 50% coverage | 90% coverage |
+|---|---|---|---|---|---|
+| 1 | 238 | 27.75 | 11.93 | 0.15 | 0.35 |
+| 2 | 231 | 115.19 | 13.61 | 0.21 | 0.37 |
+| 3 | 224 | 839.62 | 16.04 | 0.19 | 0.34 |
+| 4 | 217 | 8,300.28 | 16.72 | 0.20 | 0.38 |
+| 5 | 213 | 93,040.13 | 17.01 | 0.23 | 0.41 |
+| 6 | 210 | 1,117,990.09 | 16.16 | 0.24 | 0.45 |
+| 7 | 209 | 13,904,737.36 | 16.09 | 0.22 | 0.41 |
+| 8 | 206 | 180,233,240.48 | 16.38 | 0.26 | 0.42 |
+| **all** | **1,748** | **23,049,631.33** | **15.42** | **0.21** | **0.39** |
+
+**Per series** (all horizons pooled; "measured" is the pre-registered floor of at least 40 scored
+targets from at least 10 origin weeks):
+
+| series | forecasts | origin weeks scored | n | mean CRPS | persistence MAE | 50% coverage | 90% coverage | measured |
+|---|---|---|---|---|---|---|---|---|
+| Utah (49) | 39 | 39 | 296 | 114,085,022.84 | 19.45 | 0.19 | 0.29 | **yes** |
+| Texas (48) | 36 | 36 | 288 | 3,374.24 | 14.35 | 0.19 | 0.35 | **yes** |
+| Arizona (04) | 25 | 25 | 200 | 35.78 | 7.71 | 0.19 | 0.58 | **yes** |
+| South Carolina (45) | 19 | 19 | 152 | 245,629.69 | 53.89 | 0.16 | 0.28 | **yes** |
+| Kansas (20) | 14 | 14 | 112 | 14,916,265.56 | 3.28 | 0.46 | 0.77 | **yes** |
+| New Mexico (35) | 14 | 14 | 112 | 39.17 | 5.50 | 0.27 | 0.46 | **yes** |
+| Pennsylvania (42) | 18 | 17 | 108 | 384.47 | 25.71 | 0.13 | 0.34 | **yes** |
+| California (06) | 9 | 9 | 72 | 694,008.45 | 4.71 | 0.26 | 0.42 | no (insufficient data) |
+| Florida (12) | 7 | 7 | 56 | 62,118,435.83 | 18.38 | 0.16 | 0.20 | no (insufficient data) |
+| Washington (53) | 8 | 8 | 55 | 18,458,831.42 | 4.07 | 0.31 | 0.35 | no (insufficient data) |
+| Ohio (39) | 10 | 9 | 47 | 581.96 | 6.30 | 0.26 | 0.34 | no (insufficient data) |
+| Wisconsin (55) | 8 | 7 | 38 | 2,751.81 | 10.18 | 0.18 | 0.26 | no (insufficient data) |
+| Virginia (51) | 5 | 5 | 35 | 1,348.43 | 12.43 | 0.03 | 0.11 | no (insufficient data) |
+| North Dakota (38) | 4 | 4 | 32 | 57.53 | 6.47 | 0.22 | 0.44 | no (insufficient data) |
+| New York (36) | 6 | 5 | 27 | 1,360.47 | 4.93 | 0.07 | 0.11 | no (insufficient data) |
+| Colorado (08) | 3 | 3 | 24 | 8,854,238.25 | 7.67 | 0.33 | 0.33 | no (insufficient data) |
+| Minnesota (27) | 3 | 3 | 24 | 2,334,097.52 | 4.00 | 0.25 | 0.33 | no (insufficient data) |
+| Montana (30) | 3 | 3 | 24 | 1,281.97 | 3.50 | 0.08 | 0.38 | no (insufficient data) |
+| Michigan (26) | 2 | 2 | 16 | 4.78 | 2.44 | 0.00 | 0.88 | no (insufficient data) |
+| Oregon (41) | 4 | 4 | 16 | 4.60 | 2.38 | 0.38 | 0.88 | no (insufficient data) |
+| Maryland (24) | 4 | 3 | 8 | 118.07 | 7.38 | 0.12 | 0.12 | no (insufficient data) |
+| Kentucky (21) | 4 | 3 | 6 | 24.44 | 4.83 | 0.00 | 0.50 | no (insufficient data) |
+
+**7 series have a measured skill** (Arizona, Kansas, New Mexico, Pennsylvania, South Carolina, Texas,
+Utah); the other 15 with a scored target, and the 34 with none, have insufficient data for one.
+The pooled result is measured under the same floors (1,748 targets, 239 forecasts).
+
+## What this shows (and does not)
+
+- **On these series the pre-registered forecaster was badly calibrated and, in mean error, far worse
+  than carrying the last count forward.** Pooled, the 50% interval held the observed count 21% of the
+  time (nominal 50%) and the 90% interval 39% (nominal 90%); at horizon 1 already 15% and 35%. No
+  series, measured or not, had a mean CRPS below its persistence error; the forecast's CRPS was below
+  the persistence error in 548 of 1,748 scored targets (31%, descriptive, added after the run).
+- **The mean CRPS grows by orders of magnitude with the horizon** (28 cases at horizon 1, 180 million
+  at horizon 8). That is the method, not a bug in the scoring: `R` is held constant over the horizon
+  with Poisson offspring and no ceiling, so an origin at which a state's counts jump (a handful of
+  weeks of zeros and then a week of dozens of cases, a pattern these NNDSS counts show, for example
+  Florida's 61 cases in 2026-W05 after weeks of one or two) gives a posterior for `R` of 20 or more and
+  a projection that multiplies every week. The CRPS of such an ensemble is the distance to a count
+  that did not follow. The Florida origin of 2026-W05 (R mean 22) projects a median of about 4 billion
+  cases at horizon 8 against an observed 0; these scores are in the report as measured.
+  In NNDSS the weekly count is the growth of a published cumulative, so a state that reports in
+  batches shows batch-sized jumps; whether the jump is a real surge or a reporting batch cannot be
+  told from the series, and the method cannot either.
+- **The scores are conditional on the method making a forecast** (amendment 1). One origin of 246 that
+  met the minimum-count rule was refused for overflow and is not scored; the refused origins are where
+  the method would have been furthest off, so this flatters the result, slightly (1 origin).
+- **Pseudo-real-time, one retrieval.** If CDC rewrote earlier weeks when it republished, a forecaster
+  at the time saw different counts; the effect on these scores cannot be measured from one retrieval.
+  Re-scoring with successive retrievals is the follow-up (below).
+- **A small, correlated sample per series.** The 8 horizons of one origin and adjacent origins share
+  data; the number of independent forecasts is far nearer the origin weeks (2 to 39 per series) than
+  the targets. No interval is given for any score; small differences between series mean nothing.
+- **It is by CDC report week, for confirmed or unknown-status cases**, not by onset and not
+  confirmed-only, and it scores the 22 series that ever passed the minimum-count rule: it says nothing
+  about states whose counts never did (their forecast is `insufficient_data`, with no number).
+- **No parameter was changed** and the pre-registered floors and defaults were not touched after the
+  scores were seen. The persistence comparison is the one the protocol fixed; no other baseline (for
+  example a forecast that caps `R` or a negative-binomial offspring) was run, because that would be a
+  new method and would be pre-registered the same way before scoring.
+
+## Reproduce
+
+```bash
+~/.rsi/bin/cargo-slot cargo run --release -p koplik-pipeline --example backtest_cdc_states -- \
+  data/fixtures/cdc/nndss-measles-weekly.retrieval.json data/reports/backtest/cdc-states.json
+```
+
+Offline, deterministic: the same snapshot gives the same bytes. The pipeline's `forecast` stage
+reads `data/reports/backtest/cdc-states.json` and attaches each NNDSS state series' measured skill,
+or its absence, to the published forecast's provenance companion (contracts v6), only when the
+report was run with exactly the published configuration; it also copies the report unchanged next
+to the forecasts so every number on the page can be checked against it.
+
+## Follow-ups (filed as their own Issues, not fixed here)
+
+- A real-time backtest needs successive dated retrievals of the NNDSS series (the store keeps every
+  retrieval; only one real-byte snapshot is committed). Build vintages from them with
+  `koplik_epi::backtest::vintages`-style versions once there are enough.
+- The method explodes after a one-week burst of cases (see above). Any change (a cap on `R`,
+  negative-binomial offspring, a smoothed input) is a method change and must be pre-registered and
+  scored the same way before it replaces the published default.
+- The forecast stage aborts the whole run when one series' projection passes 2^40, instead of
+  marking that series.
