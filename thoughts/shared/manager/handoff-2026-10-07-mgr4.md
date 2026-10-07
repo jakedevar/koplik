@@ -18,6 +18,18 @@ authority and mechanics: `handoff-2026-10-07-mgr3.md` and `handoff-2026-10-07-mg
 - Both gated with `make check` and `TMPDIR=/tmp make web-test` (166 vitest passed, 2 skipped; 4 Playwright).
   Thursday's refresh (2026-10-08 21:00 America/Chicago) republishes rolling's tip if its QA is green.
 
+## Next seat: first actions
+
+1. Policy: the global manager re-seats Koplik with AgentManagerAppointChild; the new seat gets the global
+   grant's policy with the full launch list (the empty `allowed_launches` below is fixed by that).
+2. Launch #1623 (post-land review of #1612 at 36739f8 plus #1622 at 88c1e01; a non-Anthropic reviewer, since
+   the author is Claude Sonnet and #1622 is Claude Opus). Codex re-authentication is with the operator: use
+   Codex gpt-6.1-sol once it works, or OpenRouter z-ai/glm-5.3 (command below) if you do not want to wait.
+   Before launching, add 88c1e01 (Sources/what-if narrow-screen fix) to #1623's body.
+3. After Thursday's refresh (2026-10-08 21:00 America/Chicago): check `journalctl --user -u koplik-refresh.service`
+   and `gh api repos/jakedevar/koplik/pages/builds/latest` (commit == gh-pages tip). The new navbar UI goes live then.
+4. Otherwise the queue is the open follow-ups list in `handoff-2026-10-07-mgr3b.md` (#1542 first).
+
 ## Blocked (operator)
 
 - Manager policy `allowed_launches` is `[]` after the policy revocation/re-save: launches refused
