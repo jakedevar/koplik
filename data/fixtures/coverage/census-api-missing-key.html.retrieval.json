@@ -1,0 +1,1 @@
+{"source_id":"census-2020-texas-county-names","url":"https://api.census.gov/data/2020/dec/pl?get=NAME&for=county:*&in=state:48","retrieved_at":"2026-10-07T02:29:49Z","sha256":"c2f4687e09b80676de7f68dec92ebea395209616dbc6f895520e547c5f68c0f5","licence_id":"census-county-codes-terms-unconfirmed","http_status":200,"content_type":"text/html","bytes":8531}

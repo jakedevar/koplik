@@ -13,15 +13,33 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
 ## Versioning rule
 
 - **Released versions are immutable.** `v1` is never edited after it lands on `rolling`.
-- **A shape change is a new version**: add a `v2` module (and `schema/v2/`), bump
+- **A shape change is a new version**: add the next version module (and its `schema/<version>/`), bump
   `CONTRACT_VERSION`, regenerate its JSON Schema. It is the equivalent of a migration.
 - Every top-level type's JSON Schema is committed under `schema/<version>/` (one file per
   type). `tests/schema.rs` regenerates the schema and fails if the committed files differ.
 
+## Versions
+
+- **v1** (released, frozen): the original vocabulary. `schema/v1/` and the v1 sources are
+  checked byte-for-byte by `tests/frozen.rs`.
+- **v2** (released, frozen): v1 plus simulation result types (see above). `schema/v2/` and
+  `src/v2/mod.rs` are frozen by `tests/frozen.rs` too.
+- **v3** (`CONTRACT_VERSION` 3): v2 plus one changed type. `WeeklyCaseCount` replaces
+  `confirmed` with `cases` plus a required `case_definition` (`confirmed` |
+  `confirmed_or_unknown_status`). Why: CDC's NNDSS publication criteria for measles (event
+  code 10140) print cases with *confirmed and unknown* case status, and the weekly data carries
+  no case-status field, so those totals must not be typed as confirmed cases (see
+  `SOURCES.md`). Every other type is re-exported from v2 unchanged (same Rust type and JSON),
+  including `CaseCount`, whose v1 doc comment still says "confirmed-case count": read it as
+  "case count". Schema: `schema/v3/`. `impl From<v1::WeeklyCaseCount> for v3::WeeklyCaseCount`
+  upgrades a v1 row losslessly (`case_definition: confirmed`); v2 re-exports v1's row, so the
+  same impl is also the v2 upgrade. Consumers still on v1/v2 rows (R_t, web loader, Texas DSHS
+  connector) migrate in follow-ups.
+
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema
+make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema --test schema_v2 --test schema_v3
 git add crates/koplik-contracts/schema
 ```
 

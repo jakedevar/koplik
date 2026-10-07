@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "TrajectoryResult",
+  "type": "object",
+  "properties": {
+    "contract_version": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "geographies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/GeoId"
+      }
+    },
+    "member": {
+      "$ref": "#/$defs/EnsembleMember"
+    },
+    "parameters": {
+      "$ref": "#/$defs/SeirParameters"
+    },
+    "scenario_json": {
+      "description": "Exact v1 input JSON, including source provenance; replay this string directly.",
+      "type": "string"
+    },
+    "seed": {
+      "description": "Base u64 seed as decimal text to avoid JavaScript number rounding.",
+      "type": "string"
+    },
+    "steps": {
+      "description": "Initial state and every leap, not just daily summaries.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/SimulationStep"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "scenario_json",
+    "seed",
+    "parameters",
+    "member",
+    "geographies",
+    "steps"
+  ],
+  "$defs": {
+    "EnsembleMember": {
+      "type": "object",
+      "properties": {
+        "derived_seed": {
+          "description": "Portable ChaCha8 initialization bytes from derive_seed(base_seed, member).",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "maximum": 255,
+            "minimum": 0
+          },
+          "maxItems": 32,
+          "minItems": 32
+        },
+        "fingerprint": {
+          "description": "SHA256 of all S/E/I/R counts, including day 0 and every leap, as LE f64.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "member": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "r0": {
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "member",
+        "derived_seed",
+        "r0",
+        "fingerprint"
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "GravityParameters": {
+      "description": "Gravity-model coupling between geographies: flow from i to j is\n`scale * pop_i^origin_exponent * pop_j^destination_exponent / distance_km^distance_exponent`.",
+      "type": "object",
+      "properties": {
+        "destination_exponent": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "distance_exponent": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "origin_exponent": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "scale": {
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "scale",
+        "origin_exponent",
+        "destination_exponent",
+        "distance_exponent"
+      ]
+    },
+    "R0": {
+      "description": "Basic reproduction number R0 in a fully susceptible population: a fixed value, or a\nuniform prior that the engine samples once per ensemble member (uniform on `[min, max]`,\ndrawn from that member's derived seed before its first step). The sampling lives in\n`koplik-epi`; this type only states the choice, so a scenario is reproducible from its\nseed. E.g. the spec's R0 prior of 12 to 18 is `uniform_prior { min: 12, max: 18 }`.",
+      "oneOf": [
+        {
+          "description": "Every member uses this value (`value > 0`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "fixed"
+            },
+            "value": {
+              "type": "number",
+              "format": "double",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ]
+        },
+        {
+          "description": "Each member draws its own R0 uniformly from `[min, max]` (`0 < min <= max`).",
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "const": "uniform_prior"
+            },
+            "max": {
+              "type": "number",
+              "format": "double",
+              "exclusiveMinimum": 0
+            },
+            "min": {
+              "type": "number",
+              "format": "double",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "min",
+            "max"
+          ]
+        }
+      ]
+    },
+    "SeirParameters": {
+      "description": "Full SEIR parameter set. Every value is configurable; none is hard-coded in the engine.",
+      "type": "object",
+      "properties": {
+        "gravity": {
+          "description": "Coupling between geographies; `null` runs each geography in isolation.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GravityParameters"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "horizon_days": {
+          "description": "Simulated horizon in days.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        },
+        "infectious_period_days": {
+          "description": "Mean infectious period in days.",
+          "type": "number",
+          "format": "double",
+          "exclusiveMinimum": 0
+        },
+        "latent_period_days": {
+          "description": "Mean latent (exposed, not yet infectious) period in days.",
+          "type": "number",
+          "format": "double",
+          "exclusiveMinimum": 0
+        },
+        "mmr_effectiveness_one_dose": {
+          "description": "Protection from one MMR dose, in [0, 1].",
+          "type": "number",
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "mmr_effectiveness_two_doses": {
+          "description": "Protection from two MMR doses, in [0, 1]; applied to kindergarten MMR coverage.",
+          "type": "number",
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "r0": {
+          "description": "Basic reproduction number R0: fixed, or a prior sampled once per ensemble member.",
+          "$ref": "#/$defs/R0"
+        },
+        "time_step_days": {
+          "description": "Tau-leap step length in days.",
+          "type": "number",
+          "format": "double",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "r0",
+        "latent_period_days",
+        "infectious_period_days",
+        "mmr_effectiveness_one_dose",
+        "mmr_effectiveness_two_doses",
+        "time_step_days",
+        "horizon_days"
+      ]
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "SimulationCompartments": {
+      "description": "Counts are exactly representable as JS numbers (engine caps population at 2^53).",
+      "type": "object",
+      "properties": {
+        "exposed": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "infectious": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "recovered": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "susceptible": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "susceptible",
+        "exposed",
+        "infectious",
+        "recovered"
+      ]
+    },
+    "SimulationStep": {
+      "type": "object",
+      "properties": {
+        "day": {
+          "type": "number",
+          "format": "double"
+        },
+        "nodes": {
+          "description": "Canonical GeoId order, matching the result's geographies.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SimulationCompartments"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "day",
+        "nodes"
+      ]
+    }
+  }
+}
