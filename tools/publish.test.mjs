@@ -78,7 +78,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     assert.match(rootDryRun, /Would push .*HEAD:refs\/heads\/gh-pages \(parent root\)/);
     assert.equal(refs(), '');
 
-    await successfulPublish();
+    await successfulPublish({ PUBLISH_REMOTE: 'origin' });
     const first = pages();
     assert.equal(git('--git-dir', remote, 'rev-list', '--parents', '-n', '1', first), first);
     assert.equal(git('--git-dir', remote, 'show', `${first}:.nojekyll`), '');
