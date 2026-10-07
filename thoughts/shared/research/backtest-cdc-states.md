@@ -289,9 +289,9 @@ to the forecasts so every number on the page can be checked against it.
 ## Publication (contract v7)
 
 The pipeline's `forecast` stage reads `data/reports/backtest/cdc-states.json` and attaches the
-evaluation to the forecast's provenance companion as `series_backtest` (contract **v7**; v5 is
-frozen; v7 was the next free number when this was written, and is renumbered at merge if another
-Issue took it). It attaches only a report run with exactly the published configuration (window,
+evaluation to the forecast's provenance companion as `series_backtest` (contract **v7**: v6 is #1422's row
+artifacts, which landed on `rolling` while this was in flight, so v7 is the next free number; v5 and v6
+are frozen). It attaches only a report run with exactly the published configuration (window,
 look-back, minimum cases, horizon, members, seed, provisional weeks), on the NNDSS source, whose
 protocol carries the label "pseudo-real-time (revised counts truncated at each forecast date)";
 otherwise nothing is attached and the companion says so. Each forecast series' `skill` is
