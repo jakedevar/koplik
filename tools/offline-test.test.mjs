@@ -45,8 +45,8 @@ test('isolated command failures keep their exit status even with opt-out enabled
 test('isolated command receives arguments unchanged', () => {
   const args = ['space in argument', '$(literal)', 'semi;colon'];
   const result = spawnSync('bash', [gate, process.execPath, '-e',
-    'console.log(JSON.stringify(process.argv.slice(1)))', ...args], { encoding: 'utf8' });
+    `require('node:assert/strict').deepEqual(process.argv.slice(1), ${JSON.stringify(args)})`,
+    ...args], { encoding: 'utf8' });
   assert.ifError(result.error);
-  assert.equal(result.status, 0);
-  assert.deepEqual(JSON.parse(result.stdout.trim().split('\n').at(-1)), args);
+  assert.equal(result.status, 0, result.stderr);
 });
