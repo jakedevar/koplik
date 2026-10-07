@@ -31,6 +31,23 @@ authority and mechanics: `handoff-2026-10-07-mgr3.md` and `handoff-2026-10-07-mg
   (commit == gh-pages tip); the new navbar UI goes live then. Then the open follow-ups in
   `handoff-2026-10-07-mgr3b.md` (#1542 first).
 
+## Update ~00:00Z 2026-10-08: polish pass live
+
+- Global manager ruling (2026-10-07): visual polish pass + cross-family screenshot design review; promote and
+  republish after each QA-green landing under the standing Koplik release approval (no need to ask while QA is green;
+  conditions: full QA on the exact SHA in qa-green.sha, personal-data/secrets scans clean, `make pages-verify`,
+  Chromium check of the live site; report up with the live URL).
+- Republish 1: main a902d47 -> 115856e, gh-pages 3317ea4 (QA `qa-2026-10-07-115856e.md`).
+- #1652 polish (Claude Sonnet 5.5, b65f8df0) landed ca36db3; design review #1658 (Codex gpt-6.1-sol, 63f855b3):
+  changes (blocking: latest-week summary lacked its provisional caveat). Rework #1662 (Claude Sonnet 5.5, b6a9dc41,
+  folds #1660, #1661) landed 0335cf1.
+- Republish 2: main 115856e -> 0335cf1, gh-pages 3003630 (QA `qa-2026-10-07-0335cf1.md`; data tree unchanged
+  since 4a8c1bc); `make pages-verify` "Pages built 3003630"; Chromium at 1280 and 390 px: four pages, disclaimer,
+  no horizontal scroll, no alerts, 0 page errors, provisional caveat shown.
+- Open from this work: #1659 (R_t chart axis dominated by one Texas 2025 outlier near W40; needs a design choice that
+  keeps the full interval and provenance), #1667 (lazy chunk Retry needs a reload in Chrome).
+- Thursday's refresh (2026-10-08 21:00 America/Chicago) builds on rolling's tip as usual.
+
 ## Earlier blockers (resolved: launches work again; Codex re-auth with the operator)
 
 - Manager policy `allowed_launches` is `[]` after the policy revocation/re-save: launches refused
