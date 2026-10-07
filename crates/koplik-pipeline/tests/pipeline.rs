@@ -1149,13 +1149,23 @@ fn the_series_backtest_is_the_committed_report_exactly_and_labelled_pseudo_real_
     let policy = &p.publication_policy;
     assert_eq!(
         (
+            policy.minimum_targets,
+            policy.minimum_origin_weeks,
             policy.minimum_coverage_90,
             policy.maximum_crps_over_persistence
         ),
-        (0.75, 1.0)
+        (40, 10, 0.75, 1.0)
     );
-    for e in b.by_series.iter().filter_map(|e| e.measured.as_ref()) {
-        assert!(!policy.admits(e.coverage_90, e.mean_crps, e.mean_persistence_abs_error));
+    for e in &b.by_series {
+        if let Some(m) = &e.measured {
+            assert!(!policy.admits(
+                e.targets,
+                e.origin_weeks,
+                m.coverage_90,
+                m.mean_crps,
+                m.mean_persistence_abs_error
+            ));
+        }
     }
     assert!(
         !p.series
