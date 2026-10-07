@@ -45,13 +45,17 @@ leaves the seat vacant until there is new work.**
 
 ## In flight
 
-| Item | Session | Next |
-|---|---|---|
-| #1537 refresh must request + verify the GitHub Pages build (Pages did not rebuild after the first refresh's atomic push; built by hand with `gh api -X POST repos/jakedevar/koplik/pages/builds`), plus #1528 minors | worker 76429b0a (Codex gpt-6.1-sol) | Claude tier2 review, land via ~/.rsi/koplik-mgr/integrate BEFORE Thu 2026-10-08 21:00 America/Chicago. If it cannot land in time, after Thursday's run check `gh api repos/jakedevar/koplik/pages/builds/latest` and trigger the build by hand. |
+Nothing. #1537 landed at a2372d2 (Claude review d0377ebf approved): the refresh now requests and verifies
+the GitHub Pages build for the exact gh-pages commit (`make pages-verify` for manual publishes); #1528
+folded in; timer re-installed from a2372d2 (next run Thu 2026-10-08 21:00 America/Chicago). rolling
+(a2372d2) is ahead of main (a902d47) by code and handoff commits only; Thursday's refresh builds its
+data commit on rolling's tip and, if its full QA is green, promotes main and republishes everything.
+After that run: check `journalctl --user -u koplik-refresh.service` and
+`gh api repos/jakedevar/koplik/pages/builds/latest` (commit == gh-pages tip). Minors: #1542.
 
 ## Open follow-ups (no gates)
 
-#1512 (v6 web test coverage), #1517 (late tsc in make web-test), #1523 (legacy inferred zeros),
+#1542 (Pages-verify minors), #1512 (v6 web test coverage), #1517 (late tsc in make web-test), #1523 (legacy inferred zeros),
 #1514, #1515, #1400, #1420, #1424, #1434, #1445, #1457, kaizen #1362, #1364, #1367, #1368, #1378, #1384,
 #1386, #1416, #1423, #1435, #1446.
 
