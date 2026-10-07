@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StateFips",
+  "description": "2-digit zero-padded state FIPS code",
+  "type": "string",
+  "pattern": "^(0[1-9]|[1-9][0-9])$"
+}

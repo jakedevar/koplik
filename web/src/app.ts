@@ -1,6 +1,7 @@
 import { caseChart, rtChart, rtLabel } from './charts';
 import { compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
 import { createMap, type MapView } from './map';
+import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
 export const disclaimer = 'Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.';
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {
@@ -18,6 +19,7 @@ export function shell(root: HTMLElement): HTMLElement {
   const main = element('main');
   const footer = element('footer', disclaimer, 'disclaimer');
   root.append(header, main, footer);
+  mountProvenanceDrawer(root);
   return main;
 }
 export function showStatus(root: HTMLElement, message: string, error = false) {
@@ -97,6 +99,10 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   const tableContainer = element('div', undefined, 'table-scroll');
   reports.append(tableContainer);
   main.append(reports);
+  const comparisons = element('details', undefined, 'panel reports');
+  comparisons.append(element('summary', 'Compare geography values and sources'));
+  const comparisonRows = element('div', undefined, 'table-scroll');
+  comparisons.append(comparisonRows); main.append(comparisons);
   let map: MapView | undefined;
   function available() {
     return data.geographies.filter((g) => g.level === level && (level !== 'county' || g.id.startsWith('48')))
@@ -107,7 +113,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const geographies = available();
     if (!geographies.some((g) => g.id === selected)) selected = geographies[0]?.id || '';
     for (const geography of geographies) {
-      const option = element('option', `${geography.name} · ${metricValue(data, geography.id, metric).label}`);
+      const option = element('option', geography.name);
       option.value = geography.id;
       geographySelect.append(option);
     }
@@ -117,10 +123,10 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   function renderReports(year: number) {
     const cases = data.cases.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
     const rt = data.rt.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
-    charts.replaceChildren(element('h3', 'Weekly confirmed cases'), caseChart(cases, year),
-      element('p', 'Gaps mean no data. Bars show new cases reported in each MMWR week.', 'chart-note'),
-      element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year),
-      element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. Provisional estimates are withheld; insufficient data has no estimate. Exact interval levels appear in the report table.', 'chart-note'));
+    charts.replaceChildren(element('h3', 'Weekly confirmed cases'), caseChart(cases, year, data.synthetic),
+      element('p', 'Bars show new cases in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.', 'chart-note'),
+      element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year, data.synthetic),
+      element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
     if (!cases.length) charts.prepend(element('p', 'No case data for this geography and year.', 'notice'));
     if (!rt.some((r) => r.status === 'ok' && !r.provisional)) charts.append(element('p', 'No final R_t estimate for this geography and year.', 'notice'));
     const table = element('table');
@@ -138,16 +144,29 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     // Show omitted weeks inside a reported period as no data as well as explicit missing rows.
     if (weeks.length) for (let week = weeks[0]; week <= weeks.at(-1)!; week++) {
       const c = cases.find((r) => r.week.week === week);
-      const r = rt.find((row) => row.week.week === week);
+      const estimates = rt.filter((row) => row.week.week === week).sort((a, b) => a.interval_level - b.interval_level);
       const row = element('tr');
       row.dataset.geography = selected;
       row.dataset.week = `${year}-${week}`;
       const weekCell = element('th', `W${week}`);
       weekCell.scope = 'row';
       const caseCell = element('td', c?.confirmed.status === 'reported' ? String(c.confirmed.count) : `No data${c?.confirmed.status === 'missing' ? ` · ${c.confirmed.reason}` : ''}`);
-      const rtCell = element('td', r ? rtLabel(r) : 'No data');
-      if (r?.provisional) rtCell.className = 'provisional';
-      else if (r?.status === 'insufficient_data') rtCell.className = 'insufficient';
+      if (c?.confirmed.status === 'reported') caseCell.replaceChildren(provenanceNumber(String(c.confirmed.count), {
+        label: `${name.textContent} · ${year} W${week} · ${c.confirmed.count} confirmed cases`, records: c.provenance, synthetic: data.synthetic,
+      }));
+      const rtCell = element('td', estimates.length ? undefined : 'No data');
+      for (const estimate of estimates) {
+        const report = element('div');
+        const text = `${estimate.interval_level * 100}% · ${rtLabel(estimate)}`;
+        report.append(provenanceNumber(text, {
+          label: `${name.textContent} · ${year} W${week} · ${text}`, records: estimate.provenance, synthetic: data.synthetic,
+          note: 'Derived R_t estimate. These are all source records linked by this estimate artifact; sources are not inferred from neighbouring reports.',
+        }));
+        report.dataset.intervalLevel = String(estimate.interval_level);
+        if (estimate.provisional) report.className = 'provisional';
+        else if (estimate.status === 'insufficient_data') report.className = 'insufficient';
+        rtCell.append(report);
+      }
       row.append(weekCell, caseCell, rtCell);
       body.append(row);
     }
@@ -160,7 +179,15 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     name.textContent = geography?.name || 'No geography data';
     measure.textContent = level === 'county' ? 'Texas outbreak · Cases 2025' : metricLabels[metric];
     const currentValue = metricValue(data, selected, metric);
-    value.textContent = currentValue.label;
+    const sources = (id: string) => metric === 'coverage' ?
+      data.coverage.filter((r) => r.geography === id).sort((a, b) => b.school_year.localeCompare(a.school_year)).slice(0, 1).flatMap((r) => r.provenance) :
+      data.cases.filter((r) => r.geography === id && r.week.year === (metric === 'cases-2025' ? 2025 : 2026)).sort(compareWeeks).flatMap((r) => r.provenance);
+    const numberInfo = (id: string, label: string) => ({
+      label, records: sources(id), synthetic: data.synthetic,
+      note: metric === 'coverage' ? 'Latest school-year coverage row, including any imputation metadata shown alongside the value.' :
+        'Sum of the displayed contiguous reported period. Lists every source record attached to the input weekly reports; this is not a full-year total.',
+    });
+    value.replaceChildren(provenanceNumber(currentValue.label, numberInfo(selected, `${name.textContent} · ${metricLabels[metric]} · ${currentValue.label}`)));
     value.classList.toggle('missing-value', currentValue.value === null);
     valueDetail.textContent = currentValue.detail;
     geographyLabel.textContent = level === 'state' ? 'Select a state (keyboard accessible)' : 'Select a Texas county (keyboard accessible)';
@@ -171,6 +198,18 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     const isCoverage = metric === 'coverage';
     legend.append(element('span', isCoverage ? 'MMR coverage · 0–100%' : 'Reported cases · 0 → 500+', 'legend-scale'), element('span', '▨ No data', 'legend-missing'));
     renderReports(Number(yearSelect.value));
+    const comparisonTable = element('table');
+    comparisonTable.append(element('caption', metricLabels[metric]));
+    const comparisonBody = element('tbody');
+    for (const geography of available()) {
+      const row = element('tr');
+      const title = element('th', geography.name); title.scope = 'row';
+      const cell = element('td');
+      const current = metricValue(data, geography.id, metric);
+      cell.append(provenanceNumber(current.label, numberInfo(geography.id, `${geography.name} · ${metricLabels[metric]} · ${current.label}`)));
+      row.append(title, cell, element('td', current.detail)); comparisonBody.append(row);
+    }
+    comparisonTable.append(comparisonBody); comparisonRows.replaceChildren(comparisonTable);
     map?.update(level, metric, selected);
     root.dispatchEvent(new CustomEvent('koplik:selection', { bubbles: true, detail: { geography: selected, metric, year: Number(yearSelect.value), data } }));
   }

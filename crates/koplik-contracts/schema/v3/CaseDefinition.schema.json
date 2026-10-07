@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CaseDefinition",
+  "description": "Which cases a weekly count includes. A count is only comparable with counts that share its\ndefinition, so every row states it. Add a variant (in a new contract version) for any other\nsource definition; never reuse `Confirmed` for a count that includes other case statuses.",
+  "oneOf": [
+    {
+      "description": "Only cases whose case status is confirmed under the source's case definition, with no\nother status mixed in.",
+      "type": "string",
+      "const": "confirmed"
+    },
+    {
+      "description": "Confirmed cases plus cases whose case status is unknown, without the two being told\napart. This is what CDC's NNDSS measles publication criteria publish (event code 10140:\ncase status \"confirmed\" and \"unknown\"); the weekly query has no case-status field to\nsplit them, so these counts must not be presented as confirmed cases.",
+      "type": "string",
+      "const": "confirmed_or_unknown_status"
+    }
+  ]
+}
