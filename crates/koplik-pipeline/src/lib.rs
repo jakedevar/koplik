@@ -22,9 +22,10 @@
 //! that is not in the store is reported as `missing` in the manifests; the build writes
 //! everything else and an explicitly empty artifact where the web app needs a file, never a
 //! guessed one. The what-if scenario (#1455) is built in `validate` from the Census 2025
-//! population and Gazetteer snapshots, the kindergarten coverage rows and the DSHS report
-//! vintages, by the pre-registered rule in [`scenario`]; its companion
-//! `scenarios/gaines-2025.provenance.json` cites every parameter and the initial seeding.
+//! population and Gazetteer snapshots and the kindergarten coverage rows, by the pre-registered
+//! rule in [`scenario`]: a hypothetical introduction into Gaines County, not a replay of the
+//! 2025 outbreak. Its companion `scenarios/gaines-2025.provenance.json` (contract v4) states the
+//! seeding as an assumption and cites every parameter.
 
 pub mod scenario;
 
@@ -825,9 +826,6 @@ fn validate(config: &Config) -> Result<Manifest> {
     // Weekly cases by Texas county (DSHS report vintages, v3 rows `confirmed`). County names
     // map to FIPS only through the Census county file, so without it there is no series.
     let texas = StateFips::new(TEXAS).expect("48 is Texas");
-    // Kept for the what-if scenario's seeding (every vintage, and the name-to-FIPS lookup).
-    let mut dshs_for_scenario: Option<(census_counties::CountyLookup, Vec<dshs_series::Vintage>)> =
-        None;
     match present(census_counties::CountyLookup::from_store(&store, texas))? {
         Ok(lookup) => {
             m.inputs.push(hash_file(
@@ -898,7 +896,6 @@ fn validate(config: &Config) -> Result<Manifest> {
                     )?);
                 }
                 cases.extend(built.series.weekly);
-                dshs_for_scenario = Some((lookup, built.vintages));
             }
         }
         Err(reason) => {
@@ -1136,21 +1133,23 @@ fn validate(config: &Config) -> Result<Manifest> {
         }
     }
 
-    // The what-if scenario (#1455), built by the pre-registered rule in `scenario`.
-    let scenario_item = match (&county_population, &county_gazetteer, &dshs_for_scenario) {
-        (Some((_, populations)), Some((_, gazetteer)), Some((lookup, vintages))) => {
+    // The what-if scenario (#1455): a hypothetical introduction into Gaines County, built by the
+    // pre-registered rule in `scenario` from the Census population and Gazetteer snapshots and
+    // the kindergarten coverage rows. The DSHS report vintages are not an input.
+    let scenario_item = match (&county_population, &county_gazetteer) {
+        (Some((_, populations)), Some((_, gazetteer))) => {
             let sources = scenario::Sources {
                 populations,
                 gazetteer,
                 coverage: &cov,
-                vintages,
-                lookup,
             };
             match scenario::build(&scenario::ScenarioConfig::default(), &sources) {
                 Ok(built) => {
-                    let scenario_json = json_bytes(&built.input);
                     for (rel, bytes) in [
-                        (format!("scenarios/{SCENARIO_ARTIFACT}.json"), scenario_json),
+                        (
+                            format!("scenarios/{SCENARIO_ARTIFACT}.json"),
+                            json_bytes(&built.input),
+                        ),
                         (
                             format!("scenarios/{SCENARIO_ARTIFACT}.provenance.json"),
                             json_bytes(&built.provenance),
@@ -1171,7 +1170,7 @@ fn validate(config: &Config) -> Result<Manifest> {
             }
         }
         _ => ItemStatus::Missing {
-            reason: "the scenario needs Census county population, the Census county Gazetteer and the DSHS report vintages in the store".into(),
+            reason: "the scenario needs the Census county population and the Census county Gazetteer in the store".into(),
         },
     };
     m.items.insert(SCENARIO_ARTIFACT.to_owned(), scenario_item);
@@ -1477,7 +1476,7 @@ fn build(config: &Config) -> Result<Manifest> {
                 provenance_path.display()
             )));
         }
-        let provenance: scenario::ScenarioProvenance = read_json(&provenance_path)?;
+        let provenance: koplik_contracts::v4::ScenarioProvenance = read_json(&provenance_path)?;
         provenance
             .check_against(&scenario)
             .map_err(|e| PipelineError::Data(format!("{}: {e}", provenance_path.display())))?;

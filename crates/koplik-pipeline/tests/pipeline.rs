@@ -11,8 +11,8 @@ use koplik_contracts::v1::{
     ScenarioInput,
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
+use koplik_contracts::v4::ScenarioProvenance;
 use koplik_ingest::store::sha256_of;
-use koplik_pipeline::scenario::ScenarioProvenance;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
 fn repo() -> PathBuf {
@@ -285,18 +285,23 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
     assert_eq!(scenario.nodes.len(), 1);
     assert_eq!(gaines.id.to_string(), "48165");
     assert_eq!(gaines.population, 23956);
-    // The earliest DSHS vintage with a Gaines count: the 2025-03-04 report (107), MMWR 2025-W10.
-    assert_eq!(
-        (gaines.initial_infectious, gaines.initial_exposed),
-        (107, 0)
-    );
-    assert_eq!(scenario.start_week.to_string(), "2025-W10");
+    // A hypothetical introduction (#1455), not a replay: one assumed infectious person, no DSHS
+    // report involved, on a neutral reference week (the week of the estimate's July 1).
+    assert_eq!((gaines.initial_infectious, gaines.initial_exposed), (1, 0));
+    assert_eq!(scenario.start_week.to_string(), "2025-W27");
     assert_eq!(scenario.seed, koplik_pipeline::scenario::SEED);
     assert_eq!(scenario.run_count, 1000);
     assert_eq!(scenario.parameters, koplik_epi::default_parameters());
     assert!(scenario.coverage_overrides.is_empty());
-    assert_eq!(provenance.seeding.report_date.to_string(), "2025-03-04");
-    assert!(provenance.seeding.skipped_vintages.is_empty());
+    assert!(provenance.statement.starts_with(
+        "Hypothetical: what could happen if one infectious person arrived in Gaines County"
+    ));
+    assert!(
+        provenance
+            .statement
+            .contains("not a reconstruction or forecast of the 2025 outbreak")
+    );
+    assert_eq!(provenance.seeding.geography, gaines.id);
     // Every record the scenario cites is a snapshot the ingest manifest hashed.
     let scenario_records =
         gaines
@@ -307,7 +312,7 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
                 BaselineCoverage::Reported { provenance, .. } => provenance.as_slice(),
                 BaselineCoverage::Missing { .. } => panic!("Gaines coverage is reported"),
             });
-    for p in scenario_records.chain(provenance.seeding.provenance.iter()) {
+    for p in scenario_records {
         assert!(snapshots.contains(p.sha256.as_str()), "{}", p.source_id);
     }
     // Every population and Gazetteer snapshot the scenario read is a validate input.

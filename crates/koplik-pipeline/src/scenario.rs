@@ -75,23 +75,22 @@
 
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::NaiveDate;
 use koplik_contracts::v1::{
     BaselineCoverage, Centroid, CountyFips, CoverageValue, GeoId, Geography, GravityParameters,
-    KindergartenMmrCoverage, MmwrWeek, Population, Provenance, Provenances, ScenarioInput,
-    ScenarioNode,
+    KindergartenMmrCoverage, MmwrWeek, Population, Provenances, ScenarioInput, ScenarioNode,
 };
-use koplik_ingest::census_counties::CountyLookup;
+use koplik_contracts::v4::{
+    ExcludedNode, NodeInputs, ParameterProvenance, SCENARIO_PROVENANCE_VERSION, ScenarioProvenance,
+    SeedingAssumption,
+};
 use koplik_ingest::coverage;
-use koplik_ingest::dshs_series::Vintage;
-use serde::{Deserialize, Serialize};
 
 /// Gaines County, Texas (state FIPS 48, county 165).
 pub const GAINES_FIPS: u32 = 48165;
 
-/// Fixed RNG seed of the published scenario. Arbitrary: the digits are the `YYYYMMDD` of the
-/// earliest DSHS report that carries a Gaines County table, as a mnemonic only. Chosen once,
-/// before any run; never adjusted to a result.
+/// Fixed RNG seed of the published scenario. Arbitrary: chosen once, before any run, and never
+/// adjusted to a result (it changes only the Monte Carlo draw, never the model).
 pub const SEED: u64 = 20_250_304;
 
 /// Ensemble size the web panel runs and the scenario states (spec E6).
@@ -109,7 +108,7 @@ pub struct Neighbourhood {
 /// Every choice the scenario builder makes that is not read from a source.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ScenarioConfig {
-    /// County FIPS (`48xxx`) of the seeded county.
+    /// County FIPS (`48xxx`) of the county the infectious people are introduced into.
     pub focus: u32,
     /// RNG seed written into the scenario.
     pub seed: u64,
@@ -117,11 +116,13 @@ pub struct ScenarioConfig {
     pub run_count: u32,
     /// Texas school year start of the baseline kindergarten MMR coverage.
     pub coverage_year: u16,
-    /// Multiplier on the recorded confirmed count to seed initial infectious. `1.0` = the count
-    /// as recorded; any other value needs its own citation (see the module docs).
-    pub reporting_multiplier: f64,
-    /// Initial exposed per initial infectious person; `0.0` = none.
-    pub exposed_per_infectious: f64,
+    /// Infectious people introduced into the focus county: a stated assumption, default 1.
+    pub initial_infectious: u32,
+    /// Exposed people introduced into the focus county: a stated assumption, default 0.
+    pub initial_exposed: u32,
+    /// The reference week day 0 is labelled with; `None` = the MMWR week containing July 1 of
+    /// the population estimate's year (the estimate's own reference date).
+    pub start_week: Option<MmwrWeek>,
     /// Neighbouring counties to simulate and couple; `None` = the focus county alone.
     pub neighbourhood: Option<Neighbourhood>,
 }
@@ -133,21 +134,13 @@ impl Default for ScenarioConfig {
             seed: SEED,
             run_count: RUN_COUNT,
             coverage_year: coverage::TEXAS_BASELINE_YEAR,
-            reporting_multiplier: 1.0,
-            exposed_per_infectious: 0.0,
+            initial_infectious: 1,
+            initial_exposed: 0,
+            start_week: None,
             neighbourhood: None,
         }
     }
 }
-
-/// Version of the companion provenance artifact's shape.
-pub const PROVENANCE_VERSION: u32 = 1;
-
-/// Plain-words statement the web panel shows beside the scenario (and the artifact carries).
-pub const STATEMENT: &str = "This is a what-if tool, not a fitted model. The simulation starts from the case count a Texas DSHS report gave for Gaines County, takes its parameters from published sources, and was never adjusted to match how the outbreak actually unfolded. Compare its output with the DSHS counts only as an illustration of what a simple model does, not as a forecast.";
-
-/// What the seeding cannot capture, stated to the reader.
-pub const SEEDING_LIMITATION: &str = "DSHS counts are cumulative since the outbreak began. Seeding all of them as currently infectious treats cases that had already recovered as still transmitting, and the engine has no initial-recovered input. The model is not corrected for this, and is not corrected for under-reporting unless the multiplier says otherwise.";
 
 /// Why the scenario cannot be built: an input is absent (shown as missing, never guessed) or
 /// something is inconsistent (a bug or a corrupt input).
@@ -172,130 +165,6 @@ pub struct Sources<'a> {
     pub gazetteer: &'a [Geography],
     /// Kindergarten MMR coverage rows (every geography and school year; filtered here).
     pub coverage: &'a [KindergartenMmrCoverage],
-    /// Every DSHS report vintage held, with its snapshots.
-    pub vintages: &'a [Vintage],
-    /// The Census county-name lookup that turns a printed DSHS name into a FIPS code.
-    pub lookup: &'a CountyLookup,
-}
-
-/// A DSHS vintage that was passed over on the way to the seeding report, and why.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SkippedVintage {
-    pub report_date: NaiveDate,
-    pub reason: String,
-}
-
-/// The seeding, with the report it came from.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SeedingProvenance {
-    /// The rule, in words (see the module docs).
-    pub rule: String,
-    pub report_date: NaiveDate,
-    /// When the first stored snapshot of this exact report version was captured or fetched.
-    pub report_first_seen_at: DateTime<Utc>,
-    /// The county name exactly as DSHS printed it, and the cell text.
-    pub county_name_as_printed: String,
-    pub cell_as_printed: String,
-    /// DSHS's own wording that establishes these counts as confirmed cases.
-    pub confirmed_basis: String,
-    /// The confirmed count as recorded.
-    pub recorded_confirmed_count: u32,
-    pub reporting_multiplier: f64,
-    pub exposed_per_infectious: f64,
-    pub initial_infectious: u32,
-    pub initial_exposed: u32,
-    pub start_week: MmwrWeek,
-    /// Where the numbers came from: the DSHS snapshot, and the Census file that maps its
-    /// county names to FIPS codes.
-    pub provenance: Vec<Provenance>,
-    /// Earlier vintages that were passed over, with the reason.
-    pub skipped_vintages: Vec<SkippedVintage>,
-    pub limitation: String,
-}
-
-/// One model parameter exactly as the scenario ran it, with its citation (#1400).
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ParameterProvenance {
-    pub parameter: String,
-    pub value: serde_json::Value,
-    pub source: String,
-    pub url: Option<String>,
-    pub note: String,
-}
-
-/// What a node's inputs are, beyond the records the scenario already carries.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct NodeInputs {
-    pub geography: GeoId,
-    pub name: String,
-    pub population: u64,
-    pub population_basis: String,
-    pub centroid_basis: String,
-    pub coverage_school_year: String,
-    pub coverage_basis: String,
-}
-
-/// A county that the neighbourhood rule would have simulated but could not.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExcludedNode {
-    pub geography: GeoId,
-    pub name: String,
-    pub reason: String,
-}
-
-/// The companion artifact `scenarios/gaines-2025.provenance.json`: where every number the
-/// scenario does not carry a source record for comes from. Its shape is not a shared data
-/// contract (no other crate reads it); the web panel reads it as documented in `web/README.md`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ScenarioProvenance {
-    pub artifact_version: u32,
-    pub scenario: String,
-    pub statement: String,
-    /// The RNG seed as decimal text (a JavaScript number would round a large u64).
-    pub seed: String,
-    pub run_count: u32,
-    pub seeding: SeedingProvenance,
-    pub parameters: Vec<ParameterProvenance>,
-    pub nodes: Vec<NodeInputs>,
-    pub excluded_nodes: Vec<ExcludedNode>,
-    pub neighbourhood_note: String,
-}
-
-impl ScenarioProvenance {
-    /// Whether this companion describes `input`: the same seed, run count, start week, seeding
-    /// and parameter values. A scenario is only published beside a companion that agrees.
-    pub fn check_against(&self, input: &ScenarioInput) -> std::result::Result<(), String> {
-        let focus = input
-            .nodes
-            .iter()
-            .find(|n| n.initial_infectious > 0 || n.initial_exposed > 0)
-            .ok_or("the provenance companion does not describe the scenario beside it (it seeds no node)")?;
-        let values = serde_json::to_value(input.parameters).map_err(|e| e.to_string())?;
-        let same = self.artifact_version == PROVENANCE_VERSION
-            && self.seed == input.seed.to_string()
-            && self.run_count == input.run_count
-            && self.seeding.start_week == input.start_week
-            && self.seeding.initial_infectious == focus.initial_infectious
-            && self.seeding.initial_exposed == focus.initial_exposed
-            && self
-                .parameters
-                .iter()
-                .all(|p| values[p.parameter.as_str()] == p.value)
-            && values
-                .as_object()
-                .is_some_and(|o| o.len() == self.parameters.len())
-            && self.nodes.len() == input.nodes.len()
-            && self
-                .nodes
-                .iter()
-                .zip(&input.nodes)
-                .all(|(a, b)| a.geography == b.id && a.population == b.population);
-        if same {
-            Ok(())
-        } else {
-            Err("the provenance companion does not describe the scenario beside it".into())
-        }
-    }
 }
 
 /// The built scenario and its companion.
@@ -305,21 +174,14 @@ pub struct Built {
     pub provenance: ScenarioProvenance,
 }
 
-fn push_unique(records: &mut Vec<Provenance>, more: &[Provenance]) {
-    for p in more {
-        if !records.contains(p) {
-            records.push(p.clone());
-        }
-    }
-}
-
 /// A node's sources, or why this county cannot be a node.
 struct NodeParts {
     node: ScenarioNode,
     inputs: NodeInputs,
+    /// Year of the population estimate (its reference date is July 1 of it).
+    population_year: u16,
 }
 
-#[allow(clippy::result_large_err)]
 fn node_parts(
     fips: CountyFips,
     config: &ScenarioConfig,
@@ -355,7 +217,11 @@ fn node_parts(
         }
     };
     let mut records = population.provenance.as_slice().to_vec();
-    push_unique(&mut records, gazetteer.provenance.as_slice());
+    for p in gazetteer.provenance.as_slice() {
+        if !records.contains(p) {
+            records.push(p.clone());
+        }
+    }
     Ok(NodeParts {
         node: ScenarioNode {
             id,
@@ -376,103 +242,65 @@ fn node_parts(
             name: gazetteer.name.clone(),
             population: population.count,
             population_basis: format!(
-                "U.S. Census Bureau Vintage {} county population estimate, July 1, {} (POPESTIMATE{}); not back-cast to the simulation start",
+                "U.S. Census Bureau Vintage {} county population estimate, July 1, {} (POPESTIMATE{}); not back-cast to any other date",
                 population.year, population.year, population.year
             ),
             centroid_basis: "Census 2025 Gazetteer county internal point (INTPTLAT, INTPTLONG): a representative point, not a population-weighted or geometric centroid".into(),
             coverage_school_year: row.school_year.to_string(),
             coverage_basis: "Texas DSHS kindergarten MMR coverage for the last completed school year before the 2025 outbreak, as published (not imputed)".into(),
         },
+        population_year: population.year,
     })
 }
 
-/// Find the seeding report by the pre-registered rule (module docs).
-fn find_seed<'a>(
-    focus: CountyFips,
-    sources: &Sources<'a>,
-) -> std::result::Result<
-    (
-        &'a Vintage,
-        koplik_ingest::dshs::CountyEntry,
-        Vec<SkippedVintage>,
-    ),
-    ScenarioError,
-> {
-    let mut ordered: Vec<&Vintage> = sources.vintages.iter().collect();
-    ordered.sort_by_key(|v| (v.report.report_date, v.first_seen_at()));
-    let mut skipped = Vec::new();
-    for v in ordered {
-        let date = v.report.report_date;
-        let mut skip = |reason: String| {
-            skipped.push(SkippedVintage {
-                report_date: date,
-                reason,
-            })
-        };
-        let Some(table) = &v.report.outbreak_counties else {
-            skip("no readable outbreak county table".into());
-            continue;
-        };
-        if !v.is_confirmed() {
-            skip("DSHS's own labelling does not establish these counts as confirmed cases".into());
-            continue;
+/// "one infectious person", "3 infectious people and 2 exposed people", ...
+fn introduced(infectious: u32, exposed: u32) -> String {
+    let people = |n: u32, kind: &str| {
+        if n == 1 {
+            format!("one {kind} person")
+        } else {
+            format!("{n} {kind} people")
         }
-        let rows: Vec<_> = table
-            .entries
-            .iter()
-            .filter(|e| sources.lookup.lookup(&e.name) == Ok(focus))
-            .collect();
-        match rows.as_slice() {
-            [] => skip("the county table has no row for the county".into()),
-            [row] if row.cases.is_some() => return Ok((v, (*row).clone(), skipped)),
-            [row] => skip(format!(
-                "the county's cell is not a plain count ({:?})",
-                row.raw
-            )),
-            _ => skip("the county is listed more than once".into()),
-        }
+    };
+    match (infectious, exposed) {
+        (i, 0) => people(i, "infectious"),
+        (0, e) => people(e, "exposed"),
+        (i, e) => format!("{} and {}", people(i, "infectious"), people(e, "exposed")),
     }
-    Err(missing(
-        "no DSHS report vintage with a confirmed-case county table gives a count for the county",
-    ))
 }
 
-/// Build the scenario by the pre-registered rule, validate it through the contract and the
-/// engine, and describe where everything came from.
+/// Build the scenario by the pre-registered rule (module docs), validate it through the
+/// contract and the engine, and describe where everything came from.
 pub fn build(
     config: &ScenarioConfig,
     sources: &Sources<'_>,
 ) -> std::result::Result<Built, ScenarioError> {
     let focus = CountyFips::new(config.focus).map_err(|e| invalid(e.to_string()))?;
-    if !config.reporting_multiplier.is_finite() || config.reporting_multiplier < 0.0 {
+    if config.initial_infectious == 0 && config.initial_exposed == 0 {
         return Err(invalid(
-            "reporting multiplier must be finite and not negative",
-        ));
-    }
-    if !config.exposed_per_infectious.is_finite() || config.exposed_per_infectious < 0.0 {
-        return Err(invalid(
-            "exposed per infectious must be finite and not negative",
+            "the scenario must introduce at least one infectious or exposed person",
         ));
     }
 
-    let (vintage, entry, skipped_vintages) = find_seed(focus, sources)?;
-    let recorded = entry.cases.expect("find_seed returns a readable count");
-    let seeded = |value: f64| -> std::result::Result<u32, ScenarioError> {
-        let r = value.round();
-        if r.is_finite() && (0.0..=f64::from(u32::MAX)).contains(&r) {
-            Ok(r as u32)
-        } else {
-            Err(invalid("initial seeding does not fit a u32"))
+    let focus_parts = node_parts(
+        focus,
+        config,
+        sources,
+        config.initial_exposed,
+        config.initial_infectious,
+    )
+    .map_err(|reason| missing(format!("focus county {focus}: {reason}")))?;
+    let focus_centroid: Centroid = focus_parts.node.centroid;
+    let focus_name = focus_parts.inputs.name.clone();
+    let population_year = focus_parts.population_year;
+    let start_week = match config.start_week {
+        Some(w) => w,
+        None => {
+            let reference = NaiveDate::from_ymd_opt(i32::from(population_year), 7, 1)
+                .ok_or_else(|| invalid("population year has no July 1"))?;
+            MmwrWeek::from_date(reference).map_err(|e| invalid(e.to_string()))?
         }
     };
-    let initial_infectious = seeded(f64::from(recorded) * config.reporting_multiplier)?;
-    let initial_exposed = seeded(f64::from(initial_infectious) * config.exposed_per_infectious)?;
-    let report_date = vintage.report.report_date;
-    let start_week = MmwrWeek::from_date(report_date).map_err(|e| invalid(e.to_string()))?;
-
-    let focus_parts = node_parts(focus, config, sources, initial_exposed, initial_infectious)
-        .map_err(|reason| missing(format!("focus county {focus}: {reason}")))?;
-    let focus_centroid: Centroid = focus_parts.node.centroid;
     let mut parts: BTreeMap<GeoId, NodeParts> = BTreeMap::new();
     parts.insert(GeoId::County(focus), focus_parts);
     let mut excluded = Vec::new();
@@ -548,34 +376,32 @@ pub fn build(
             note: c.note.to_owned(),
         })
         .collect();
-    let mut seed_records = vec![vintage.first().provenance()];
-    seed_records.push(sources.lookup.retrieval.provenance());
+    let who = introduced(config.initial_infectious, config.initial_exposed);
+    let default_start = config.start_week.is_none();
     let provenance = ScenarioProvenance {
-        artifact_version: PROVENANCE_VERSION,
+        contract_version: SCENARIO_PROVENANCE_VERSION,
         scenario: crate::SCENARIO_ARTIFACT.to_owned(),
-        statement: STATEMENT.to_owned(),
+        statement: format!(
+            "Hypothetical: what could happen if {who} arrived in {focus_name}, given its population and kindergarten MMR coverage. This is not a reconstruction or forecast of the 2025 outbreak."
+        ),
         seed: input.seed.to_string(),
         run_count: input.run_count,
-        seeding: SeedingProvenance {
-            rule: "Start at the MMWR week of the earliest retained DSHS report vintage that has a confirmed-case county table with a count for the county; initial infectious is that confirmed count as recorded times the reporting multiplier (1.0 unless a cited factor is set); initial exposed is zero unless a ratio is set; every other node starts with none.".into(),
-            report_date,
-            report_first_seen_at: vintage.first_seen_at(),
-            county_name_as_printed: entry.name.clone(),
-            cell_as_printed: entry.raw.clone(),
-            confirmed_basis: vintage
-                .report
-                .confirmed_basis
-                .clone()
-                .expect("find_seed requires a confirmed basis"),
-            recorded_confirmed_count: recorded,
-            reporting_multiplier: config.reporting_multiplier,
-            exposed_per_infectious: config.exposed_per_infectious,
-            initial_infectious,
-            initial_exposed,
+        seeding: SeedingAssumption {
+            geography: GeoId::County(focus),
+            initial_infectious: config.initial_infectious,
+            initial_exposed: config.initial_exposed,
             start_week,
-            provenance: seed_records,
-            skipped_vintages,
-            limitation: SEEDING_LIMITATION.to_owned(),
+            assumption: format!(
+                "{who} are introduced into {focus_name} at the start week, and every other simulated county starts with none. This is a stated assumption for the hypothetical, not data: no source supports these counts and none is claimed, and it is not derived from any case report."
+            ),
+            start_week_basis: if default_start {
+                format!(
+                    "A neutral reference week: the MMWR week containing July 1, {population_year}, the reference date of the Census population estimate. The engine has no seasonality, so the start week only labels day 0 of the calendar and changes no result. It is not a claim about when the 2025 outbreak began."
+                )
+            } else {
+                "A reference week set by the scenario's configuration. The engine has no seasonality, so the start week only labels day 0 of the calendar and changes no result. It is not a claim about when the 2025 outbreak began.".into()
+            },
+            limitation: "The county is modelled as one well-mixed population whose immunity is its kindergarten MMR coverage applied to every resident (see the engine notes in seir.rs). Real outbreaks cluster in close communities and are shaped by reporting and interventions that this scenario does not model, so its totals are not comparable with reported cases.".into(),
         },
         parameters: provenance_parameters,
         nodes: node_inputs,
@@ -588,6 +414,11 @@ pub fn build(
             ),
         },
     };
+    // The companion round-trips through the contract's validation and describes the scenario.
+    let text = serde_json::to_vec(&provenance).map_err(|e| invalid(e.to_string()))?;
+    let provenance: ScenarioProvenance = serde_json::from_slice(&text)
+        .map_err(|e| invalid(format!("provenance contract validation: {e}")))?;
+    provenance.check_against(&input).map_err(invalid)?;
     Ok(Built { input, provenance })
 }
 
@@ -603,9 +434,21 @@ mod tests {
         assert_eq!(c.seed, 20_250_304);
         assert_eq!(c.run_count, 1000);
         assert_eq!(c.coverage_year, 2023);
-        assert_eq!(c.reporting_multiplier, 1.0);
-        assert_eq!(c.exposed_per_infectious, 0.0);
+        assert_eq!(c.initial_infectious, 1);
+        assert_eq!(c.initial_exposed, 0);
+        assert_eq!(c.start_week, None);
         assert_eq!(c.neighbourhood, None);
         assert!(koplik_epi::default_parameters().gravity.is_none());
+    }
+
+    #[test]
+    fn people_are_described_in_words() {
+        assert_eq!(introduced(1, 0), "one infectious person");
+        assert_eq!(introduced(3, 0), "3 infectious people");
+        assert_eq!(
+            introduced(1, 2),
+            "one infectious person and 2 exposed people"
+        );
+        assert_eq!(introduced(0, 1), "one exposed person");
     }
 }

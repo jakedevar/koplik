@@ -1,19 +1,17 @@
 //! The what-if scenario builder (#1455) against the committed real-byte fixtures: the
-//! pre-registered rule, its configurable parts, and what it refuses. Offline.
+//! pre-registered hypothetical-introduction rule, its configurable parts, and what it refuses.
+//! Offline.
 
 use std::path::PathBuf;
 
 use koplik_contracts::v1::{
     BaselineCoverage, CountyFips, CoverageValue, GeoId, GravityParameters, KindergartenMmrCoverage,
-    Population, ScenarioInput, StateFips,
+    MmwrWeek, Population, ScenarioInput,
 };
-use koplik_ingest::census_counties::CountyLookup;
-use koplik_ingest::dshs_series::{self, Vintage};
+use koplik_contracts::v4::ScenarioProvenance;
 use koplik_ingest::store::SnapshotStore;
 use koplik_ingest::{census_population, coverage};
-use koplik_pipeline::scenario::{
-    self, Neighbourhood, ScenarioConfig, ScenarioError, ScenarioProvenance, Sources,
-};
+use koplik_pipeline::scenario::{self, Neighbourhood, ScenarioConfig, ScenarioError, Sources};
 use koplik_pipeline::{Config, Mode, Stage, run_stage};
 
 struct Fixture {
@@ -21,8 +19,6 @@ struct Fixture {
     populations: Vec<Population>,
     gazetteer: Vec<koplik_contracts::v1::Geography>,
     coverage: Vec<KindergartenMmrCoverage>,
-    vintages: Vec<Vintage>,
-    lookup: CountyLookup,
 }
 
 fn repo() -> PathBuf {
@@ -41,9 +37,6 @@ fn load() -> Fixture {
     };
     run_stage(Stage::Ingest, &config).unwrap();
     let store = SnapshotStore::open(&config.store).unwrap();
-    let texas = StateFips::new(48).unwrap();
-    let lookup = CountyLookup::from_store(&store, texas).unwrap();
-    let built = dshs_series::build_from_store(&store, &lookup).unwrap();
     let mut rows = coverage::parse_latest_texas(&store, 2023).unwrap();
     rows.extend(coverage::parse_latest_texas(&store, 2024).unwrap());
     Fixture {
@@ -54,8 +47,6 @@ fn load() -> Fixture {
             .unwrap()
             .1,
         coverage: rows,
-        vintages: built.vintages,
-        lookup,
         _dir: dir,
     }
 }
@@ -65,8 +56,6 @@ fn sources(f: &Fixture) -> Sources<'_> {
         populations: &f.populations,
         gazetteer: &f.gazetteer,
         coverage: &f.coverage,
-        vintages: &f.vintages,
-        lookup: &f.lookup,
     }
 }
 
@@ -83,7 +72,7 @@ fn gaines() -> GeoId {
 }
 
 #[test]
-fn default_rule_seeds_gaines_from_the_earliest_labelled_report_that_counts_it() {
+fn default_rule_introduces_one_infectious_person_into_gaines() {
     let f = load();
     let built = scenario::build(&ScenarioConfig::default(), &sources(&f)).unwrap();
     let input = &built.input;
@@ -91,12 +80,17 @@ fn default_rule_seeds_gaines_from_the_earliest_labelled_report_that_counts_it() 
     assert_eq!(input.nodes.len(), 1);
     let node = &input.nodes[0];
     assert_eq!(node.id, gaines());
-    assert_eq!((node.initial_infectious, node.initial_exposed), (107, 0));
-    assert_eq!(input.start_week.to_string(), "2025-W10");
+    assert_eq!(node.population, 23956);
+    // A stated assumption, not data: one infectious person, nobody exposed.
+    assert_eq!((node.initial_infectious, node.initial_exposed), (1, 0));
+    // The neutral reference week: the MMWR week containing July 1, 2025 (the population
+    // estimate's reference date); it is not an outbreak date.
+    assert_eq!(input.start_week.to_string(), "2025-W27");
     assert_eq!(input.seed, 20_250_304);
     assert_eq!(input.run_count, 1000);
     assert_eq!(input.parameters, koplik_epi::default_parameters());
     assert!(input.parameters.gravity.is_none());
+    assert!(input.coverage_overrides.is_empty());
     match node.baseline_coverage {
         BaselineCoverage::Reported {
             coverage_pct,
@@ -109,11 +103,17 @@ fn default_rule_seeds_gaines_from_the_earliest_labelled_report_that_counts_it() 
         BaselineCoverage::Missing { .. } => panic!("Gaines coverage is reported"),
     }
     let p = &built.provenance;
-    assert_eq!(p.seeding.report_date.to_string(), "2025-03-04");
-    assert_eq!(p.seeding.county_name_as_printed, "Gaines");
-    assert_eq!(p.seeding.recorded_confirmed_count, 107);
-    assert_eq!(p.seeding.reporting_multiplier, 1.0);
-    assert!(p.seeding.skipped_vintages.is_empty());
+    assert_eq!(p.seeding.geography, gaines());
+    assert_eq!(
+        (p.seeding.initial_infectious, p.seeding.initial_exposed),
+        (1, 0)
+    );
+    assert_eq!(
+        p.statement,
+        "Hypothetical: what could happen if one infectious person arrived in Gaines County, given its population and kindergarten MMR coverage. This is not a reconstruction or forecast of the 2025 outbreak."
+    );
+    assert!(p.seeding.assumption.contains("not data"));
+    assert!(p.seeding.start_week_basis.contains("changes no result"));
     assert_eq!(p.seed, "20250304");
     // Every parameter carries its citation and the value the scenario ran with.
     let values = serde_json::to_value(input.parameters).unwrap();
@@ -152,63 +152,53 @@ fn building_twice_gives_identical_bytes() {
 }
 
 #[test]
-fn an_unlabelled_earliest_vintage_is_skipped_and_the_skip_is_recorded() {
-    let mut f = load();
-    // Deliberate in-memory mutation of a parsed report (never a fixture or snapshot): DSHS's
-    // labelling no longer establishes the earliest vintage as confirmed.
-    f.vintages[0].report.confirmed_basis = None;
-    let built = scenario::build(&quick(), &sources(&f)).unwrap();
-    let seeding = &built.provenance.seeding;
-    assert_eq!(seeding.report_date.to_string(), "2025-03-25");
-    assert_eq!(seeding.recorded_confirmed_count, 226);
-    assert_eq!(built.input.nodes[0].initial_infectious, 226);
-    assert_eq!(built.input.start_week.to_string(), "2025-W13");
-    assert_eq!(seeding.skipped_vintages.len(), 1);
-    assert_eq!(
-        seeding.skipped_vintages[0].report_date.to_string(),
-        "2025-03-04"
-    );
-    assert!(seeding.skipped_vintages[0].reason.contains("confirmed"));
-}
-
-#[test]
-fn the_multiplier_and_exposed_ratio_are_configurable_and_recorded() {
+fn the_introduced_people_and_the_reference_week_are_configurable_and_recorded() {
     let f = load();
     let config = ScenarioConfig {
-        reporting_multiplier: 2.0,
-        exposed_per_infectious: 0.5,
+        initial_infectious: 3,
+        initial_exposed: 2,
+        start_week: Some(MmwrWeek::new(2025, 10).unwrap()),
         ..quick()
     };
     let built = scenario::build(&config, &sources(&f)).unwrap();
     let node = &built.input.nodes[0];
-    assert_eq!((node.initial_infectious, node.initial_exposed), (214, 107));
-    let seeding = &built.provenance.seeding;
-    assert_eq!(seeding.recorded_confirmed_count, 107);
-    assert_eq!(seeding.reporting_multiplier, 2.0);
-    assert_eq!(seeding.exposed_per_infectious, 0.5);
-    let bad = ScenarioConfig {
-        reporting_multiplier: f64::NAN,
+    assert_eq!((node.initial_infectious, node.initial_exposed), (3, 2));
+    assert_eq!(built.input.start_week.to_string(), "2025-W10");
+    let p = &built.provenance;
+    assert_eq!(
+        (p.seeding.initial_infectious, p.seeding.initial_exposed),
+        (3, 2)
+    );
+    assert_eq!(p.seeding.start_week.to_string(), "2025-W10");
+    assert!(
+        p.statement
+            .contains("3 infectious people and 2 exposed people")
+    );
+    assert!(p.seeding.start_week_basis.contains("configuration"));
+    // A scenario that introduces nobody has nothing to simulate.
+    let nobody = ScenarioConfig {
+        initial_infectious: 0,
+        initial_exposed: 0,
         ..quick()
     };
     assert!(matches!(
-        scenario::build(&bad, &sources(&f)),
+        scenario::build(&nobody, &sources(&f)),
         Err(ScenarioError::Invalid(_))
+    ));
+    // More people than the coverage-derived susceptible pool is refused by the engine.
+    let too_many = ScenarioConfig {
+        initial_infectious: 23_000,
+        ..quick()
+    };
+    assert!(matches!(
+        scenario::build(&too_many, &sources(&f)),
+        Err(ScenarioError::Invalid(m)) if m.contains("engine")
     ));
 }
 
 #[test]
 fn a_missing_input_is_missing_never_guessed() {
     let f = load();
-    // No DSHS vintage gives a count.
-    let none: Vec<Vintage> = Vec::new();
-    let s = Sources {
-        vintages: &none,
-        ..sources(&f)
-    };
-    assert!(matches!(
-        scenario::build(&quick(), &s),
-        Err(ScenarioError::Missing(_))
-    ));
     // No population for the seeded county.
     let populations: Vec<Population> = f
         .populations
@@ -238,6 +228,26 @@ fn a_missing_input_is_missing_never_guessed() {
     assert!(matches!(
         scenario::build(&quick(), &s),
         Err(ScenarioError::Missing(m)) if m.contains("coverage")
+    ));
+    // No Gazetteer internal point, so no centroid.
+    let gazetteer: Vec<_> = f
+        .gazetteer
+        .iter()
+        .map(|g| {
+            let mut g = g.clone();
+            if g.id == gaines() {
+                g.centroid = None;
+            }
+            g
+        })
+        .collect();
+    let s = Sources {
+        gazetteer: &gazetteer,
+        ..sources(&f)
+    };
+    assert!(matches!(
+        scenario::build(&quick(), &s),
+        Err(ScenarioError::Missing(m)) if m.contains("internal point")
     ));
 }
 
@@ -296,9 +306,9 @@ fn a_neighbourhood_couples_nearby_counties_and_excludes_those_with_a_missing_inp
                 .unwrap(),
         );
         assert!(near <= radius, "{} is {near} km away", n.id);
-        // Only the seeded county starts with infection, and no baseline is imputed.
+        // Only the introduced county starts with infection, and no baseline is imputed.
         if n.id == gaines() {
-            assert_eq!(n.initial_infectious, 107);
+            assert_eq!((n.initial_exposed, n.initial_infectious), (0, 1));
         } else {
             assert_eq!((n.initial_exposed, n.initial_infectious), (0, 0));
         }
@@ -319,7 +329,7 @@ fn a_neighbourhood_couples_nearby_counties_and_excludes_those_with_a_missing_inp
 }
 
 #[test]
-fn the_provenance_companion_round_trips_and_the_scenario_without_it_does_not_match() {
+fn the_provenance_companion_round_trips_and_a_changed_scenario_does_not_match() {
     let f = load();
     let built = scenario::build(&quick(), &sources(&f)).unwrap();
     let json = serde_json::to_vec(&built.provenance).unwrap();
