@@ -14,8 +14,10 @@
 //! numbers sit in `series_backtest`, keyed by geography.
 //!
 //! v7 also adds a publication policy ([`PublicationPolicy`]): a series' forecast is published only if
-//! its method has a measured skill on that series that the policy admits (a coverage floor and no
-//! worse than the persistence baseline). The companion carries the policy's thresholds, a new
+//! its method has a measured skill on that series that the policy admits (an evidence floor of
+//! scored targets and distinct origin weeks, applied to every kind of evaluation alike; a coverage
+//! floor; and no worse than the persistence baseline). The policy was written after the first
+//! state-series backtest result was known and before the code that applies it. The companion carries the policy's thresholds, a new
 //! series status `withheld` (the method made a forecast and the policy refuses it, with a
 //! [`WithheldReason`]), and the deserializer re-applies the policy to every series: a published
 //! series must be admitted, a withheld one must have a reason that matches its skill and must not

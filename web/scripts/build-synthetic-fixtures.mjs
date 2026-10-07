@@ -61,7 +61,7 @@ const forecastProvenance = {
   horizon_weeks: 8, run_count: 1000, seed: 1, levels,
   input: { artifact: 'weekly-cases', sha256: createHash('sha256').update(JSON.stringify(cases)).digest('hex'), rows: cases.length },
   parameters: [parameter('window_weeks', 3, 'Estimation window.'), parameter('min_cases', 11, 'Minimum cases in the window.'), parameter('provisional_weeks', 2, 'Recent weeks not used.')],
-  publication_policy: { rule: 'SYNTHETIC FIXTURE: a forecast is published only if its own measured skill meets the criterion (invented thresholds shaped like the real ones).', minimum_coverage_90: 0.75, maximum_crps_over_persistence: 1 },
+  publication_policy: { rule: 'SYNTHETIC FIXTURE: a forecast is published only if its own measured skill meets the criterion (invented thresholds shaped like the real ones).', minimum_targets: 4, minimum_origin_weeks: 2, minimum_coverage_90: 0.75, maximum_crps_over_persistence: 1 },
   series: [
     { geography: '20', case_definition: 'confirmed_or_unknown_status', status: 'withheld', reason: null, withheld: 'skill_below_policy', cases_in_window: 14, skill: 'measured' },
     { geography: '40', case_definition: 'confirmed_or_unknown_status', status: 'insufficient_data', reason: 'below_threshold', withheld: null, cases_in_window: 2, skill: 'not backtested; no measured skill' },

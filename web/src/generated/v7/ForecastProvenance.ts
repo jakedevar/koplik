@@ -275,6 +275,16 @@ export interface PublicationPolicy {
    */
   minimum_coverage_90: number;
   /**
+   * ...from at least this many distinct origin weeks (the 8 horizons of one origin are not
+   * independent evidence). Applies to the report-vintage backtest and to the series backtest
+   * alike: a series with less evidence has no measured skill, whatever its scores.
+   */
+  minimum_origin_weeks: number;
+  /**
+   * The evidence floor: at least this many scored targets of the series itself...
+   */
+  minimum_targets: number;
+  /**
    * The rule in plain words, with the reasons for its thresholds (non-empty).
    */
   rule: string;

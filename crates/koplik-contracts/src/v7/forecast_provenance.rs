@@ -59,15 +59,27 @@ pub enum WithheldReason {
     SkillBelowPolicy,
 }
 
-/// The rule that decides whether a forecast is published, fixed before the scores it is applied to
-/// and applied mechanically: a series' forecast is published only if its method has a measured skill
-/// on that series that this policy admits. The thresholds travel with the companion so that the
-/// pipeline, this contract and the web page check the same numbers.
+/// The rule that decides whether a forecast is published, applied mechanically: a series' forecast
+/// is published only if its method has a measured skill on that series that this policy admits. The
+/// rule was written after the first state-series backtest result was known (that result is why it
+/// exists) and before the code that applies it, and its thresholds are never tuned to a score. It
+/// has an evidence floor (scored targets and distinct origin weeks) that applies to every kind of
+/// evaluation alike, then a coverage floor and a ceiling on the error relative to the persistence
+/// baseline. The thresholds travel with the companion so that the pipeline, this contract and the
+/// web page check the same numbers.
 #[derive(Debug, Clone, PartialEq, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PublicationPolicy {
     /// The rule in plain words, with the reasons for its thresholds (non-empty).
     pub rule: String,
+    /// The evidence floor: at least this many scored targets of the series itself...
+    #[schemars(range(min = 1))]
+    pub minimum_targets: u32,
+    /// ...from at least this many distinct origin weeks (the 8 horizons of one origin are not
+    /// independent evidence). Applies to the report-vintage backtest and to the series backtest
+    /// alike: a series with less evidence has no measured skill, whatever its scores.
+    #[schemars(range(min = 1))]
+    pub minimum_origin_weeks: u32,
     /// The measured 90% interval coverage must be at least this.
     #[schemars(range(min = 0, max = 1))]
     pub minimum_coverage_90: f64,
@@ -78,15 +90,20 @@ pub struct PublicationPolicy {
 }
 
 impl PublicationPolicy {
-    /// Whether measured scores meet the policy: one definition, shared by the pipeline that decides,
-    /// the contract that re-checks it, and (mirrored) the page.
+    /// Whether a series' measured evidence meets the policy: `targets` scored targets from
+    /// `origin_weeks` distinct origin weeks (the evidence floor), and the scores. One definition,
+    /// shared by the pipeline that decides, the contract that re-checks it, and (mirrored) the page.
     pub fn admits(
         &self,
+        targets: u32,
+        origin_weeks: u32,
         coverage_90: f64,
         mean_crps: f64,
         mean_persistence_abs_error: f64,
     ) -> bool {
-        coverage_90 >= self.minimum_coverage_90
+        targets >= self.minimum_targets
+            && origin_weeks >= self.minimum_origin_weeks
+            && coverage_90 >= self.minimum_coverage_90
             && mean_crps <= self.maximum_crps_over_persistence * mean_persistence_abs_error
     }
 }
@@ -97,12 +114,19 @@ impl<'de> Deserialize<'de> for PublicationPolicy {
         #[serde(deny_unknown_fields)]
         struct Raw {
             rule: String,
+            minimum_targets: u32,
+            minimum_origin_weeks: u32,
             minimum_coverage_90: f64,
             maximum_crps_over_persistence: f64,
         }
         use serde::de::Error;
         let r = Raw::deserialize(d)?;
         non_empty("publication_policy.rule", &r.rule).map_err(D::Error::custom)?;
+        if r.minimum_targets == 0 || r.minimum_origin_weeks == 0 {
+            return Err(D::Error::custom(
+                "the publication policy's evidence floor must be at least 1 target from at least 1 origin week",
+            ));
+        }
         fraction(
             "publication_policy.minimum_coverage_90",
             r.minimum_coverage_90,
@@ -115,6 +139,8 @@ impl<'de> Deserialize<'de> for PublicationPolicy {
         .map_err(D::Error::custom)?;
         Ok(Self {
             rule: r.rule,
+            minimum_targets: r.minimum_targets,
+            minimum_origin_weeks: r.minimum_origin_weeks,
             minimum_coverage_90: r.minimum_coverage_90,
             maximum_crps_over_persistence: r.maximum_crps_over_persistence,
         })
@@ -781,22 +807,37 @@ impl<'de> Deserialize<'de> for ForecastProvenance {
             }
             // The publication policy, applied to every series the method forecast: published exactly
             // when its own measured scores meet it, withheld for the stated reason otherwise.
-            let scores_of = |s: &ForecastSeries| -> Option<(f64, f64, f64)> {
+            // The evidence a series' skill rests on: (targets, origin weeks, 90% coverage, mean CRPS,
+            // persistence error). The policy's evidence floor applies to both kinds of evaluation.
+            let scores_of = |s: &ForecastSeries| -> Option<(u32, u32, f64, f64, f64)> {
                 match s.skill {
-                    SeriesSkill::Backtested => r
-                        .backtest
-                        .as_ref()
-                        .map(|b| (b.coverage_90, b.mean_crps, b.mean_persistence_abs_error)),
-                    SeriesSkill::Measured => entries
-                        .get(&s.geography)
-                        .and_then(|e| e.measured.as_ref())
-                        .map(|m| (m.coverage_90, m.mean_crps, m.mean_persistence_abs_error)),
+                    SeriesSkill::Backtested => r.backtest.as_ref().map(|b| {
+                        (
+                            b.targets,
+                            b.origin_weeks,
+                            b.coverage_90,
+                            b.mean_crps,
+                            b.mean_persistence_abs_error,
+                        )
+                    }),
+                    SeriesSkill::Measured => entries.get(&s.geography).and_then(|e| {
+                        e.measured.as_ref().map(|m| {
+                            (
+                                e.targets,
+                                e.origin_weeks,
+                                m.coverage_90,
+                                m.mean_crps,
+                                m.mean_persistence_abs_error,
+                            )
+                        })
+                    }),
                     SeriesSkill::InsufficientData | SeriesSkill::NotBacktested => None,
                 }
             };
             for s in &r.series {
-                let admitted = scores_of(s)
-                    .is_some_and(|(c, crps, p)| r.publication_policy.admits(c, crps, p));
+                let admitted = scores_of(s).is_some_and(|(t, o, c, crps, p)| {
+                    r.publication_policy.admits(t, o, c, crps, p)
+                });
                 match (s.status, s.withheld) {
                     (ForecastStatus::Forecast, _) if !admitted => {
                         return Err(format!(

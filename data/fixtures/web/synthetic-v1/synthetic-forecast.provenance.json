@@ -52,6 +52,8 @@
   ],
   "publication_policy": {
     "rule": "SYNTHETIC FIXTURE: a forecast is published only if its own measured skill meets the criterion (invented thresholds shaped like the real ones).",
+    "minimum_targets": 4,
+    "minimum_origin_weeks": 2,
     "minimum_coverage_90": 0.75,
     "maximum_crps_over_persistence": 1
   },

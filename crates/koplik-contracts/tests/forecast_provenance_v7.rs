@@ -83,7 +83,9 @@ fn series_backtest() -> Value {
 }
 
 fn policy() -> Value {
+    // The evidence floor here matches the invented series backtest's (6 targets from 3 origin weeks).
     json!({"rule": "published only where the measured skill meets the criterion",
+           "minimum_targets": 6, "minimum_origin_weeks": 3,
            "minimum_coverage_90": 0.75, "maximum_crps_over_persistence": 1.0})
 }
 
@@ -348,23 +350,133 @@ fn policy_value() -> PublicationPolicy {
 #[test]
 fn the_policy_admits_exactly_what_it_states() {
     let p = policy_value();
+    // (targets, origin weeks, 90% coverage, mean CRPS, persistence error); the floor is 6 from 3.
     assert!(
-        p.admits(0.75, 4.0, 4.0),
+        p.admits(6, 3, 0.75, 4.0, 4.0),
         "the thresholds themselves are admitted"
     );
-    assert!(p.admits(1.0, 0.0, 0.0));
-    assert!(!p.admits(0.7499, 1.0, 4.0), "coverage below the floor");
-    assert!(!p.admits(0.9, 4.0001, 4.0), "worse than persistence");
+    assert!(p.admits(60, 30, 1.0, 0.0, 0.0));
     assert!(
-        !p.admits(0.9, 1.0, 0.0),
+        !p.admits(6, 3, 0.7499, 1.0, 4.0),
+        "coverage below the floor"
+    );
+    assert!(!p.admits(6, 3, 0.9, 4.0001, 4.0), "worse than persistence");
+    assert!(
+        !p.admits(6, 3, 0.9, 1.0, 0.0),
         "any error against a zero baseline is worse"
     );
+    // The evidence floor, at its boundaries: one target or one origin week short is not enough, however good the scores.
+    assert!(!p.admits(5, 3, 1.0, 0.0, 4.0), "5 targets, floor 6");
+    assert!(!p.admits(6, 2, 1.0, 0.0, 4.0), "2 origin weeks, floor 3");
+    assert!(!p.admits(1, 1, 1.0, 0.0, 4.0));
     let lenient = PublicationPolicy {
         maximum_crps_over_persistence: 2.0,
         ..p
     };
-    assert!(lenient.admits(0.8, 8.0, 4.0));
-    assert!(!lenient.admits(0.8, 8.1, 4.0));
+    assert!(lenient.admits(6, 3, 0.8, 8.0, 4.0));
+    assert!(!lenient.admits(6, 3, 0.8, 8.1, 4.0));
+}
+
+/// A report-vintage backtest (`BacktestSkill`) of the Texas DSHS outbreak total, invented numbers.
+fn west_texas_skill() -> Value {
+    json!({
+        "name": "the 2025 West Texas outbreak",
+        "series": "Texas DSHS outbreak total by report date", "geography": "48",
+        "case_definition": "confirmed", "protocol": "real time by report vintage",
+        "seed": 20250101u64, "targets": 3, "forecast_dates": 2, "origin_weeks": 2,
+        "mean_crps": 3.5, "coverage_50": 0.5, "coverage_90": 0.6, "mean_persistence_abs_error": 5.0,
+        "by_horizon": [{"horizon": 1, "n": 3, "mean_crps": 3.5, "coverage_50": 0.5, "coverage_90": 0.6}],
+        "report_path": "data/reports/backtest/west-texas-2025.json", "report_sha256": HASH, "manifest_sha256": HASH,
+        "limitations": ["one outbreak"]
+    })
+}
+
+/// A companion publishing the series the report-vintage backtest scored (`backtested`, geography 48,
+/// confirmed), with a 40-target, 10-origin-week evidence floor, and scores that meet the rest of
+/// the policy. The evidence is `targets` scored targets from `origin_weeks` distinct origin weeks.
+fn legacy_companion(targets: u32, origin_weeks: u32, status: &str, withheld: Value) -> Value {
+    let mut skill = west_texas_skill();
+    skill["targets"] = json!(targets);
+    skill["forecast_dates"] = json!(origin_weeks);
+    skill["origin_weeks"] = json!(origin_weeks);
+    skill["coverage_90"] = json!(0.9);
+    skill["coverage_50"] = json!(0.5);
+    skill["mean_crps"] = json!(1.0);
+    skill["mean_persistence_abs_error"] = json!(5.0);
+    skill["by_horizon"] = json!([{"horizon": 1, "n": targets, "mean_crps": 1.0, "coverage_50": 0.5, "coverage_90": 0.9}]);
+    let mut v = companion();
+    v["publication_policy"]["minimum_targets"] = json!(40);
+    v["publication_policy"]["minimum_origin_weeks"] = json!(10);
+    v["series_backtest"] = Value::Null;
+    v["backtest"] = skill;
+    v["series"] = json!([{"geography": "48", "case_definition": "confirmed", "status": status,
+        "reason": null, "withheld": withheld, "cases_in_window": 15, "skill": "backtested"}]);
+    v
+}
+
+#[test]
+fn the_evidence_floor_applies_to_the_report_vintage_backtest_too() {
+    // 40 targets from 10 origin weeks: the floor itself is enough, and the series is published.
+    let at_floor = parse(legacy_companion(40, 10, "forecast", Value::Null)).unwrap();
+    at_floor.check_against(&rows(&["48"])).unwrap();
+    // One target short, or one origin week short, cannot be published, however good its scores ...
+    for (targets, origin_weeks) in [(39, 10), (40, 9), (1, 1), (39, 9)] {
+        let e = parse(legacy_companion(
+            targets,
+            origin_weeks,
+            "forecast",
+            Value::Null,
+        ))
+        .expect_err("below the evidence floor");
+        assert!(
+            e.contains("does not meet the publication policy"),
+            "{targets} targets from {origin_weeks} origin weeks: {e}"
+        );
+        // ... it is withheld, for having a measured skill below the policy.
+        let w = parse(legacy_companion(
+            targets,
+            origin_weeks,
+            "withheld",
+            json!("skill_below_policy"),
+        ))
+        .unwrap();
+        assert_eq!(w.series[0].withheld, Some(WithheldReason::SkillBelowPolicy));
+        w.check_against(&[]).unwrap();
+    }
+    // At the floor it cannot be withheld: the policy admits it.
+    let e = parse(legacy_companion(
+        40,
+        10,
+        "withheld",
+        json!("skill_below_policy"),
+    ))
+    .unwrap_err();
+    assert!(
+        e.contains("meets the publication policy but is withheld"),
+        "{e}"
+    );
+}
+
+#[test]
+fn the_evidence_floor_applies_to_the_series_backtest_too() {
+    // "12" has 6 targets from 3 origin weeks; a policy asking for one more of either refuses it.
+    rejects(
+        |v| v["publication_policy"]["minimum_targets"] = json!(7),
+        "does not meet the publication policy",
+    );
+    rejects(
+        |v| v["publication_policy"]["minimum_origin_weeks"] = json!(4),
+        "does not meet the publication policy",
+    );
+    // A floor of nothing is not a policy.
+    rejects(
+        |v| v["publication_policy"]["minimum_targets"] = json!(0),
+        "evidence floor must be at least 1",
+    );
+    rejects(
+        |v| v["publication_policy"]["minimum_origin_weeks"] = json!(0),
+        "evidence floor must be at least 1",
+    );
 }
 
 #[test]

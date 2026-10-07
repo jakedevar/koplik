@@ -561,7 +561,7 @@
       ]
     },
     "PublicationPolicy": {
-      "description": "The rule that decides whether a forecast is published, fixed before the scores it is applied to\nand applied mechanically: a series' forecast is published only if its method has a measured skill\non that series that this policy admits. The thresholds travel with the companion so that the\npipeline, this contract and the web page check the same numbers.",
+      "description": "The rule that decides whether a forecast is published, applied mechanically: a series' forecast\nis published only if its method has a measured skill on that series that this policy admits. The\nrule was written after the first state-series backtest result was known (that result is why it\nexists) and before the code that applies it, and its thresholds are never tuned to a score. It\nhas an evidence floor (scored targets and distinct origin weeks) that applies to every kind of\nevaluation alike, then a coverage floor and a ceiling on the error relative to the persistence\nbaseline. The thresholds travel with the companion so that the pipeline, this contract and the\nweb page check the same numbers.",
       "type": "object",
       "properties": {
         "maximum_crps_over_persistence": {
@@ -577,6 +577,18 @@
           "maximum": 1,
           "minimum": 0
         },
+        "minimum_origin_weeks": {
+          "description": "...from at least this many distinct origin weeks (the 8 horizons of one origin are not\nindependent evidence). Applies to the report-vintage backtest and to the series backtest\nalike: a series with less evidence has no measured skill, whatever its scores.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        },
+        "minimum_targets": {
+          "description": "The evidence floor: at least this many scored targets of the series itself...",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        },
         "rule": {
           "description": "The rule in plain words, with the reasons for its thresholds (non-empty).",
           "type": "string"
@@ -585,6 +597,8 @@
       "additionalProperties": false,
       "required": [
         "rule",
+        "minimum_targets",
+        "minimum_origin_weeks",
         "minimum_coverage_90",
         "maximum_crps_over_persistence"
       ]
