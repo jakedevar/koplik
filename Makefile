@@ -45,7 +45,7 @@ web/node_modules/.package-lock.json: web/package-lock.json
 	cd web && npm ci --no-audit --no-fund
 
 web-test: wasm web/node_modules/.package-lock.json
-	tools/offline-test.sh sh -eu -c 'node --test tools/offline-test.test.mjs; cd web; npm test; cd ..; node --test tools/publish.test.mjs'
+	tools/offline-test.sh sh -eu -c 'node --test tools/offline-test.test.mjs; cd web; npm test; cd ..; mkdir -p "$$CARGO_TARGET_DIR/publish-tests"; TMPDIR="$$CARGO_TARGET_DIR/publish-tests" node --test tools/publish.test.mjs'
 
 # Live pipeline: ingest (network, identified by KOPLIK_CONTACT or the operator's default contact;
 # a blank KOPLIK_CONTACT refuses) then validate, infer, forecast and build into web/public/data.

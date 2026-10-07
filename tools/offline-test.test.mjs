@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 const gate = fileURLToPath(new URL('./offline-test.sh', import.meta.url));
+// On an unsupported host an explicit opt-out may run this suite. Keep testing
+// refusal/opt-out there; the tests requiring real namespaces cannot run there.
+const namespacesAvailable = spawnSync('unshare', ['-rn', 'sh', '-eu', '-c', 'ip link set lo up']).status === 0;
 
 test('unavailable isolation refuses execution unless explicitly opted out', async () => {
   const scratch = await mkdtemp(join(tmpdir(), 'koplik-offline-gate-'));
@@ -33,7 +36,7 @@ test('unavailable isolation refuses execution unless explicitly opted out', asyn
   }
 });
 
-test('isolated command failures keep their exit status even with opt-out enabled', () => {
+test('isolated command failures keep their exit status even with opt-out enabled', { skip: !namespacesAvailable }, () => {
   const result = spawnSync('bash', [gate, process.execPath, '-e', 'process.exit(47)'], {
     env: { ...process.env, KOPLIK_ALLOW_NETWORK_TESTS: '1' }, encoding: 'utf8',
   });
@@ -42,7 +45,7 @@ test('isolated command failures keep their exit status even with opt-out enabled
   assert.match(result.stdout, /192\.0\.2\.1:443 -> ENETUNREACH/);
 });
 
-test('isolated command receives arguments unchanged', () => {
+test('isolated command receives arguments unchanged', { skip: !namespacesAvailable }, () => {
   const args = ['space in argument', '$(literal)', 'semi;colon'];
   const result = spawnSync('bash', [gate, process.execPath, '-e',
     `require('node:assert/strict').deepEqual(process.argv.slice(1), ${JSON.stringify(args)})`,

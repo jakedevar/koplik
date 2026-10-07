@@ -12,6 +12,8 @@ Run `npm ci` in `web/` once. `TMPDIR=/tmp make web-test` runs Vitest and the
 Playwright smoke test and the local publishing test inside
 `tools/offline-test.sh`'s network namespace, with loopback enabled and external
 TCP blocked. Dependency installation and WASM compilation happen first.
+Publishing-test scratch builds live under `CARGO_TARGET_DIR/publish-tests`;
+the browser still uses `TMPDIR=/tmp` to keep its Unix socket path short.
 Namespace setup failure refuses execution unless explicitly opted out with
 `KOPLIK_ALLOW_NETWORK_TESTS=1` (see `AGENTS.md`; that is an unisolated run).
 `make serve` builds
