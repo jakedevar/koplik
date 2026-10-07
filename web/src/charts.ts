@@ -105,20 +105,32 @@ export function rtChart(rows: RtEstimate[], year: number): SVGSVGElement {
   }
   svg.append(legend);
   svg.append(svgElement('line', { x1: 40, x2: 610, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));
+  // Paired levels are interleaved by week. Build each level's sequence before
+  // splitting on unavailable weeks; paint wider credible levels first.
   const groups: RtEstimate[][] = [];
-  for (const row of drawable) {
-    const previous = groups.at(-1)?.at(-1);
-    if (!previous || previous.week.week + 1 !== row.week.week || previous.interval_level !== row.interval_level) groups.push([]);
-    groups.at(-1)!.push(row);
+  const levels = [...new Set(drawable.map((row) => row.interval_level))].sort((a, b) => b - a);
+  for (const level of levels) {
+    const sequence: RtEstimate[][] = [];
+    for (const row of drawable.filter((row) => row.interval_level === level)) {
+      const previous = sequence.at(-1)?.at(-1);
+      if (!previous || previous.week.week + 1 !== row.week.week) sequence.push([]);
+      sequence.at(-1)!.push(row);
+    }
+    groups.push(...sequence);
   }
   for (const group of groups) {
     const points = [...group.map((r) => `${x(r.week.week)},${y(r.upper!, maximum)}`),
       ...[...group].reverse().map((r) => `${x(r.week.week)},${y(r.lower!, maximum)}`)].join(' ');
-    svg.append(svgElement('polygon', { points, class: 'rt-ribbon' }));
-    svg.append(svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${y(r.mean!, maximum)}`).join(' '), class: 'rt-mean' }));
+    const level = group[0].interval_level;
+    const ribbon = svgElement('polygon', { points, class: 'rt-ribbon', 'data-interval-level': level });
+    const title = svgElement('title', {});
+    title.textContent = `${level * 100}% credible interval · weeks ${group[0].week.week}–${group.at(-1)!.week.week}`;
+    ribbon.append(title);
+    svg.append(ribbon);
+    svg.append(svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${y(r.mean!, maximum)}`).join(' '), class: 'rt-mean', 'data-interval-level': level }));
     for (const row of group) {
-      svg.append(svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: y(row.lower!, maximum), y2: y(row.upper!, maximum), class: 'rt-interval', 'data-week': row.week.week }));
-      const point = svgElement('circle', { cx: x(row.week.week), cy: y(row.mean!, maximum), r: 3, class: 'rt-point', 'data-week': row.week.week });
+      svg.append(svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: y(row.lower!, maximum), y2: y(row.upper!, maximum), class: 'rt-interval', 'data-week': row.week.week, 'data-interval-level': level }));
+      const point = svgElement('circle', { cx: x(row.week.week), cy: y(row.mean!, maximum), r: 3, class: 'rt-point', 'data-week': row.week.week, 'data-interval-level': level });
       const title = svgElement('title', {});
       title.textContent = `Week ${row.week.week}: ${rtLabel(row)}`;
       point.append(title);

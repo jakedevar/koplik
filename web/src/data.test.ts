@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { loadDataset, metricValue, parseBoundaries, parseRows } from './data';
-import { fixtureDataset, fixtureJson, fixtureRoot } from './fixtures.test-utils';
+import { fixtureDataset, fixtureJson, fixtureRoot, pairedRtRows } from './fixtures.test-utils';
 
 describe('contracts and artifact loading', () => {
   it('validates all committed synthetic v1 fixtures and traces rows to their source bytes', () => {
@@ -26,6 +26,17 @@ describe('contracts and artifact loading', () => {
     const data = await loadDataset('/koplik/', true, read);
     expect(data.geographies).toHaveLength(6);
     expect(read).toHaveBeenCalledTimes(6);
+  });
+  it('loads paired 50%/95% R_t rows and rejects a duplicate of the same interval level', async () => {
+    const paired = pairedRtRows();
+    const read = vi.fn(async (url: RequestInfo | URL) => {
+      const name = String(url).split('/').at(-1)!.replace('synthetic-', '').replace('.json', '');
+      return { ok: true, json: async () => name === 'rt' ? paired : fixtureJson(name) } as Response;
+    });
+    const data = await loadDataset('/koplik/', true, read);
+    expect(data.rt).toEqual(paired);
+    expect(data.rt.map((row) => row.interval_level)).toEqual([0.5, 0.95, 0.5, 0.95]);
+    expect(() => parseRows('rt', [...data.rt, { ...data.rt[0] }])).toThrow('duplicate row 48:2025:2:0.5');
   });
   it('fails visibly for absent artifacts and refuses synthetic observations in production', async () => {
     const unavailable = vi.fn(async () => ({ ok: false, status: 404 }) as Response);

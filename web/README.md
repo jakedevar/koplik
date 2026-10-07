@@ -28,8 +28,9 @@ WGS84 longitude/latitude; FIPS remain zero-padded strings. Additional GeoJSON
 properties are allowed. Supply boundary `properties.provenance` as an array of
 v1 `Provenance` records for its geometry. Attribution displays those source and
 licence ids and updates on drill-down; absent provenance is explicitly labelled
-unavailable, with no inferred Census/public-domain claim. Observation keys (geography + week or school year) are
-unique. Empty arrays mean unavailable data; missing counts/coverage use the
+unavailable, with no inferred Census/public-domain claim. Observation keys are
+unique: geography + week for cases, geography + week + interval_level for R_t,
+and geography + school year for coverage. Empty arrays mean unavailable data; missing counts/coverage use the
 contract's explicit `missing` variant. Do not insert zeros for missing weeks.
 All six files are required so a failed or incomplete build fails visibly instead
 of silently rendering stale partial data. Production never falls back to fixtures.
@@ -44,8 +45,9 @@ MMWR year and explicitly labels its week range and number of reports. It does
 not claim a full-year total. Missing rows or internal gaps make the aggregate
 missing. Coverage selects the latest reported school year for each geography
 (including a latest missing row) and displays its year and imputation metadata.
-The chart table reports exact values; R_t curves never bridge omitted weeks,
-insufficient-data weeks, provisional weeks or different interval levels.
+The chart table reports exact values for every supplied R_t interval level.
+R_t ribbons are grouped by interval level, with wider levels drawn first; each
+sequence never bridges omitted weeks, insufficient-data weeks or provisional weeks.
 Insufficient-data weeks have grey hatched bands (I); provisional weeks have dashed
 outlines (P), with both marks (IP) when both statuses apply. Each marker has an
 accessible week/status label and a visible legend; absent rows remain blank.
