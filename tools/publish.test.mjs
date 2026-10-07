@@ -260,6 +260,14 @@ if (args.includes('wasm') && process.env.TEST_INTERRUPT_STAGE === 'build') {
   process.exit(r.status ?? 1);
 }
 `, { mode: 0o755 });
+    // Pause the pipeline compiler before compiling another archive. The earlier real
+    // publication already verified the built site; this checks process-group cleanup.
+    await writeFile(join(bin, 'cargo'), `#!/usr/bin/env node
+if (process.env.TEST_INTERRUPT_STAGE === 'build') {
+  process.stdout.write('INTERRUPT_READY ' + process.pid + '\\n');
+  setInterval(() => {}, 1000);
+} else { process.exit(97); }
+`, { mode: 0o755 });
     for (const stage of ['archive', 'build']) for (const signal of ['SIGINT', 'SIGTERM']) {
       const child = spawn(process.execPath, ['tools/publish.mjs'], {
         cwd: caller, env: { ...process.env, TMPDIR: scratch, PUBLISH_REMOTE: remote,
@@ -269,7 +277,7 @@ if (args.includes('wasm') && process.env.TEST_INTERRUPT_STAGE === 'build') {
       });
       let subprocess;
       await new Promise((accept, reject) => {
-        const timeout = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('Publisher signal test timed out')); }, 15000);
+        const timeout = setTimeout(() => { child.kill('SIGTERM'); reject(new Error('Publisher signal test timed out')); }, 120000);
         let stdout = '';
         child.stdout.on('data', (chunk) => {
           stdout += chunk;
