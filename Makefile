@@ -39,7 +39,7 @@ wasm-benchmark: wasm
 web/node_modules/.package-lock.json: web/package-lock.json
 	cd web && npm ci --no-audit --no-fund
 
-web-test: web/node_modules/.package-lock.json
+web-test: wasm web/node_modules/.package-lock.json
 	cd web && npm test
 
 pipeline:

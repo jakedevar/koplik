@@ -35,7 +35,9 @@ export function parseScenario(raw: string, synthetic = false): Scenario {
   if (!validate({ ...scenario, seed: 0 })) throw new Error(`Invalid v1 scenario: ${ajv.errorsText(validate.errors)}`);
   const node = scenario.nodes.find((n) => n.id === gaines);
   if (scenario.start_week.year !== 2025 || !node) throw new Error('Expected Gaines County 2025 scenario');
-  if (node.baseline_coverage.status !== 'reported' || node.baseline_coverage.imputed) throw new Error('Measured Gaines County coverage not yet available');
+  if (node.baseline_coverage.status !== 'reported' || node.baseline_coverage.imputed) {
+    if (!synthetic || !scenario.coverage_overrides.some((o) => o.geography === gaines)) throw new Error('Measured Gaines County coverage not yet available');
+  }
   const provenance = scenario.nodes.flatMap((n) => [...n.provenance, ...(n.baseline_coverage.status === 'reported' ? n.baseline_coverage.provenance : [])]);
   if (!synthetic && provenance.some((p) => p.source_id.startsWith('synthetic') || p.url.includes('example.invalid'))) {
     throw new Error('Synthetic scenario requires explicit development fixture mode');
@@ -49,7 +51,8 @@ export function scenarioJson(scenario: Scenario, coverage: number): string {
   if (!/^(0|[1-9]\d*)$/.test(seed) || BigInt(seed) > 18446744073709551615n) throw new Error('Invalid seed');
   const baseline = scenario.nodes.find((n) => n.id === gaines)!.baseline_coverage;
   const overrides = scenario.coverage_overrides.filter((o) => o.geography !== gaines);
-  if (baseline.status === 'reported' && coverage !== baseline.coverage_pct) overrides.push({ geography: gaines, coverage_pct: coverage });
+  if (baseline.status === 'missing' || coverage !== baseline.coverage_pct) overrides.push({ geography: gaines, coverage_pct: coverage });
+  overrides.sort((a, b) => a.geography.localeCompare(b.geography, 'en'));
   // Seed is the last root field, inserted as validated decimal text, never JSON.stringify(number).
   return JSON.stringify({ ...rest, coverage_overrides: overrides, run_count: 1000 }).slice(0, -1) + `,"seed":${seed}}`;
 }

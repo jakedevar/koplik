@@ -55,13 +55,10 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     panel.setAttribute('aria-busy', 'false');
     status.textContent = `Simulation unavailable. ${message}`;
   }
-  function render(result: EnsembleResult, elapsed: number) {
+  function render(result: EnsembleResult) {
     if (result.contract_version !== 2 || result.members.length !== 1000 || result.seed !== scenario!.seed || !/^[0-9a-f]{64}$/.test(result.fingerprint)) {
       fail('Unexpected engine result'); return;
     }
-    status.textContent = `1,000 runs complete · update ${(elapsed / 1000).toFixed(3)} s${elapsed >= 3000 ? ' · exceeds the 3 s target' : ''}${options.synthetic ? ' · synthetic fixture' : ''}`;
-    panel.dataset.updateMs = String(elapsed);
-    panel.setAttribute('aria-busy', 'false');
     const fingerprint = element('code', result.fingerprint);
     fingerprint.className = 'engine-fingerprint';
     const fingerprintLabel = element('p', 'Engine fingerprint (sha256, member 0 full trajectory): ');
@@ -89,6 +86,10 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     output.replaceChildren(element('h3', 'Simulated cumulative infections'), ensembleChart(result),
       element('p', 'Line: median · Dark band: equal-tail 50% · Light band: equal-tail 90%. Predictive bands describe the simulated ensemble. Includes initial exposed and infectious individuals, excludes vaccine immunity; these are not reported cases.', 'chart-note'),
       fingerprintLabel, replay, reports);
+    const elapsed = now() - started;
+    status.textContent = `1,000 runs complete · update ${(elapsed / 1000).toFixed(3)} s${elapsed >= 3000 ? ' · exceeds the 3 s target' : ''}${options.synthetic ? ' · synthetic fixture' : ''}`;
+    panel.dataset.updateMs = String(elapsed);
+    panel.setAttribute('aria-busy', 'false');
   }
   function dispatch() {
     timer = undefined;
@@ -101,7 +102,7 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
           active = 0;
           if (data.id !== desired) { if (!timer) dispatch(); return; }
           if ('error' in data) fail(data.error);
-          else render(data.result, now() - started);
+          else render(data.result);
         };
         worker.onerror = () => {
           if (disposed) return;
@@ -137,13 +138,13 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     scenario = loaded;
     const node = loaded.nodes.find((n) => n.id === gaines)!;
     const measured = node.baseline_coverage;
-    if (measured.status !== 'reported') { fail('Measured coverage not yet available'); return; }
-    baseline = measured.coverage_pct;
+    if (measured.status !== 'reported' && !options.synthetic) { fail('Measured coverage not yet available'); return; }
+    baseline = measured.status === 'reported' ? measured.coverage_pct : loaded.coverage_overrides.find((o) => o.geography === gaines)!.coverage_pct;
     slider.value = String(baseline); slider.disabled = false; reset.disabled = false;
     metadata.append(element('p', `${options.synthetic ? 'Synthetic fixture baseline' : 'Measured baseline coverage'}: ${baseline}% · MMWR ${loaded.start_week.year} W${loaded.start_week.week} · Seed: ${loaded.seed} · 1,000 runs`));
     const sources = element('details');
-    sources.append(element('summary', 'Baseline coverage provenance'));
-    for (const provenance of measured.provenance) {
+    sources.append(element('summary', measured.status === 'reported' ? 'Baseline coverage provenance' : 'Synthetic scenario input provenance (coverage override)'));
+    for (const provenance of measured.status === 'reported' ? measured.provenance : node.provenance) {
       const line = element('p', `${provenance.source_id} · Retrieved ${provenance.retrieved_at} · Licence/terms: ${provenance.licence_id}`);
       const link = element('a', provenance.url);
       // Source URLs are rendered only as HTTP(S) links, never executable schemes.
