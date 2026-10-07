@@ -10,7 +10,20 @@ pub struct Robots {
 #[derive(Debug, Clone, PartialEq)]
 struct Rule {
     allow: bool,
+    /// Canonical form (RFC 9309 section 2.2.2/2.2.3): see [`Mode::Rule`].
     pattern: String,
+    /// Legacy form (`Mode::Legacy`): the matcher that shipped before the Figure 6 fix.
+    legacy: String,
+}
+
+impl Rule {
+    fn new(allow: bool, raw: &str) -> Self {
+        Self {
+            allow,
+            pattern: normalize_encoding(raw, Mode::Rule),
+            legacy: normalize_encoding(raw, Mode::Legacy),
+        }
+    }
 }
 
 impl Robots {
@@ -23,10 +36,7 @@ impl Robots {
     /// error or because it is itself forbidden: the conservative reading of RFC 9309).
     pub fn disallow_all() -> Self {
         Self {
-            rules: vec![Rule {
-                allow: false,
-                pattern: "/".into(),
-            }],
+            rules: vec![Rule::new(false, "/")],
             crawl_delay_secs: None,
         }
     }
@@ -69,10 +79,7 @@ impl Robots {
                     if let Some(g) = groups.last_mut() {
                         // An empty `Disallow:` means allow everything: no rule.
                         if !value.is_empty() {
-                            g.rules.push(Rule {
-                                allow: key == "allow",
-                                pattern: normalize_encoding(value, Mode::Rule),
-                            });
+                            g.rules.push(Rule::new(key == "allow", value));
                         }
                     }
                 }
@@ -120,12 +127,35 @@ impl Robots {
     }
 
     /// Whether `path_and_query` (starting with `/`) may be fetched.
+    ///
+    /// A URL is fetched only if **both** matchers allow it: the canonical one (RFC 9309
+    /// section 2.2.2/2.2.3, including Figure 6: `%2A`/`%24` in a rule match a literal `*`/`$`
+    /// in the URI) and the legacy one, which keeps `*`/`$` literal in the URI and never
+    /// escapes them. Section 2.2.2 requires that "most octets" be compared after
+    /// normalisation, and that normalisation can lengthen a rule (`/a$b` -> `/a%24b`), which
+    /// can flip the longest-match precedence and turn a refusal into a permission. Taking the
+    /// conjunction makes it true by construction that normalisation never newly grants an
+    /// `Allow` exception: the fetcher refuses at least everything the legacy matcher refused,
+    /// plus the Figure 6 literal forms (round-2 review finding
+    /// `robots-normalization-allow-regression`).
     pub fn allowed(&self, path_and_query: &str) -> bool {
-        let path_and_query = &normalize_encoding(path_and_query, Mode::Uri);
+        self.decide(path_and_query, Mode::Rule) && self.decide(path_and_query, Mode::Legacy)
+    }
+
+    /// One matcher's decision: longest matching rule wins, `Allow` on ties, no match allows.
+    /// `Mode::Rule` selects the canonical rule patterns and URI form, `Mode::Legacy` the legacy
+    /// ones (`Mode::Uri` is the canonical URI normalisation and is not a decision mode).
+    fn decide(&self, path_and_query: &str, mode: Mode) -> bool {
+        let canonical = mode == Mode::Rule;
+        let path = &normalize_encoding(
+            path_and_query,
+            if canonical { Mode::Uri } else { Mode::Legacy },
+        );
         let mut best: Option<(&Rule, usize)> = None;
         for r in &self.rules {
-            if matches(&r.pattern, path_and_query) {
-                let len = r.pattern.len();
+            let p = if canonical { &r.pattern } else { &r.legacy };
+            if matches(p, path) {
+                let len = p.len();
                 let better = match best {
                     None => true,
                     Some((b, bl)) => len > bl || (len == bl && r.allow && !b.allow),
@@ -147,6 +177,8 @@ enum Mode {
     /// Every `*` and `$` is a literal octet, so it is escaped and can only match a rule that
     /// spells it `%2A`/`%24` or covers it with a wildcard (RFC 9309 section 2.2.3, Figure 6).
     Uri,
+    /// The pre-Figure-6 behaviour, for both rules and URIs: `*` and `$` pass through untouched.
+    Legacy,
 }
 
 /// RFC 9309 section 2.2.2 percent-encoding normalisation, applied to rule paths and request
@@ -180,7 +212,8 @@ fn normalize_encoding(s: &str, mode: Mode) -> String {
                 i += 3;
             }
             None if matches!(b, b'*' | b'$')
-                && (mode == Mode::Uri || (b == b'$' && i + 1 < bytes.len())) =>
+                && (mode == Mode::Uri
+                    || (mode == Mode::Rule && b == b'$' && i + 1 < bytes.len())) =>
             {
                 out.push_str(&format!("%{b:02X}"));
                 i += 1;
@@ -334,6 +367,142 @@ mod tests {
         for (rule, uri, blocked) in FIGURE_6 {
             let r = Robots::parse(&format!("User-agent: *\nDisallow: {rule}\n"), AGENT);
             assert_eq!(!r.allowed(uri), *blocked, "Disallow: {rule} vs {uri}");
+        }
+    }
+
+    #[test]
+    fn normalisation_never_turns_a_refusal_into_a_permission() {
+        // Round-2 review finding: expanding `/a$b` to `/a%24b` made it tie with `/a*bcd` and
+        // win the Allow tie, newly allowing `/a$bcd`; the legacy matcher refused it.
+        let r = Robots::parse("User-agent: *\nDisallow: /a*bcd\nAllow: /a$b\n", AGENT);
+        assert!(!r.allowed("/a$bcd"));
+        // Likewise an Allow written with an escape must not newly open a Disallowed subtree.
+        let r = Robots::parse(
+            "User-agent: *\nDisallow: /private\nAllow: /private/%24\n",
+            AGENT,
+        );
+        assert!(!r.allowed("/private/$"));
+        // The explicit escaped spelling the site allowed is still allowed (both matchers agree).
+        assert!(r.allowed("/private/%24"));
+    }
+
+    /// The matcher as released in 46e00729, kept verbatim as an independent reference:
+    /// `*` and `$` pass through untouched in rules and in URIs.
+    fn legacy_reference_allowed(rules: &[(bool, String)], path: &str) -> bool {
+        fn norm(s: &str) -> String {
+            const RESERVED: &[u8] = b":/?#[]@!$&'()*+,;=";
+            let unreserved =
+                |c: u8| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'.' | b'_' | b'~');
+            let b = s.as_bytes();
+            let (mut out, mut i) = (String::new(), 0);
+            while i < b.len() {
+                let esc = (b[i] == b'%' && i + 2 < b.len())
+                    .then(|| {
+                        let hi = (b[i + 1] as char).to_digit(16)?;
+                        let lo = (b[i + 2] as char).to_digit(16)?;
+                        Some((hi * 16 + lo) as u8)
+                    })
+                    .flatten();
+                match esc {
+                    Some(c) if unreserved(c) => {
+                        out.push(char::from(c));
+                        i += 3;
+                    }
+                    Some(c) => {
+                        out.push_str(&format!("%{c:02X}"));
+                        i += 3;
+                    }
+                    None if unreserved(b[i]) || RESERVED.contains(&b[i]) || b[i] == b'%' => {
+                        out.push(char::from(b[i]));
+                        i += 1;
+                    }
+                    None => {
+                        out.push_str(&format!("%{:02X}", b[i]));
+                        i += 1;
+                    }
+                }
+            }
+            out
+        }
+        let path = norm(path);
+        let mut best: Option<(bool, usize)> = None;
+        for (allow, raw) in rules {
+            let p = norm(raw);
+            if matches(&p, &path) {
+                let better = match best {
+                    None => true,
+                    Some((ba, bl)) => p.len() > bl || (p.len() == bl && *allow && !ba),
+                };
+                if better {
+                    best = Some((*allow, p.len()));
+                }
+            }
+        }
+        best.is_none_or(|(a, _)| a)
+    }
+
+    /// Deterministic splitmix64, so the differential test is seeded and offline.
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
+            let mut z = self.0;
+            z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+            z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+            z ^ (z >> 31)
+        }
+        fn below(&mut self, n: usize) -> usize {
+            (self.next() % n as u64) as usize
+        }
+    }
+
+    #[test]
+    fn seeded_differential_everything_the_legacy_matcher_refused_is_still_refused() {
+        const TOKENS: &[&str] = &["/", "a", "b", "*", "$", "%2A", "%24", "%2a", "%7E", "~"];
+        let mut rng = Rng(0x1348_0000_0000_0001);
+        let (mut refused_legacy, mut figure6_extra) = (0u32, 0u32);
+        for _ in 0..4000 {
+            let rules: Vec<(bool, String)> = (0..1 + rng.below(4))
+                .map(|_| {
+                    let n = 1 + rng.below(5);
+                    let mut p = String::from("/");
+                    for _ in 0..n {
+                        p.push_str(TOKENS[rng.below(TOKENS.len())]);
+                    }
+                    (rng.below(2) == 0, p)
+                })
+                .collect();
+            let text: String = std::iter::once("User-agent: *\n".to_owned())
+                .chain(rules.iter().map(|(allow, p)| {
+                    format!("{}: {p}\n", if *allow { "Allow" } else { "Disallow" })
+                }))
+                .collect();
+            let robots = Robots::parse(&text, AGENT);
+            for _ in 0..16 {
+                let mut path = String::from("/");
+                for _ in 0..1 + rng.below(6) {
+                    path.push_str(TOKENS[rng.below(TOKENS.len())]);
+                }
+                let legacy = legacy_reference_allowed(&rules, &path);
+                let now = robots.allowed(&path);
+                if !legacy {
+                    refused_legacy += 1;
+                    assert!(!now, "legacy refused but now allowed: {text:?} {path:?}");
+                } else if !now {
+                    figure6_extra += 1;
+                }
+            }
+        }
+        // The generator must exercise both directions, or the test proves nothing.
+        assert!(refused_legacy > 5000, "{refused_legacy}");
+        assert!(figure6_extra > 50, "{figure6_extra}");
+        // Figure 6 literal forms stay refused.
+        for (rule, uri) in [
+            ("/path/file-with-a-%2A.html", "/path/file-with-a-*.html"),
+            ("/path/foo-%24", "/path/foo-$"),
+        ] {
+            let r = Robots::parse(&format!("User-agent: *\nDisallow: {rule}\n"), AGENT);
+            assert!(!r.allowed(uri));
         }
     }
 

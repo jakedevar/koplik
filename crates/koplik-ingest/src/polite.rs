@@ -656,6 +656,33 @@ mod tests {
     }
 
     #[test]
+    fn normalisation_cannot_newly_allow_a_url_the_legacy_matcher_refused() {
+        // (robots.txt, forbidden URL path): both were refused before the Figure 6 fix.
+        let cases: [(&[u8], &str); 2] = [
+            (b"User-agent: *\nDisallow: /a*bcd\nAllow: /a$b\n", "/a$bcd"),
+            (
+                b"User-agent: *\nDisallow: /private\nAllow: /private/%24\n",
+                "/private/$",
+            ),
+        ];
+        for (robots_txt, path) in cases {
+            let c = FakeClient::default();
+            c.on(ROBOTS, FakeClient::ok(robots_txt));
+            let url = format!("https://data.example.gov{path}");
+            c.on(&url, FakeClient::ok(b"x"));
+            let mut f = fetcher(&c, &FakeTime::default());
+            assert!(
+                matches!(f.fetch(&url), Err(IngestError::RobotsDisallowed { .. })),
+                "{url}"
+            );
+            assert!(
+                c.calls.borrow().iter().all(|(u, _)| *u != url),
+                "zero data requests for {url}"
+            );
+        }
+    }
+
+    #[test]
     fn default_ports_normalise_into_one_origin() {
         let a = split_url("HTTPS://Data.Example.Gov:443/x").unwrap();
         let b = split_url("https://data.example.gov/y").unwrap();
