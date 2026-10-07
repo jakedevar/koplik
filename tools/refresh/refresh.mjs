@@ -9,7 +9,7 @@ import { buildData, cargo, command, digest, files, verifyStore } from './data.mj
 import { scanHistory } from './scans.mjs';
 
 const gitEnvironment = (env) => Object.fromEntries(Object.entries(env).filter(([key]) =>
-  !key.startsWith('GIT_') && !['KOPLIK_ALLOW_NETWORK_TESTS', 'KOPLIK_CENSUS_CONTACT', 'PUBLISH_REMOTE', 'PUBLISH_DRY_RUN'].includes(key)));
+  !key.startsWith('GIT_') && !['KOPLIK_ALLOW_NETWORK_TESTS', 'KOPLIK_CENSUS_CONTACT', 'PUBLISH_REMOTE', 'PUBLISH_DRY_RUN', 'PUBLISH_PREPARE_OUTPUT', 'PUBLISH_EXPECTED_PARENT'].includes(key)));
 
 export async function pathGuard(root, run = command) {
   const names = new Set();
@@ -107,14 +107,7 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     // SnapshotStore's tmp directory must be empty; it is not a publication artifact.
     await rm(join(release, 'tmp'), { recursive: true, force: true });
     await pathGuard(work, (program, args, cwd) => execute(program, args, cwd));
-    phase = 'qa'; console.log(`Refresh ${runId}: full QA`);
     const gates = ['check', 'test', 'web-test', 'determinism'];
-    if (qa) await qa({ work, env: runtime, gates });
-    else for (const gate of gates) {
-      phase = `qa-${gate}`;
-      console.log(`Refresh ${runId}: ${phase}`);
-      await execute('make', [gate], work, runtime);
-    }
     phase = 'reproducibility';
     const hashes = async (out) => Promise.all((await files(out)).map(async (path) => [path, digest(await readFile(join(out, path)))]));
     const builds = [];
@@ -137,25 +130,66 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     const sha = await git(['rev-parse', 'HEAD']);
     const committed = (await git(['diff', '--name-only', '--no-renames', '-z', base, sha])).split('\0').filter(Boolean);
     if (committed.some((path) => !path.startsWith('data/release/'))) throw new Error('Committed path guard failed');
+    phase = 'qa'; console.log(`Refresh ${runId}: full QA`);
+    if (qa) await qa({ work, env: runtime, gates });
+    else for (const gate of gates) {
+      phase = `qa-${gate}`;
+      console.log(`Refresh ${runId}: ${phase}`);
+      await execute('make', [gate], work, runtime);
+    }
+    // Re-run reproducibility on the exact committed candidate, including its QA receipt.
+    phase = 'reproducibility';
+    for (const n of [3, 4]) {
+      const out = join(work, 'target', `refresh-out-${n}`);
+      await build({ root: work, work: join(work, 'target', `refresh-work-${n}`), out,
+        run: (program, args, cwd, childEnv) => execute(join(work, 'tools/offline-test.sh'), [program, ...args], cwd, childEnv), env: runtime });
+      if (JSON.stringify(await hashes(out)) !== JSON.stringify(receipt.output_hashes)) throw new Error('Candidate pipeline changed');
+    }
+    phase = 'scans';
     await scan(work, patterns, (program, args, cwd) => execute(program, args, cwd));
-    phase = 'publish-dry-run';
-    const preview = join(state, runId, 'preview.git');
-    await execute('git', ['init', '--bare', preview], state);
-    await execute(join(work, 'tools/offline-test.sh'), ['make', 'publish'], work, { ...runtime, PUBLISH_REMOTE: preview, PUBLISH_DRY_RUN: '1' });
-    if (await execute('git', ['for-each-ref', '--format=%(refname)'], preview)) throw new Error('Publish dry-run changed refs');
     phase = 'rolling-race';
     await git(['fetch', 'origin']);
     if (await git(['rev-parse', 'origin/rolling']) !== base) throw new Error('Rolling advanced; skip and rerun QA on new tip');
     // Fail before any push if main cannot be fast-forwarded to the candidate.
     await git(['merge-base', '--is-ancestor', 'origin/main', sha]);
-    if (dryRun) { console.log(`Refresh dry-run green ${sha}; no push or publication`); return { sha, work, receipt }; }
-    phase = 'promotion';
-    // Atomic FF-only update avoids promoting just one branch if either ref races/refuses.
-    await git(['push', '--atomic', 'origin', `${sha}:refs/heads/rolling`, `${sha}:refs/heads/main`], { KOPLIK_PROMOTE_MAIN: '1' });
-    phase = 'publication';
-    await execute('make', ['publish'], work, { ...runtime, PUBLISH_REMOTE: 'origin', PUBLISH_DRY_RUN: '0' });
+    const pagesRef = await git(['for-each-ref', '--format=%(objectname)', 'refs/remotes/origin/gh-pages']);
+    phase = 'publish-prepare';
+    const output = join(state, runId, 'publication.json');
+    await execute(join(work, 'tools/offline-test.sh'), ['make', 'publish'], work, {
+      ...runtime, PUBLISH_REMOTE: 'origin', PUBLISH_DRY_RUN: '1',
+      PUBLISH_PREPARE_OUTPUT: output, PUBLISH_EXPECTED_PARENT: pagesRef || 'root',
+      TMPDIR: join(work, 'target'),
+    });
+    phase = 'publication-validate';
+    const publication = JSON.parse(await readFile(output, 'utf8'));
+    if (publication.source !== sha || publication.parent !== (pagesRef || null)
+      || !/^[a-f0-9]{40,64}$/.test(publication.commit)) throw new Error('Invalid prepared publication');
+    const g = publication.commit;
+    const parents = await git(['rev-list', '--parents', '-n', '1', g]);
+    if (parents !== [g, pagesRef].filter(Boolean).join(' ')) throw new Error('Unexpected publication parent');
+    if (await git(['rev-parse', `${g}^{tree}`]) !== publication.tree) throw new Error('Unexpected publication tree');
+    const sitePaths = (await git(['ls-tree', '-r', '--name-only', g])).split('\n');
+    const required = ['data/manifest.json', ...['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v6/${name}.json`)];
+    if (required.some((path) => !sitePaths.includes(path))) throw new Error('Prepared site is missing v6 artifacts');
+    const input = JSON.parse(await git(['show', `${g}:data/publication.json`]));
+    if (input.source !== 'data/release' || input.pipeline_manifest_sha256 !== new Map(receipt.output_hashes).get('manifest.json')) {
+      throw new Error('Prepared site did not use candidate release data');
+    }
+    if (await git(['status', '--porcelain=v1', '--untracked-files=all'])) throw new Error('Candidate changed during QA');
+    if (dryRun) { console.log(`Refresh dry-run green ${sha}, Pages ${g}; no push or publication`); return { sha, pages: g, work, receipt }; }
+    phase = 'atomic-release';
+    // All local preparation has succeeded. One FF-only transaction changes all three
+    // refs, or none on rejection. No retry/reparent: a later run starts from new tips.
+    await git(['push', '--atomic', 'origin', `${sha}:refs/heads/rolling`, `${sha}:refs/heads/main`, `${g}:refs/heads/gh-pages`], { KOPLIK_PROMOTE_MAIN: '1' });
+    phase = 'release-verify';
+    const advertised = (await git(['ls-remote', '--heads', 'origin', 'refs/heads/rolling', 'refs/heads/main', 'refs/heads/gh-pages']))
+      .split('\n').map((line) => line.split(/\s+/));
+    const refs = new Map(advertised.map(([value, ref]) => [ref, value]));
+    if (refs.get('refs/heads/rolling') !== sha || refs.get('refs/heads/main') !== sha || refs.get('refs/heads/gh-pages') !== g) {
+      throw new Error('Released refs differ from prepared transaction');
+    }
     console.log(`Refresh green ${sha}`);
-    return { sha, work, receipt };
+    return { sha, pages: g, work, receipt };
   } catch (error) {
     console.error(`Refresh failed at ${phase}; command details suppressed`);
     await failure({ state, runId, phase, run, env: safeEnv });

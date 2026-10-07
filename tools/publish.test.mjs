@@ -99,7 +99,15 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     };
     const refs = () => git('--git-dir', remote, 'for-each-ref', '--format=%(refname) %(objectname)');
     const pages = () => git('--git-dir', remote, 'rev-parse', 'refs/heads/gh-pages');
-    const rootDryRun = await successfulPublish({ PUBLISH_DRY_RUN: '1', GIT_INDEX_FILE: join(caller, '.git/index') });
+    const preparedOutput = join(scratch, 'prepared.json');
+    const rootDryRun = await successfulPublish({ PUBLISH_DRY_RUN: '1', GIT_INDEX_FILE: join(caller, '.git/index'),
+      PUBLISH_PREPARE_OUTPUT: preparedOutput, PUBLISH_EXPECTED_PARENT: 'root' });
+    const prepared = JSON.parse(await readFile(preparedOutput, 'utf8'));
+    assert.equal(prepared.source, source);
+    assert.equal(prepared.parent, null);
+    assert.equal(git('rev-parse', `${prepared.commit}^{tree}`), prepared.tree);
+    assert.equal(JSON.parse(git('show', `${prepared.commit}:data/publication.json`)).source, 'data/release');
+    assert.ok(git('ls-tree', '-r', '--name-only', prepared.commit).includes('data/v6/weekly-cases.json'));
     assert.match(rootDryRun, /Would push .*HEAD:refs\/heads\/gh-pages \(parent root\)/);
     assert.equal(refs(), '');
 
@@ -147,12 +155,12 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const siteArchive = join(scratch, 'site.tar');
     git('--git-dir', remote, 'archive', '--format=tar', `--output=${siteArchive}`, first);
     command(['tar', '-xf', siteArchive, '-C', dist], caller);
-    const publishBuilt = async (extra = {}) => {
+    const publishBuilt = async (extra = {}, prepare) => {
       const phase = await mkdtemp(join(scratch, 'phase-'));
       try {
         return await publishSite({ scratch: phase, dist, target: remote, source,
           identity: ['', 'Publish test', 'publish-test@example.invalid'],
-          env: { ...process.env, ...extra }, dryRun: extra.PUBLISH_DRY_RUN || '0' });
+          env: { ...process.env, ...extra }, prepare, dryRun: extra.PUBLISH_DRY_RUN || '0' });
       } finally { await rm(phase, { recursive: true, force: true }); }
     };
     await publishBuilt();
@@ -163,6 +171,16 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const beforeDryRun = refs();
     const dryRun = await publishBuilt({ PUBLISH_DRY_RUN: '1' });
     assert.match(dryRun, new RegExp(`Would push .*HEAD:refs/heads/gh-pages \\(parent ${second}\\)`));
+    assert.equal(refs(), beforeDryRun);
+    await publishBuilt({ PUBLISH_DRY_RUN: '1' }, { root: caller, output: preparedOutput, parent: second });
+    const childPreparation = JSON.parse(await readFile(preparedOutput, 'utf8'));
+    assert.equal(childPreparation.parent, second);
+    assert.equal(git('rev-parse', `${childPreparation.commit}^`), second);
+    assert.deepEqual(await snapshot(), before);
+    await assert.rejects(publishBuilt({ PUBLISH_DRY_RUN: '1' },
+      { root: caller, output: preparedOutput, parent: first }), /gh-pages advanced/);
+    await assert.rejects(publishBuilt({},
+      { root: caller, output: preparedOutput, parent: second }), /requires dry-run/);
     assert.equal(refs(), beforeDryRun);
 
     // A rejected push must fail without changing the target or the caller.

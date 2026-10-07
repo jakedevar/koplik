@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { command } from './data.mjs';
+import { publishSite } from '../publish.mjs';
+import { command, digest } from './data.mjs';
 import { failure, ingestGreen, pathGuard, refresh } from './refresh.mjs';
 import { scanHistory, scanText } from './scans.mjs';
 
@@ -18,7 +19,7 @@ function git(cwd, ...args) {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
-async function repository() {
+async function repository({ pages = false } = {}) {
   const root = await mkdtemp('/tmp/koplik-refresh-test-');
   const shared = join(root, 'shared');
   await mkdir(shared);
@@ -35,6 +36,8 @@ async function repository() {
   git(shared, 'init', '--bare', origin);
   git(shared, 'remote', 'add', 'origin', origin);
   git(shared, 'push', 'origin', 'HEAD:refs/heads/rolling', 'HEAD:refs/heads/main');
+  if (pages) git(shared, 'push', 'origin', 'HEAD:refs/heads/gh-pages');
+  git(origin, 'config', 'receive.denyNonFastForwards', 'true');
   await writeFile(join(shared, '.env.local'), 'KOPLIK_CENSUS_CONTACT=refresh-test@example.invalid\n');
   const patterns = join(root, 'patterns');
   await writeFile(patterns, 'private-contact-sentinel\n');
@@ -50,7 +53,15 @@ async function fixtureIngest({ release, stageWork, env }) {
   for (const [id, item] of Object.entries(manifest.items)) if (item.status === 'missing') delete manifest.items[id];
   await writeFile(join(stageWork, 'ingest.manifest.json'), `${JSON.stringify(manifest)}\n`);
 }
-const fakeBuild = async ({ out }) => { await mkdir(out, { recursive: true }); await writeFile(join(out, 'manifest.json'), 'Committed fixture output\n'); };
+const fakeBuild = async ({ out }) => {
+  await mkdir(join(out, 'v6'), { recursive: true });
+  const manifest = '{"mode":"fixtures"}\n';
+  await writeFile(join(out, 'manifest.json'), manifest);
+  for (const name of ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases']) {
+    await writeFile(join(out, 'v6', `${name}.json`), '{"fixture":true}\n');
+  }
+  await writeFile(join(out, 'publication.json'), `${JSON.stringify({ source: 'data/release', pipeline_manifest_sha256: digest(manifest) })}\n`);
+};
 
 test('path guard covers unstaged, staged, untracked, deletion and rename; accepts only release changes', async () => {
   const context = await repository();
@@ -107,9 +118,19 @@ test('failure RPC has no token in params; RPC refusal and no-token runs persist 
   } finally { await rm(state, { recursive: true, force: true }); }
 });
 
-test('full refresh in temporary clone: green, QA red and path-guard red; no live commands or real origin', async () => {
-  for (const scenario of ['green', 'publish-green', 'qa-red', 'path-red']) {
-    const context = await repository();
+test('temporary-clone refresh prepares exact Pages objects and releases all refs or none', async () => {
+  const scenarios = ['green', 'publish-green', 'qa-red', 'path-red', 'publish-red',
+    'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages'];
+  for (const scenario of scenarios) {
+    const context = await repository({ pages: scenario !== 'green' });
+    const originalRefs = git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)');
+    if (scenario.startsWith('atomic-reject-')) {
+      const ref = scenario.slice('atomic-reject-'.length);
+      await writeFile(join(context.origin, 'hooks/update'), `#!/bin/sh
+if [ "$1" = "refs/heads/${ref}" ]; then exit 1; fi
+exit 0
+`, { mode: 0o755 });
+    }
     const effects = [];
     const run = async (program, args, cwd, env) => {
       if (program.endsWith('/tools/offline-test.sh')) {
@@ -119,23 +140,42 @@ test('full refresh in temporary clone: green, QA red and path-guard red; no live
       if (program === 'make') {
         effects.push({ args, dry: env.PUBLISH_DRY_RUN, cwd });
         assert.equal(args[0], 'publish');
-        if (env.PUBLISH_DRY_RUN === '1') assert.ok(env.PUBLISH_REMOTE.startsWith(context.state));
+        assert.equal(env.PUBLISH_DRY_RUN, '1');
+        assert.equal(env.PUBLISH_REMOTE, 'origin');
+        if (scenario === 'publish-red') throw new Error('Build failed before push');
+        const scratch = join(cwd, 'target', 'publisher');
+        await mkdir(scratch, { recursive: true });
+        // Fake build/QA, real Git commit preparation, object import and atomic push.
+        const dist = join(scratch, 'site');
+        await cp(join(cwd, 'target/refresh-out-3'), join(dist, 'data'), { recursive: true });
+        await publishSite({ scratch, dist,
+          target: context.origin, source: git(cwd, 'rev-parse', 'HEAD'),
+          identity: ['', 'Refresh test', 'refresh-test@example.invalid'], env, dryRun: '1',
+          prepare: { root: cwd, output: env.PUBLISH_PREPARE_OUTPUT, parent: env.PUBLISH_EXPECTED_PARENT } });
+        await rm(scratch, { recursive: true, force: true });
         return '';
+      }
+      if (program === 'git' && args[0] === 'push') {
+        assert.equal(env.KOPLIK_PROMOTE_MAIN, '1');
+        assert.equal(args[1], '--atomic');
+        assert.equal(args.length, 6);
+        effects.push({ push: args });
       }
       if (program === 'notify-send') return '';
       return command(program, args, cwd, env);
     };
     let observedWork;
     try {
-      const options = { ...context, run, dryRun: scenario !== 'publish-green', build: fakeBuild,
-        scan: async (...args) => { try { return await scanHistory(...args); } catch (error) { console.log(error.message); throw error; } },
+      const options = { ...context, run, dryRun: scenario === 'green', build: fakeBuild,
         ingest: async (args) => {
           observedWork = args.work;
           await fixtureIngest(args);
           if (scenario === 'path-red') await writeFile(join(args.work, 'code.txt'), 'Changed\n');
         },
-        qa: async ({ gates }) => {
+        qa: async ({ work, gates }) => {
           assert.deepEqual(gates, ['check', 'test', 'web-test', 'determinism']);
+          assert.equal(git(work, 'status', '--porcelain'), '', 'QA runs on committed D');
+          assert.notEqual(git(work, 'rev-parse', 'HEAD'), context.base);
           if (scenario === 'qa-red') throw new Error('QA failure');
         },
       };
@@ -148,24 +188,29 @@ test('full refresh in temporary clone: green, QA red and path-guard red; no live
         assert.ok(paths.every((path) => path.startsWith('data/release/')));
         assert.equal(effects.length, scenario === 'publish-green' ? 2 : 1);
         assert.equal(effects[0].dry, '1');
+        assert.equal(git(result.work, 'rev-list', '--parents', '-n', '1', result.pages),
+          scenario === 'green' ? result.pages : `${result.pages} ${context.base}`);
+        assert.ok(git(result.work, 'ls-tree', '-r', '--name-only', result.pages).includes('data/v6/weekly-cases.json'));
         if (scenario === 'publish-green') {
-          assert.equal(effects[1].dry, '0');
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), result.sha);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), result.sha);
+          assert.equal(git(context.origin, 'rev-parse', 'refs/heads/gh-pages'), result.pages);
         }
       } else {
-        await assert.rejects(refresh(options), scenario === 'qa-red' ? /failed at qa/ : /failed at integrity/);
-        assert.equal(effects.length, 0);
+        const phase = scenario === 'qa-red' ? 'qa' : scenario === 'path-red' ? 'integrity'
+          : scenario === 'publish-red' ? 'publish-prepare' : 'atomic-release';
+        await assert.rejects(refresh(options), new RegExp(`failed at ${phase}`));
+        assert.equal(effects.length, scenario.startsWith('atomic-reject-') ? 2 : scenario === 'publish-red' ? 1 : 0);
         const failures = (await readdir(context.state)).filter((path) => path.startsWith('FAILED-'));
         assert.equal(failures.length, 1);
+        assert.ok((await readFile(join(context.state, failures[0]), 'utf8')).includes(phase));
       }
       assert.ok(observedWork.startsWith(context.state));
       if (scenario !== 'publish-green') {
-        assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), context.base);
-        assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), context.base);
+        assert.equal(git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)'), originalRefs,
+          'all refs preserved on dry-run or any rejected transaction');
       }
-      assert.equal(git(context.origin, 'for-each-ref', '--format=%(refname)').split('\n').length, 2);
-      console.log(`Offline refresh scenario ${scenario}: expected decision and local remote refs verified`);
+      console.log(`Offline refresh scenario ${scenario}: expected decision and all local remote refs verified`);
     } finally { await rm(context.root, { recursive: true, force: true }); }
   }
 });

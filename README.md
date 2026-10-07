@@ -129,24 +129,28 @@ inherited Census overrides so that the shared file is the contact authority.
 No contact is copied into the refresh worktree or command logs. Missing config
 or an empty/missing pattern file refuses the run.
 
-The gate runs `make check`, isolated `make test`, `make web-test`, and
-`make determinism`, builds release data twice and compares every output hash,
-then commits the data-only candidate and does a publish dry-run against a
-**temporary local bare repo**. Personal-data and secrets scans cover the
-candidate's complete reachable history, including commit identities/messages,
-blob contents and filenames; `.env*` paths are forbidden in every tree.
+The refresh prepares a data-only commit D at the fetched `origin/rolling` tip,
+then runs `make check`, isolated `make test`, `make web-test`, and
+`make determinism` on D, builds release data twice and compares every output
+hash, and scans D's complete reachable history (commit identities/messages,
+blob contents and filenames). `.env*` paths are forbidden in every tree.
 `data/release/qa/<run-id>.json` holds the base SHA, checks, output hashes and
 scan counts; the refresh does not write the code-tree QA pointer.
-A concurrent change to `origin/rolling` skips the run; there is no rebase or
-force push. Only green candidates fast-forward rolling and main atomically
-(`KOPLIK_PROMOTE_MAIN=1`), then invoke `make publish`.
 
-On a failure before promotion, nothing is pushed or published. A failure in
-publication after successful promotion cannot undo the preceding fast-forward:
-the refreshed data commit remains on rolling/main, and the previous gh-pages
-site remains until publication succeeds. This ordering is an explicit review
-point because a Git promotion and a subsequent publication are separate
-transactions. Every failure attempts an Issue labeled `refresh-failure` through
+The existing publisher builds D locally with `PUBLISH_DRY_RUN=1` and
+`PUBLISH_PREPARE_OUTPUT`, imports the exact gh-pages commit G into the refresh
+clone without changing refs, and records its source, tree and parent. G's
+parent must be the fetched gh-pages tip (or G is a root if the branch is absent).
+Refresh verifies G contains `data/manifest.json` and all six v6 artifacts and
+uses D's `data/release/` outputs. Only after all preparation succeeds does one
+`KOPLIK_PROMOTE_MAIN=1 git push --atomic origin D:refs/heads/rolling
+D:refs/heads/main G:refs/heads/gh-pages` release all three refs. Refresh verifies
+they equal D, D and G afterward. Every update is fast-forward only.
+
+Any preparation failure or rejected atomic push leaves all three refs unchanged
+and publishes nothing. A concurrent advance skips or rejects the run; the next
+run starts from the new tips and repeats QA, with no rebase, force push or
+partial retry. Every failure attempts an Issue labeled `refresh-failure` through
 `rsi-rpc AgentCreateIssue` when an RSI token is available; otherwise (also on RPC
 refusal) it writes `~/.rsi/koplik-refresh/FAILED-<run-id>.md` and attempts a local
 notification. Logs and reports contain phase identifiers, never captured child
@@ -158,7 +162,7 @@ a corrupt or incomplete release store refuses publication. The published
 `data/publication.json` manifest names the selected input and hashes
 `data/manifest.json`. The initial release store was written by the pipeline's
 fixture ingest: 22 raw snapshots and original retrieval receipts, with all
-12 existing pipeline artifacts byte-identical to the fixture build.
+12 v6 pipeline artifacts byte-identical to the fixture build.
 `make pipeline-release` uses the same selection locally. `make refresh-test`
 exercises fake ingest, fake QA and temporary repositories inside the offline
 gate; no timer installation, live request or real-origin push is part of tests.

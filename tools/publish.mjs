@@ -37,7 +37,8 @@ async function run(command, args, cwd, options = {}) {
 }
 
 // Keep Git publication independently testable using one real built site.
-export async function publishSite({ scratch, dist, target, source, identity, session = '', dryRun = '0', env = environment }) {
+export async function publishSite({ scratch, dist, target, source, identity, session = '', dryRun = '0', prepare, env = environment }) {
+  if (prepare && dryRun !== '1') throw new Error('Publication preparation requires dry-run');
   const gitDir = join(scratch, 'publish.git');
   await run('git', ['init', '--bare', gitDir], scratch, { env });
   const git = (args) => run('git', ['--git-dir', gitDir, ...args], scratch, { env });
@@ -54,11 +55,20 @@ export async function publishSite({ scratch, dist, target, source, identity, ses
       await git(['fetch', '--no-tags', target, 'refs/heads/gh-pages']);
       parent = await git(['rev-parse', 'FETCH_HEAD']);
     }
+    if (prepare && (parent || 'root') !== prepare.parent) throw new Error('gh-pages advanced during preparation');
     const commit = await git(['commit-tree', tree, ...(parent ? ['-p', parent] : []), '-m', message]);
     await git(['update-ref', 'HEAD', commit]);
     const description = `${dryRun === '1' ? 'Would push' : 'Publishing'} ${commit} to ${target} HEAD:refs/heads/gh-pages (parent ${parent || 'root'})`;
     console.log(description);
-    if (dryRun === '1') return description;
+    if (dryRun === '1') {
+      if (prepare) {
+        // Import objects without changing caller refs, index or FETCH_HEAD. They survive
+        // scratch cleanup and can be included in refresh's single atomic push.
+        await run('git', ['fetch', '--no-tags', '--no-write-fetch-head', gitDir, commit], prepare.root, { env });
+        await writeFile(prepare.output, `${JSON.stringify({ source, commit, tree, parent: parent || null })}\n`, { mode: 0o600 });
+      }
+      return description;
+    }
     try {
       await git(['push', target, 'HEAD:refs/heads/gh-pages']);
       console.log(`Published ${commit}`);
@@ -76,6 +86,12 @@ async function main() {
   const remote = process.env.PUBLISH_REMOTE || 'origin';
   const dryRun = process.env.PUBLISH_DRY_RUN || '0';
   if (!['0', '1'].includes(dryRun)) throw new Error('PUBLISH_DRY_RUN must be 0 or 1');
+
+  const prepareOutput = process.env.PUBLISH_PREPARE_OUTPUT;
+  const expectedParent = process.env.PUBLISH_EXPECTED_PARENT;
+  if (prepareOutput && (dryRun !== '1' || !/^(root|[a-f0-9]{40}|[a-f0-9]{64})$/.test(expectedParent || ''))) {
+    throw new Error('Preparation requires dry-run and an explicit gh-pages parent');
+  }
 
   // origin is operator-owned and local. Overrides cannot contact GitHub directly.
   const urls = remote === 'origin'
@@ -150,7 +166,8 @@ async function main() {
       throw new Error('Built site is missing data/manifest.json or data/v6/*.json; refusing publication');
     }
     await writeFile(join(dist, '.nojekyll'), '');
-    await publishSite({ scratch, dist, target, source, identity, session, dryRun });
+    await publishSite({ scratch, dist, target, source, identity, session, dryRun,
+      prepare: prepareOutput ? { root, output: resolve(root, prepareOutput), parent: expectedParent } : undefined });
   } finally {
     if (scratch) await rm(scratch, { recursive: true, force: true, maxRetries: 3 });
     process.off('SIGINT', onInterrupt);
