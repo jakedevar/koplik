@@ -1,4 +1,4 @@
-/* Generated from koplik-contracts schema/v7. Run npm run generate:types. */
+/* Generated from koplik-contracts schema/v8. Run npm run generate:types. */
 
 /**
  * Why a report gives no usable cumulative count for a geography. None of these is zero and none

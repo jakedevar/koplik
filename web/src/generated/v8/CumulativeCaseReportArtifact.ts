@@ -1,4 +1,4 @@
-/* Generated from koplik-contracts schema/v7. Run npm run generate:types. */
+/* Generated from koplik-contracts schema/v8. Run npm run generate:types. */
 
 /**
  * Why a report gives no usable cumulative count for a geography. None of these is zero and none
@@ -12,7 +12,7 @@ export type CumulativeMissingReason =
 export type GeoId = string;
 
 export interface CumulativeCaseReportArtifact {
-  contract_version: 7;
+  contract_version: 8;
   provenance: Provenance[];
   rows: CumulativeCaseReport[];
 }

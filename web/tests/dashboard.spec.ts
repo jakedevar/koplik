@@ -89,19 +89,34 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   const forecast = page.locator('.forecast');
   await expect(forecast.getByRole('heading', { name: /Where next/ })).toBeVisible();
   await expect(forecast.locator('svg.forecast-chart')).toBeVisible();
-  // First thing above the chart of a series that was not backtested; the backtest is its own section below.
-  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toHaveText('No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.');
+  // First thing above the chart: what is measured about this very series, in plain words with the basis (here Texas has a
+  // measured skill); the tests are their own section below.
+  // At the very top of the panel: which forecasts are published and which are not, and why.
+  await expect(forecast.locator('.forecast-withheld-top')).toContainText('We publish forecasts only for the 1 series whose own test result meets our rule');
+  const banner = forecast.locator('.forecast-result').locator('> :first-child');
+  await expect(banner).toContainText('Measured skill for this series.');
+  await expect(banner).toContainText('In a pseudo-real-time (revised counts truncated at each forecast date) backtest on this series, 90% intervals contained the true count 83.3% of the time (5 of 6)');
+  await expect(banner).toContainText('not real-time');
   const evaluation = page.locator('.forecast-evaluation');
   await expect(evaluation.getByRole('heading', { name: 'How we evaluate forecasts' })).toBeVisible();
+  // The state-series test is its own block, pooled and labelled pseudo-real-time, apart from the West Texas one.
+  await expect(evaluation.locator('.forecast-series-headline')).toContainText('pooled over 2 series and 5 forecasts');
+  await expect(evaluation.locator('.forecast-series-scope')).toContainText('2 have a measured skill from this test, 0 have insufficient data for one');
+  await expect(evaluation.locator('h3').first()).toContainText('pseudo-real-time (revised counts truncated at each forecast date)');
   await expect(evaluation.locator('.forecast-headline')).toContainText('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4)');
   await expect(evaluation.locator('.forecast-narrow')).toContainText('In this backtest the intervals were too narrow');
-  await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText('does not measure how the forecasts above will do');
+  await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText("does not measure how any other series' forecast will do");
   await forecast.getByText('Exact forecast values', { exact: true }).click();
   const forecastMedian = forecast.locator('.forecast-result tbody tr').first().getByRole('button').first();
   await forecastMedian.click(); await expect(drawer).toBeVisible();
   await expect(drawer).toContainText('SYNTHETIC');
   await expect(drawer).toContainText('not a source observation');
   await close.press('Escape'); await expect(forecastMedian).toBeFocused();
+  // A series the test ran on but scored too little for has no measured skill, and says what was scored.
+  await forecast.getByLabel('Forecast for').selectOption('20');
+  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toContainText('We do not publish a forecast for Kansas.');
+  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toContainText('does not meet our rule');
+  await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);
   await forecast.getByLabel('Forecast for').selectOption('40');
   await expect(forecast.locator('.forecast-insufficient')).toContainText('Insufficient data');
   await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);

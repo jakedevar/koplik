@@ -11,6 +11,7 @@ pub mod v4;
 pub mod v5;
 pub mod v6;
 pub mod v7;
+pub mod v8;
 
 /// The newest contract version published by this crate.
 pub const CONTRACT_VERSION: u32 = 8;

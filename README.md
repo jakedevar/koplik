@@ -15,7 +15,7 @@ Texas counties:
 | What is happening? | Weekly cases on a map and charts, always named by case definition: CDC NNDSS "confirmed or unknown-status cases" by state; Texas DSHS "confirmed cases" by county. Definitions are never summed or mixed; missing reports stay missing. | CDC NNDSS, Texas DSHS (live pages and Internet Archive captures) |
 | How fast is it spreading? | The effective reproduction number R_t (Cori et al. method) with its credible interval, published only above a minimum case count. | derived, with provenance |
 | What if? | An in-browser WebAssembly SEIR simulator for a **hypothetical** introduction of one infectious person into Gaines County, Texas, with its real population and kindergarten MMR coverage. It is not a reconstruction or forecast of the 2025 outbreak. Native and WebAssembly runs are bit-identical for the same seed. | Census 2025 estimates, DSHS coverage, cited parameters |
-| Where next? | A 4-8 week renewal-projection forecaster (Nouvellet et al. 2018) with an honest pseudo-real-time backtest on the 2025 West Texas outbreak, reported exactly as measured (mean CRPS 3.66; 90% intervals contained the truth in 30 of 48 targets). Published on the site per #1465. | `crates/koplik-epi`, `data/reports/backtest/` |
+| Where next? | A 4-8 week renewal-projection forecaster (Nouvellet et al. 2018), tested twice and reported exactly as measured: a real-time-by-vintage backtest on the 2025 West Texas outbreak total (mean CRPS 3.66; 90% intervals contained the truth in 30 of 48 targets), and a **pseudo-real-time** backtest (revised counts truncated at each forecast date) on the CDC state series, where the intervals were far too narrow (pooled 90% coverage 39.0%) and no series beat repeating the latest count. **The site therefore publishes no state forecast**: a series' forecast is shown only where its own measured skill meets a pre-registered rule, and the panel says so and why (#1503). | `crates/koplik-epi`, `data/reports/backtest/` |
 | Why trust it? | Every number opens a provenance drawer: source URL, retrieval time, the sha256 of the raw snapshot it came from, the source's terms and attribution. | `SOURCES.md` |
 
 ## Architecture
@@ -30,7 +30,7 @@ flowchart LR
   end
   subgraph rust[Rust workspace]
     ING[koplik-ingest<br/>polite fetcher, robots, pinned files<br/>content-addressed snapshot store]
-    CON[koplik-contracts<br/>versioned shapes v1-v5 + JSON Schema]
+    CON[koplik-contracts<br/>versioned shapes v1-v7 + JSON Schema]
     EPI[koplik-epi<br/>SEIR engine, R_t, forecast, backtest<br/>pure, seeded, portable]
     WASM[koplik-wasm<br/>wasm-bindgen facade]
     PIPE[koplik-pipeline<br/>ingest, validate, infer, forecast, build<br/>manifests hash every input and output]
@@ -96,6 +96,7 @@ fast-forward only.
 | [`SOURCES.md`](SOURCES.md) | Every source: URL, terms, attribution, cadence, client identification |
 | [`thoughts/shared/project/koplik-spec.md`](thoughts/shared/project/koplik-spec.md) | Product spec: Epics, intent, acceptance criteria |
 | [`thoughts/shared/research/backtest-2025-west-texas.md`](thoughts/shared/research/backtest-2025-west-texas.md) | The pre-registered forecast backtest and its measured scores |
+| [`thoughts/shared/research/backtest-cdc-states.md`](thoughts/shared/research/backtest-cdc-states.md) | The pre-registered pseudo-real-time backtest on the CDC state series, with its amendments and measured scores |
 | [`thoughts/shared/manager/`](thoughts/shared/manager/) | Manager brief, worker contract, handoffs |
 
 Branches: `rolling` is agent intake (fast-forward only). `main` is promoted from a QA-green SHA

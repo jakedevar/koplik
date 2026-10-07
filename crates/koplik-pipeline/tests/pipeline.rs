@@ -12,7 +12,9 @@ use koplik_contracts::v1::{
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
-use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason, SeriesSkill};
+use koplik_contracts::v7::{
+    ForecastProvenance, ForecastStatus, InformationBasis, InsufficientReason, SeriesSkill,
+};
 use koplik_contracts::v8::{
     CumulativeCaseReport, CumulativeCaseReportArtifact, CumulativeCount, CumulativeMissingReason,
 };
@@ -887,6 +889,11 @@ fn cli_runs_every_stage_from_fixtures_offline() {
 // ---------------------------------------------------------------------------------------------
 // forecast (#1465)
 
+/// The forecasts the publication policy withheld: audit rows in the work directory, never published.
+fn withheld_rows(config: &Config) -> Vec<Forecast> {
+    read(&config.work.join("forecast/withheld.json"))
+}
+
 fn forecast_outputs(config: &Config) -> (Vec<Forecast>, ForecastProvenance) {
     (
         read(&config.work.join("forecast/forecast.json")),
@@ -917,12 +924,16 @@ fn forecast_runs_the_pre_registered_method_on_the_published_series_with_its_prov
     let latest = cases.iter().map(|r| r.week).max().unwrap();
     assert_eq!(p.latest_data_week, latest);
     assert_eq!(p.origin_week, latest.prev().unwrap().prev().unwrap());
+    // The method forecast series the rule lets it forecast; the publication policy then withheld
+    // every one of them, so the published rows are exactly the series with status `forecast`.
+    let withheld = withheld_rows(&config);
     assert!(
-        !rows.is_empty(),
+        !withheld.is_empty(),
         "the fixtures hold series the rule lets us forecast"
     );
     assert!(
         rows.iter()
+            .chain(&withheld)
             .all(|r| r.origin_week == p.origin_week && r.target_week > p.origin_week)
     );
     p.check_against(&rows).unwrap();
@@ -941,13 +952,13 @@ fn forecast_runs_the_pre_registered_method_on_the_published_series_with_its_prov
     );
 
     // A series is forecast only where the minimum-count rule holds; every other series says why.
-    let forecast: Vec<_> = p
+    let made: Vec<_> = p
         .series
         .iter()
-        .filter(|s| s.status == ForecastStatus::Forecast)
+        .filter(|s| s.status != ForecastStatus::InsufficientData)
         .collect();
-    assert!(!forecast.is_empty());
-    for s in &forecast {
+    assert!(!made.is_empty());
+    for s in &made {
         assert!(
             s.cases_in_window.unwrap() >= 11,
             "{}: {:?}",
@@ -962,11 +973,22 @@ fn forecast_runs_the_pre_registered_method_on_the_published_series_with_its_prov
         .collect::<Vec<_>>();
     assert!(!thin.is_empty());
     assert!(thin.iter().all(|s| s.cases_in_window.unwrap() < 11));
+    // What was published is what the policy admitted; what was kept for audit is what it withheld.
     let published: BTreeSet<GeoId> = rows.iter().map(|r| r.geography).collect();
     assert_eq!(
         published,
-        forecast
+        made.iter()
+            .filter(|s| s.status == ForecastStatus::Forecast)
+            .map(|s| s.geography)
+            .collect::<BTreeSet<_>>()
+    );
+    assert_eq!(
+        withheld
             .iter()
+            .map(|r| r.geography)
+            .collect::<BTreeSet<_>>(),
+        made.iter()
+            .filter(|s| s.status == ForecastStatus::Withheld)
             .map(|s| s.geography)
             .collect::<BTreeSet<_>>()
     );
@@ -978,7 +1000,12 @@ fn forecast_runs_the_pre_registered_method_on_the_published_series_with_its_prov
         .find(|s| s.geography.to_string() == "48165")
         .unwrap();
     assert_eq!(county.status, ForecastStatus::InsufficientData);
-    assert!(rows.iter().all(|r| r.geography.to_string() != "48165"));
+    assert!(
+        rows.iter()
+            .chain(&withheld)
+            .all(|r| r.geography.to_string() != "48165")
+    );
+    let rows: Vec<Forecast> = rows.into_iter().chain(withheld).collect();
 
     // Every forecast describes the case definition of its own series.
     for s in &p.series {
@@ -1055,14 +1082,13 @@ fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() 
     assert!(skill.series.contains("Texas DSHS outbreak total"));
     assert!(skill.series.contains("confirmed"));
     assert!(skill.limitations[0].contains("no county-level backtest"));
+    // None of the series forecast is the DSHS outbreak total: the report-vintage backtest speaks
+    // for none of them (the NNDSS state series have their own evaluation, checked below).
+    assert!(p.series.iter().all(|s| s.skill != SeriesSkill::Backtested));
     assert!(
-        p.series
-            .iter()
-            .all(|s| s.skill == SeriesSkill::NotBacktested)
-    );
-    assert!(
-        p.scope_note
-            .contains("is that series: none was backtested and none has a measured skill"),
+        p.scope_note.contains("0 are published")
+            && p.scope_note.contains("withheld by the publication policy")
+            && p.scope_note.contains("scored one series only"),
         "{}",
         p.scope_note
     );
@@ -1084,6 +1110,306 @@ fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() 
     );
 }
 
+/// The series published as forecast, by the skill the companion gives them.
+fn skills_of(p: &ForecastProvenance) -> BTreeMap<GeoId, SeriesSkill> {
+    p.series.iter().map(|s| (s.geography, s.skill)).collect()
+}
+
+#[test]
+fn the_series_backtest_is_the_committed_report_exactly_and_labelled_pseudo_real_time() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let (_, p) = forecast_outputs(&config);
+    let b = p
+        .series_backtest
+        .as_ref()
+        .expect("the committed report matches the configuration");
+    let path = repo().join("data/reports/backtest/cdc-states.json");
+    let bytes = fs::read(&path).unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(b.report_sha256, sha256_of(&bytes));
+    assert_eq!(b.report_path, "data/reports/backtest/cdc-states.json");
+    // It is the pseudo-real-time label, never real-time, in the typed basis and in the words.
+    assert_eq!(b.basis, InformationBasis::PseudoRealTime);
+    assert!(
+        b.protocol
+            .contains("pseudo-real-time (revised counts truncated at each forecast date)"),
+        "{}",
+        b.protocol
+    );
+    assert!(
+        b.limitations
+            .join("\n")
+            .contains("not a real-time backtest")
+    );
+    // It ran on the committed NNDSS snapshot, and says so.
+    let fixture = fs::read(repo().join("data/fixtures/cdc/nndss-measles-weekly.json")).unwrap();
+    assert_eq!(b.input_sha256, sha256_of(&fixture));
+    assert_eq!(
+        b.input_sha256.as_str(),
+        report["input"]["sha256"].as_str().unwrap()
+    );
+    // The floor and the seed are the pre-registered ones, and the published forecast's seed.
+    assert_eq!((b.minimum_targets, b.minimum_origin_weeks), (40, 10));
+    assert_eq!((b.seed, b.provisional_weeks), (p.seed, 2));
+    // Every number is the report's, to the bit.
+    let primary = &report["primary"];
+    let pooled = b
+        .pooled
+        .as_ref()
+        .expect("the pooled result reaches the floor");
+    assert_eq!(
+        pooled.scores.targets as u64,
+        primary["pooled"]["n"].as_u64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.mean_crps,
+        primary["pooled"]["mean_crps"].as_f64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.coverage_50,
+        primary["pooled"]["coverage_50"].as_f64().unwrap()
+    );
+    assert_eq!(
+        pooled.scores.coverage_90,
+        primary["pooled"]["coverage_90"].as_f64().unwrap()
+    );
+    assert_eq!(pooled.scores.by_horizon.len(), 8);
+    // The measured numbers, as recorded in thoughts/shared/research/backtest-cdc-states.md.
+    assert_eq!(pooled.scores.targets, 1748);
+    assert_eq!((pooled.forecasts, pooled.series), (239, 22));
+    assert_eq!(
+        (
+            format!("{:.2}", pooled.scores.coverage_50),
+            format!("{:.2}", pooled.scores.coverage_90)
+        ),
+        ("0.21".to_owned(), "0.39".to_owned())
+    );
+    // One entry per series of the report; scores only for the series that reach the floor.
+    let reported = primary["series"].as_array().unwrap();
+    assert_eq!(b.by_series.len(), reported.len());
+    for (entry, series) in b.by_series.iter().zip(reported) {
+        assert_eq!(
+            entry.geography.to_string(),
+            series["geography"].as_str().unwrap()
+        );
+        assert_eq!(
+            entry.targets as u64,
+            series["pooled"]["n"].as_u64().unwrap()
+        );
+        assert_eq!(
+            entry.measured.is_some(),
+            series["measured"].as_bool().unwrap()
+        );
+        if let Some(m) = &entry.measured {
+            assert!(entry.targets >= 40 && entry.origin_weeks >= 10);
+            assert_eq!(m.mean_crps, series["pooled"]["mean_crps"].as_f64().unwrap());
+            assert_eq!(
+                m.mean_persistence_abs_error,
+                series["pooled"]["mean_persistence_abs_error"]
+                    .as_f64()
+                    .unwrap()
+            );
+        } else {
+            assert!(entry.targets < 40 || entry.origin_weeks < 10);
+        }
+    }
+    let texas = b
+        .by_series
+        .iter()
+        .find(|e| e.geography.to_string() == "48")
+        .unwrap();
+    assert_eq!((texas.targets, texas.origin_weeks), (288, 36));
+    assert_eq!(
+        format!("{:.2}", texas.measured.as_ref().unwrap().mean_crps),
+        "3374.24"
+    );
+    let measured: BTreeSet<String> = b
+        .by_series
+        .iter()
+        .filter(|e| e.measured.is_some())
+        .map(|e| e.geography.to_string())
+        .collect();
+    assert_eq!(
+        measured.into_iter().collect::<Vec<_>>(),
+        ["04", "20", "35", "42", "45", "48", "49"]
+    );
+
+    // Each series' skill is its own entry's: NNDSS state series are measured or insufficient, the
+    // Texas DSHS county series (a different source and definition) were never scored.
+    let skills = skills_of(&p);
+    for s in &p.series {
+        match s.case_definition {
+            CaseDefinition::ConfirmedOrUnknownStatus => {
+                let entry = b.by_series.iter().find(|e| e.geography == s.geography);
+                match entry {
+                    Some(e) if e.measured.is_some() => {
+                        assert_eq!(
+                            skills[&s.geography],
+                            SeriesSkill::Measured,
+                            "{}",
+                            s.geography
+                        )
+                    }
+                    Some(_) => assert_eq!(
+                        skills[&s.geography],
+                        SeriesSkill::InsufficientData,
+                        "{}",
+                        s.geography
+                    ),
+                    None => assert_eq!(skills[&s.geography], SeriesSkill::NotBacktested),
+                }
+            }
+            _ => assert_eq!(
+                skills[&s.geography],
+                SeriesSkill::NotBacktested,
+                "{}",
+                s.geography
+            ),
+        }
+    }
+    assert!(
+        skills.values().any(|k| *k == SeriesSkill::Measured)
+            && skills.values().any(|k| *k == SeriesSkill::InsufficientData)
+            && skills.values().any(|k| *k == SeriesSkill::NotBacktested),
+        "the fixtures exercise every status: {skills:?}"
+    );
+    assert!(
+        p.scope_note.contains("pseudo-real-time"),
+        "{}",
+        p.scope_note
+    );
+    // The publication policy, applied mechanically to the committed measurements: no NNDSS state
+    // series qualifies (every series with a measured skill has a mean CRPS above its persistence
+    // error), so no forecast of any is published; Pennsylvania, measured, is withheld for being
+    // below the policy, and the others for having insufficient data for a skill.
+    let policy = &p.publication_policy;
+    assert_eq!(
+        (
+            policy.minimum_targets,
+            policy.minimum_origin_weeks,
+            policy.minimum_coverage_90,
+            policy.maximum_crps_over_persistence
+        ),
+        (40, 10, 0.75, 1.0)
+    );
+    for e in &b.by_series {
+        if let Some(m) = &e.measured {
+            assert!(!policy.admits(
+                e.targets,
+                e.origin_weeks,
+                m.coverage_90,
+                m.mean_crps,
+                m.mean_persistence_abs_error
+            ));
+        }
+    }
+    assert!(
+        !p.series
+            .iter()
+            .any(|s| s.status == ForecastStatus::Forecast),
+        "no state series qualifies today"
+    );
+    use koplik_contracts::v7::WithheldReason::{InsufficientDataForSkill, SkillBelowPolicy};
+    let withheld: Vec<(String, _)> = p
+        .series
+        .iter()
+        .filter(|s| s.status == ForecastStatus::Withheld)
+        .map(|s| (s.geography.to_string(), s.withheld.unwrap()))
+        .collect();
+    assert_eq!(
+        withheld,
+        [
+            ("21".to_owned(), InsufficientDataForSkill),
+            ("24".to_owned(), InsufficientDataForSkill),
+            ("36".to_owned(), InsufficientDataForSkill),
+            ("39".to_owned(), InsufficientDataForSkill),
+            ("42".to_owned(), SkillBelowPolicy),
+            ("55".to_owned(), InsufficientDataForSkill),
+        ]
+    );
+    assert!(read::<Vec<Forecast>>(&config.work.join("forecast/forecast.json")).is_empty());
+    // The report is copied byte for byte beside the rows, and published by build.
+    assert_eq!(
+        fs::read(config.work.join("forecast/backtest-cdc-states.json")).unwrap(),
+        bytes
+    );
+    run_stage(Stage::Build, &config).unwrap();
+    assert_eq!(
+        fs::read(config.out.join("forecasts/backtest-cdc-states.json")).unwrap(),
+        bytes
+    );
+}
+
+#[test]
+fn a_series_backtest_run_with_another_configuration_or_without_its_label_is_not_attached() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = fixture_config(dir.path());
+    let original: serde_json::Value = read(&repo().join("data/reports/backtest/cdc-states.json"));
+    let attempt = |config: &mut Config, name: &str, edit: &dyn Fn(&mut serde_json::Value)| {
+        let reports = dir.path().join(name);
+        fs::create_dir_all(reports.join("backtest")).unwrap();
+        let mut report = original.clone();
+        edit(&mut report);
+        fs::write(
+            reports.join("backtest/cdc-states.json"),
+            serde_json::to_vec(&report).unwrap(),
+        )
+        .unwrap();
+        config.reports = reports;
+        let all = run_all(config);
+        (
+            all[&Stage::Forecast].notes.clone(),
+            forecast_outputs(config).1,
+        )
+    };
+    for (name, edit) in [
+        (
+            "other-window",
+            (&|r: &mut serde_json::Value| r["primary"]["window_weeks"] = serde_json::json!(2))
+                as &dyn Fn(&mut serde_json::Value),
+        ),
+        ("other-seed", &|r| {
+            r["primary"]["seed"] = serde_json::json!(1)
+        }),
+        ("other-provisional-weeks", &|r| {
+            r["primary"]["provisional_weeks"] = serde_json::json!(1)
+        }),
+        ("real-time-label", &|r| {
+            r["protocol"] = serde_json::json!("real-time by report vintage")
+        }),
+        ("other-source", &|r| {
+            r["input"]["source_id"] = serde_json::json!("texas-dshs")
+        }),
+    ] {
+        let (notes, p) = attempt(&mut config, name, edit);
+        assert!(
+            notes
+                .iter()
+                .any(|n| n.contains("no series backtest attached")),
+            "{name}: {notes:?}"
+        );
+        assert!(p.series_backtest.is_none(), "{name}");
+        assert!(
+            p.series
+                .iter()
+                .all(|s| s.skill == SeriesSkill::NotBacktested),
+            "{name}: without the evaluation no series claims a skill"
+        );
+    }
+    // No report at all.
+    config.reports = dir.path().join("no-reports");
+    let all = run_all(&config);
+    assert!(forecast_outputs(&config).1.series_backtest.is_none());
+    assert!(
+        all[&Stage::Forecast]
+            .notes
+            .iter()
+            .any(|n| n.contains("no series backtest attached"))
+    );
+}
+
 #[test]
 fn without_a_report_for_exactly_this_configuration_no_skill_is_attached() {
     let dir = tempfile::tempdir().unwrap();
@@ -1092,11 +1418,22 @@ fn without_a_report_for_exactly_this_configuration_no_skill_is_attached() {
     let all = run_all(&config);
     let (rows, p) = forecast_outputs(&config);
     assert!(p.backtest.is_none());
+    assert!(p.series_backtest.is_none());
     assert!(p.scope_note.contains("no skill has been measured"));
-    assert!(
-        !rows.is_empty(),
-        "the forecast itself does not depend on the report"
-    );
+    // The forecast itself does not depend on the report, but without any measured skill none of it
+    // can meet the publication policy: every forecast the method made is withheld, none published.
+    assert!(rows.is_empty());
+    assert!(!withheld_rows(&config).is_empty());
+    let made: Vec<_> = p
+        .series
+        .iter()
+        .filter(|s| s.status != ForecastStatus::InsufficientData)
+        .collect();
+    assert!(!made.is_empty());
+    assert!(made.iter().all(|s| {
+        s.status == ForecastStatus::Withheld
+            && s.withheld == Some(koplik_contracts::v7::WithheldReason::NotBacktested)
+    }));
     assert!(
         all[&Stage::Forecast]
             .notes
@@ -1152,6 +1489,22 @@ fn build_publishes_the_forecast_with_its_companion_and_never_one_without_it() {
     let rows: Vec<Forecast> = read_rows(&out.join("weekly-cases.json"));
     let companion: ForecastProvenance = read(&out.join("weekly-cases.provenance.json"));
     companion.check_against(&rows).unwrap();
+    // Every forecast the method made is withheld, so the published artifact holds no forecast row,
+    // and the audit rows are not published anywhere.
+    assert!(rows.is_empty());
+    assert!(
+        companion
+            .series
+            .iter()
+            .any(|s| s.status == ForecastStatus::Withheld)
+    );
+    assert!(!out.join("withheld.json").exists());
+    assert!(
+        m.outputs
+            .iter()
+            .all(|f| !f.path.contains("withheld") && !f.path.contains("forecast/forecast.json"))
+    );
+    assert!(!m.inputs.iter().any(|f| f.path.contains("withheld")));
     let skill = companion.backtest.as_ref().unwrap();
     assert_eq!(
         sha256_of(&fs::read(out.join("backtest-west-texas-2025.json")).unwrap()),
@@ -1171,13 +1524,18 @@ fn build_publishes_the_forecast_with_its_companion_and_never_one_without_it() {
     let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
     assert!(err.contains("provenance companion"), "{err}");
 
-    // So are rows that a companion does not describe (here, one row removed).
+    // So are rows that a companion does not describe (here, a withheld series' rows slipped into
+    // the published file).
     fs::write(&companion_path, &saved).unwrap();
-    let mut shortened: Vec<Forecast> = read(&config.work.join("forecast/forecast.json"));
-    shortened.pop();
+    assert!(
+        read::<Vec<Forecast>>(&config.work.join("forecast/forecast.json")).is_empty(),
+        "the policy withheld every series, so nothing is published"
+    );
+    let audit = withheld_rows(&config);
+    assert!(!audit.is_empty());
     fs::write(
         config.work.join("forecast/forecast.json"),
-        serde_json::to_vec(&shortened).unwrap(),
+        serde_json::to_vec(&audit).unwrap(),
     )
     .unwrap();
     let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
