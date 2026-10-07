@@ -169,6 +169,57 @@ fn a_vintage_first_seen_after_the_cutoff_cannot_change_the_known_series() {
     assert!(weekly_from_vintages(texas(), &later, None).is_err());
 }
 
+/// The reviewer's boundary case: a level one ulp-ish off 0.05 that one lookup accepts and
+/// another rejects. One resolution serves both validation and scoring, so the run either
+/// scores or returns a typed error; it never panics.
+#[test]
+fn a_level_at_the_tolerance_boundary_never_panics() {
+    let vintages = long_synthetic();
+    let dates = wednesdays_between(
+        vintages.first().unwrap().first_seen_at,
+        vintages.last().unwrap().first_seen_at,
+    );
+    let run = |levels: Vec<f64>| {
+        run_backtest(
+            &vintages,
+            &BacktestConfig {
+                forecast: ForecastConfig {
+                    run_count: 10,
+                    levels,
+                    ..ForecastConfig::default()
+                },
+                seed: 3,
+                geography: texas(),
+                forecast_dates: dates.clone(),
+            },
+        )
+    };
+    match run(vec![0.050000001, 0.25, 0.5, 0.75, 0.95]) {
+        Ok(report) => assert!(report.pooled.n > 0),
+        Err(e) => assert!(matches!(e, BacktestError::Config(_)), "{e}"),
+    }
+    // Property: perturbations well inside the tolerance score; well outside are refused.
+    for delta in [-5e-10, -1e-10, 1e-10, 5e-10] {
+        for which in 0..5 {
+            let mut levels = vec![0.05, 0.25, 0.5, 0.75, 0.95];
+            levels[which] += delta;
+            let report = run(levels).unwrap_or_else(|e| panic!("delta {delta} at {which}: {e}"));
+            assert!(report.pooled.n > 0);
+            assert!(report.pooled.coverage_90.unwrap() >= report.pooled.coverage_50.unwrap());
+        }
+    }
+    for delta in [-1e-3, 1e-3] {
+        for which in 0..5 {
+            let mut levels = vec![0.05, 0.25, 0.5, 0.75, 0.95];
+            levels[which] += delta;
+            assert!(
+                matches!(run(levels), Err(BacktestError::Config(_))),
+                "delta {delta} at {which}"
+            );
+        }
+    }
+}
+
 #[test]
 fn scoring_levels_are_validated_up_front() {
     let vintages = long_synthetic();

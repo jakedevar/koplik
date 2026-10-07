@@ -113,14 +113,14 @@ impl ForecastConfig {
     /// look-back can keep (4 weeks: 0.45%). The rule therefore gives 3.
     pub const DEFAULT_MAX_LAG_WEEKS: u32 = 3;
 
-    /// Estimation window in weeks, pre-registered at 3. Nouvellet et al. 2018 estimate
-    /// transmissibility over a recent window whose length they choose per outbreak; here the
-    /// rule is fixed before any score: three weeks is about 1.8 mean measles serial
-    /// intervals (11.7 d), so the window spans at least one generation of infectors and
-    /// their infectees, while staying short enough to follow a change in transmission
-    /// within a month. The window is not chosen by, and was never varied against, the
-    /// backtest score; the backtest report lists a window sensitivity next to the
-    /// pre-registered primary, with every value shown.
+    /// Estimation window in weeks, pre-registered at 3. This is this project's own rule
+    /// (the renewal-projection method above is Nouvellet et al. 2018; the window length is
+    /// not taken from that paper), fixed before any score: three weeks is about 1.8 mean
+    /// measles serial intervals (11.7 d), so the window spans at least one generation of
+    /// infectors and their infectees, while staying short enough to follow a change in
+    /// transmission within a month. The window is not chosen by, and was never varied
+    /// against, the backtest score; the backtest report lists a window sensitivity next to
+    /// the pre-registered primary, with every value shown.
     pub const DEFAULT_WINDOW_WEEKS: u32 = 3;
 
     pub fn validate(&self) -> Result<(), ForecastError> {

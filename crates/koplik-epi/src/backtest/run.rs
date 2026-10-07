@@ -19,8 +19,8 @@ use chrono::{DateTime, Datelike, Duration, Utc, Weekday};
 use koplik_contracts::v3::{CaseCount, GeoId, MmwrWeek};
 use serde::Serialize;
 
+use super::crps_counts;
 use super::vintages::{ReportVintage, VintageError, weekly_from_vintages};
-use super::{crps_counts, interval_covers};
 use crate::forecast::{ForecastConfig, ForecastError, ProjectionStatus, forecast_weekly};
 
 #[derive(Debug, thiserror::Error)]
@@ -36,7 +36,63 @@ pub enum BacktestError {
 }
 
 /// Quantile levels the scoring reads: the median and the 50% and 90% central intervals.
+/// This is the one definition of the scored bounds; [`ScoredQuantiles::resolve`] finds
+/// each one in the forecast's configured levels once, and the scoring reads the quantile
+/// rows at those positions (never a level recomputed from an interval width).
 pub const SCORED_LEVELS: [f64; 5] = [0.05, 0.25, 0.5, 0.75, 0.95];
+
+/// Tolerance for matching a configured level to a scored level.
+const LEVEL_TOLERANCE: f64 = 1e-9;
+
+/// Positions of the scored levels in `ForecastConfig::levels` (and so in every forecast
+/// row's `quantiles`, which `forecast_weekly` emits in configuration order).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ScoredQuantiles {
+    lower_90: usize,
+    lower_50: usize,
+    median: usize,
+    upper_50: usize,
+    upper_90: usize,
+}
+
+impl ScoredQuantiles {
+    /// Resolve every scored level once; a missing one is a configuration error.
+    fn resolve(levels: &[f64]) -> Result<Self, BacktestError> {
+        let find = |level: f64| {
+            levels
+                .iter()
+                .position(|l| (l - level).abs() < LEVEL_TOLERANCE)
+                .ok_or_else(|| {
+                    BacktestError::Config(format!(
+                        "forecast levels must include the scored quantile {level}"
+                    ))
+                })
+        };
+        let [lower_90, lower_50, median, upper_50, upper_90] = SCORED_LEVELS;
+        Ok(Self {
+            lower_90: find(lower_90)?,
+            lower_50: find(lower_50)?,
+            median: find(median)?,
+            upper_50: find(upper_50)?,
+            upper_90: find(upper_90)?,
+        })
+    }
+
+    /// The value at a resolved position; an error (never a panic) if a row does not have
+    /// the configured levels.
+    fn value(
+        self,
+        quantiles: &[koplik_contracts::v1::ForecastQuantile],
+        at: usize,
+    ) -> Result<f64, BacktestError> {
+        quantiles.get(at).map(|q| q.value).ok_or_else(|| {
+            BacktestError::Config(format!(
+                "forecast row has {} quantiles, scored position {at} is missing",
+                quantiles.len()
+            ))
+        })
+    }
+}
 
 /// What a backtest runs.
 #[derive(Debug, Clone, PartialEq)]
@@ -176,13 +232,7 @@ pub fn run_backtest(
         return Err(BacktestError::NoForecastDates);
     }
     cfg.forecast.validate()?;
-    for level in SCORED_LEVELS {
-        if !cfg.forecast.levels.iter().any(|l| (l - level).abs() < 1e-9) {
-            return Err(BacktestError::Config(format!(
-                "forecast levels must include the scored quantile {level}"
-            )));
-        }
-    }
+    let scored = ScoredQuantiles::resolve(&cfg.forecast.levels)?;
     let truth_series = weekly_from_vintages(cfg.geography, vintages, None)?;
     let truth: Vec<(MmwrWeek, Option<u32>)> = truth_series
         .rows
@@ -248,27 +298,32 @@ pub fn run_backtest(
         result.r_upper_90 = Some(posterior.quantile(0.95).map_err(ForecastError::from)?);
         for (idx, row) in forecast.rows.iter().enumerate() {
             let horizon = idx as u32 + 1;
-            let q = |level: f64| {
-                row.quantiles
-                    .iter()
-                    .find(|q| (q.level - level).abs() < 1e-9)
-                    .map(|q| q.value)
-                    .expect("SCORED_LEVELS were validated against cfg.forecast.levels")
-            };
+            let q = |at: usize| scored.value(&row.quantiles, at);
+            let (median, lower_50, upper_50, lower_90, upper_90) = (
+                q(scored.median)?,
+                q(scored.lower_50)?,
+                q(scored.upper_50)?,
+                q(scored.lower_90)?,
+                q(scored.upper_90)?,
+            );
             let observed = observed_at(row.target_week);
             let members = projection.at_horizon(horizon);
+            // Coverage from the same resolved bounds, inclusive.
+            let covers = |lower: f64, upper: f64| {
+                observed.map(|y| lower <= f64::from(y) && f64::from(y) <= upper)
+            };
             result.scores.push(HorizonScore {
                 horizon,
                 target_week: row.target_week,
                 observed,
-                median: q(0.5),
-                lower_50: q(0.25),
-                upper_50: q(0.75),
-                lower_90: q(0.05),
-                upper_90: q(0.95),
+                median,
+                lower_50,
+                upper_50,
+                lower_90,
+                upper_90,
                 crps: observed.map(|y| crps_counts(&members, y)),
-                in_50: observed.and_then(|y| interval_covers(&row.quantiles, 0.5, f64::from(y))),
-                in_90: observed.and_then(|y| interval_covers(&row.quantiles, 0.9, f64::from(y))),
+                in_50: covers(lower_50, upper_50),
+                in_90: covers(lower_90, upper_90),
                 persistence_abs_error: observed.and_then(|y| {
                     result
                         .origin_count

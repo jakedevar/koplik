@@ -52,9 +52,9 @@ doi:10.1016/j.epidem.2017.02.012; the RECON `projections` package):
    discretised to MMWR weeks; look-back **3 weeks** by the rule "smallest look-back with
    under 1% dropped serial-interval mass" (measured: 6.6% at 2 weeks, 0.54% at 3, of which
    0.45% is same-week mass no weekly look-back can keep). Before the series is **unknown**.
-   The window of 3 weeks is a pre-registered choice (≈1.8 mean serial intervals: at least one
-   generation of infectors and infectees, short enough to follow a change within a month);
-   Nouvellet et al. chose windows ad hoc per outbreak, which is what this rule replaces.
+   The window of 3 weeks is this project's pre-registered rule, not a value from the paper
+   (≈1.8 mean serial intervals: at least one generation of infectors and infectees, short
+   enough to follow a change within a month).
 2. **Insufficient data** (no forecast) when any count in the window or look-back is missing,
    when the window holds fewer than **11** cases (EpiEstim's posterior-CV 0.3 rule, the same
    threshold as the published R_t), or when the look-back infectivity is zero.
