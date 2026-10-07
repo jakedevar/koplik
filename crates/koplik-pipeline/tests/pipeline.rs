@@ -74,6 +74,20 @@ fn read<T: for<'de> serde::Deserialize<'de>>(path: &Path) -> T {
     serde_json::from_slice(&fs::read(path).unwrap()).unwrap()
 }
 
+fn read_rows<T: koplik_contracts::v6::PublicationRow>(path: &Path) -> Vec<T> {
+    read::<koplik_contracts::v6::RowArtifact<T>>(path).rows
+}
+
+/// Compare every expanded field, including the exact ordered provenance on every row.
+fn assert_lossless<T: koplik_contracts::v6::PublicationRow + PartialEq + std::fmt::Debug>(
+    published: &Path,
+    original: &Path,
+) {
+    let expanded = read_rows::<T>(published);
+    let original: Vec<T> = read(original);
+    assert_eq!(expanded, original, "{}", published.display());
+}
+
 #[test]
 fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_files() {
     let dir = tempfile::tempdir().unwrap();
@@ -164,11 +178,28 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
     }
 
     // Published artifacts are valid contract rows, each tracing to an ingested snapshot.
-    let out = config.out.join("v1");
-    let cases: Vec<WeeklyCaseCount> = read(&out.join("weekly-cases.json"));
-    let coverage: Vec<KindergartenMmrCoverage> = read(&out.join("coverage.json"));
-    let geographies: Vec<Geography> = read(&out.join("geographies.json"));
-    let rt: Vec<RtEstimate> = read(&out.join("rt.json"));
+    let out = config.out.join("v6");
+    let cases: Vec<WeeklyCaseCount> = read_rows(&out.join("weekly-cases.json"));
+    let coverage: Vec<KindergartenMmrCoverage> = read_rows(&out.join("coverage.json"));
+    let geographies: Vec<Geography> = read_rows(&out.join("geographies.json"));
+    let rt: Vec<RtEstimate> = read_rows(&out.join("rt.json"));
+    assert_lossless::<WeeklyCaseCount>(
+        &out.join("weekly-cases.json"),
+        &config.work.join("validate/weekly-cases.json"),
+    );
+    assert_lossless::<KindergartenMmrCoverage>(
+        &out.join("coverage.json"),
+        &config.work.join("validate/coverage.json"),
+    );
+    assert_lossless::<Geography>(
+        &out.join("geographies.json"),
+        &config.work.join("validate/geographies.json"),
+    );
+    assert_lossless::<RtEstimate>(&out.join("rt.json"), &config.work.join("infer/rt.json"));
+    assert_lossless::<Forecast>(
+        &config.out.join("forecasts/weekly-cases.json"),
+        &config.work.join("forecast/forecast.json"),
+    );
     // CDC: 56 states and territories x 91 weeks, confirmed-or-unknown; DSHS: Texas counties,
     // confirmed only, derived from the report vintages in the fixtures.
     let (states, counties): (Vec<_>, Vec<_>) = cases
@@ -391,7 +422,7 @@ fn build_publishes_the_scenario_with_its_companion_and_never_one_without_it() {
         m.items["texas-counties"],
         ItemStatus::Missing { .. }
     ));
-    let empty: serde_json::Value = read(&config.out.join("v1/texas-counties.json"));
+    let empty: serde_json::Value = read(&config.out.join("v6/texas-counties.json"));
     assert_eq!(empty["features"].as_array().unwrap().len(), 0);
     assert!(matches!(m.items["gaines-2025"], ItemStatus::Present { .. }));
     assert!(config.out.join("scenarios/gaines-2025.json").is_file());
@@ -488,10 +519,10 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
     assert!(!empty.out.join("scenarios").exists());
     // The published artifacts stay mutually consistent: no boundary without a geography, no
     // row without a geography, every file the web loader needs present.
-    let out = empty.out.join("v1");
-    let geographies: Vec<Geography> = read(&out.join("geographies.json"));
-    let cases: Vec<WeeklyCaseCount> = read(&out.join("weekly-cases.json"));
-    let rt: Vec<RtEstimate> = read(&out.join("rt.json"));
+    let out = empty.out.join("v6");
+    let geographies: Vec<Geography> = read_rows(&out.join("geographies.json"));
+    let cases: Vec<WeeklyCaseCount> = read_rows(&out.join("weekly-cases.json"));
+    let rt: Vec<RtEstimate> = read_rows(&out.join("rt.json"));
     assert!(geographies.is_empty() && cases.is_empty() && rt.is_empty());
     for name in ["us-states", "texas-counties"] {
         let fc: serde_json::Value = read(&out.join(format!("{name}.json")));
@@ -700,7 +731,7 @@ fn cli_runs_every_stage_from_fixtures_offline() {
             .join("work/fixture-snapshots/retrievals.jsonl")
             .is_file()
     );
-    assert!(dir.path().join("out/v1/weekly-cases.json").is_file());
+    assert!(dir.path().join("out/v6/weekly-cases.json").is_file());
     assert!(dir.path().join("out/forecasts/weekly-cases.json").is_file());
     assert!(
         dir.path()
@@ -980,7 +1011,7 @@ fn build_publishes_the_forecast_with_its_companion_and_never_one_without_it() {
     let m = run_stage(Stage::Build, &config).unwrap();
     assert!(matches!(m.items["forecast"], ItemStatus::Present { .. }));
     let out = config.out.join("forecasts");
-    let rows: Vec<Forecast> = read(&out.join("weekly-cases.json"));
+    let rows: Vec<Forecast> = read_rows(&out.join("weekly-cases.json"));
     let companion: ForecastProvenance = read(&out.join("weekly-cases.provenance.json"));
     companion.check_against(&rows).unwrap();
     let skill = companion.backtest.as_ref().unwrap();

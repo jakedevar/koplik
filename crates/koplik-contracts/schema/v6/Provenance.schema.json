@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Provenance",
+  "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+  "type": "object",
+  "properties": {
+    "licence_id": {
+      "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+      "type": "string"
+    },
+    "retrieved_at": {
+      "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+      "type": "string",
+      "format": "date-time"
+    },
+    "sha256": {
+      "description": "Content address of the raw snapshot bytes.",
+      "$ref": "#/$defs/Sha256Hex"
+    },
+    "source_id": {
+      "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+      "type": "string"
+    },
+    "url": {
+      "description": "URL the snapshot was retrieved from.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "url",
+    "retrieved_at",
+    "sha256",
+    "licence_id"
+  ],
+  "$defs": {
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

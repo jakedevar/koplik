@@ -127,8 +127,8 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const publication = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/publication.json`));
     assert.equal(publication.source, 'data/release');
     assert.deepEqual(Object.keys(manifest.stages).sort(), ['forecast', 'infer', 'ingest', 'validate']);
-    assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v1/')).sort(),
-      ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v1/${name}.json`).sort());
+    assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v6/')).sort(),
+      ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v6/${name}.json`).sort());
     for (const file of manifest.outputs) {
       const bytes = spawnSync('git', ['--git-dir', remote, 'show', `${first}:data/${file.path}`],
         { cwd: caller, maxBuffer: Math.max(1024 * 1024, file.bytes + 1024) });

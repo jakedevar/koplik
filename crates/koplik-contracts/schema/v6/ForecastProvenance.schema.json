@@ -1,0 +1,498 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ForecastProvenance",
+  "description": "Companion of a published set of v1 [`Forecast`] rows. Rows are only published beside a\ncompanion for which [`ForecastProvenance::check_against`] holds.",
+  "type": "object",
+  "properties": {
+    "artifact": {
+      "description": "Name of the series artifact that was forecast, e.g. `weekly-cases` (non-empty).",
+      "type": "string"
+    },
+    "backtest": {
+      "description": "The backtest skill, when a committed report exists for exactly this configuration.",
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BacktestSkill"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "contract_version": {
+      "description": "Always [`FORECAST_PROVENANCE_VERSION`].",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "horizon_weeks": {
+      "description": "Weeks forecast ahead of the origin week.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 1
+    },
+    "input": {
+      "$ref": "#/$defs/ForecastInput"
+    },
+    "latest_data_week": {
+      "description": "Latest week with any row in the input series.",
+      "$ref": "#/$defs/MmwrWeek"
+    },
+    "levels": {
+      "description": "Quantile levels of every row, strictly increasing in (0, 1).",
+      "type": "array",
+      "items": {
+        "type": "number",
+        "format": "double"
+      }
+    },
+    "method": {
+      "description": "The method and its citation (non-empty).",
+      "type": "string"
+    },
+    "origin_rule": {
+      "description": "How the origin week was chosen from the data (non-empty).",
+      "type": "string"
+    },
+    "origin_week": {
+      "description": "Last week of data the forecast was allowed to use.",
+      "$ref": "#/$defs/MmwrWeek"
+    },
+    "parameters": {
+      "description": "One entry per configuration value, with the value the forecast ran with and its\ncitation (non-empty, unique).",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ParameterProvenance"
+      }
+    },
+    "run_count": {
+      "description": "Ensemble members behind every row's quantiles.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 1
+    },
+    "scope_note": {
+      "description": "What the skill does and does not say about the series above (non-empty).",
+      "type": "string"
+    },
+    "seed": {
+      "description": "Base seed of every series' ensemble (members derive from it, the geography and the\nmember index).",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0
+    },
+    "series": {
+      "description": "Every series considered, once each, in geography order.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ForecastSeries"
+      }
+    },
+    "statement": {
+      "description": "What the forecast is and is not, in plain words (non-empty).",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "artifact",
+    "statement",
+    "method",
+    "origin_week",
+    "latest_data_week",
+    "origin_rule",
+    "horizon_weeks",
+    "run_count",
+    "seed",
+    "levels",
+    "input",
+    "parameters",
+    "series",
+    "scope_note"
+  ],
+  "$defs": {
+    "BacktestSkill": {
+      "description": "The measured skill of the method on its backtest, exactly as reported, with the scope it was\nmeasured on. It is a statement about that series and period only.",
+      "type": "object",
+      "properties": {
+        "by_horizon": {
+          "description": "The same scores per horizon, horizons 1, 2, ... in order.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SkillByHorizon"
+          }
+        },
+        "case_definition": {
+          "description": "What that series counts.",
+          "$ref": "#/$defs/CaseDefinition"
+        },
+        "coverage_50": {
+          "description": "Share of targets inside the central 50% interval (nominal 0.5).",
+          "type": "number",
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "coverage_90": {
+          "description": "Share of targets inside the central 90% interval (nominal 0.9).",
+          "type": "number",
+          "format": "double",
+          "maximum": 1,
+          "minimum": 0
+        },
+        "forecast_dates": {
+          "description": "Forecast dates that produced a forecast.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "geography": {
+          "description": "Geography of that series.",
+          "$ref": "#/$defs/GeoId"
+        },
+        "limitations": {
+          "description": "What the backtest does not show (non-empty list of non-empty statements).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "manifest_sha256": {
+          "description": "SHA-256 of the report-vintage manifest the backtest ran on.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "mean_crps": {
+          "description": "Mean continuous ranked probability score over `targets`, in cases (lower is better).",
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "mean_persistence_abs_error": {
+          "description": "Mean absolute error of carrying the origin week's count forward.",
+          "type": "number",
+          "format": "double",
+          "minimum": 0
+        },
+        "name": {
+          "description": "Short name of what was backtested, for a sentence, e.g. `the 2025 West Texas outbreak`\n(non-empty).",
+          "type": "string"
+        },
+        "origin_weeks": {
+          "description": "Distinct origin weeks among them.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "protocol": {
+          "description": "How the backtest respected the information cutoff, in words (non-empty).",
+          "type": "string"
+        },
+        "report_path": {
+          "description": "Repository path of the committed report these numbers were read from.",
+          "type": "string"
+        },
+        "report_sha256": {
+          "description": "SHA-256 of that report file exactly as read.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "seed": {
+          "description": "Base seed of the backtest.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "series": {
+          "description": "The series that was forecast and scored, in words (non-empty).",
+          "type": "string"
+        },
+        "targets": {
+          "description": "Scored targets (forecast week by horizon), pooled.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "series",
+        "geography",
+        "case_definition",
+        "protocol",
+        "seed",
+        "targets",
+        "forecast_dates",
+        "origin_weeks",
+        "mean_crps",
+        "coverage_50",
+        "coverage_90",
+        "mean_persistence_abs_error",
+        "by_horizon",
+        "report_path",
+        "report_sha256",
+        "manifest_sha256",
+        "limitations"
+      ]
+    },
+    "CaseDefinition": {
+      "description": "Which cases a weekly count includes. A count is only comparable with counts that share its\ndefinition, so every row states it. Add a variant (in a new contract version) for any other\nsource definition; never reuse `Confirmed` for a count that includes other case statuses.",
+      "oneOf": [
+        {
+          "description": "Only cases whose case status is confirmed under the source's case definition, with no\nother status mixed in.",
+          "type": "string",
+          "const": "confirmed"
+        },
+        {
+          "description": "Confirmed cases plus cases whose case status is unknown, without the two being told\napart. This is what CDC's NNDSS measles publication criteria publish (event code 10140:\ncase status \"confirmed\" and \"unknown\"); the weekly query has no case-status field to\nsplit them, so these counts must not be presented as confirmed cases.",
+          "type": "string",
+          "const": "confirmed_or_unknown_status"
+        }
+      ]
+    },
+    "ForecastInput": {
+      "description": "The series file the forecast was made from, hashed.",
+      "type": "object",
+      "properties": {
+        "artifact": {
+          "description": "Artifact name, e.g. `weekly-cases`.",
+          "type": "string"
+        },
+        "rows": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "sha256": {
+          "description": "SHA-256 of the input file exactly as read.",
+          "$ref": "#/$defs/Sha256Hex"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "artifact",
+        "sha256",
+        "rows"
+      ]
+    },
+    "ForecastSeries": {
+      "description": "One series the pipeline considered: forecast, or not and why.",
+      "type": "object",
+      "properties": {
+        "case_definition": {
+          "description": "What the series counts; a forecast describes cases under this definition only.",
+          "$ref": "#/$defs/CaseDefinition"
+        },
+        "cases_in_window": {
+          "description": "Cases in the estimation window ending at the origin week, when every count in it is\nknown.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0
+        },
+        "geography": {
+          "$ref": "#/$defs/GeoId"
+        },
+        "reason": {
+          "description": "Present exactly when `status` is `insufficient_data`.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InsufficientReason"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "skill": {
+          "description": "`backtested` only when this series is the one the backtest scored (same geography, case\ndefinition and source); otherwise `not backtested; no measured skill`.",
+          "$ref": "#/$defs/SeriesSkill"
+        },
+        "status": {
+          "$ref": "#/$defs/ForecastStatus"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "geography",
+        "case_definition",
+        "status",
+        "skill"
+      ]
+    },
+    "ForecastStatus": {
+      "description": "Whether a series was forecast.",
+      "oneOf": [
+        {
+          "description": "Forecast rows exist for the series.",
+          "type": "string",
+          "const": "forecast"
+        },
+        {
+          "description": "The method's own minimum-count rule did not hold: no number is published.",
+          "type": "string",
+          "const": "insufficient_data"
+        }
+      ]
+    },
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "InsufficientReason": {
+      "description": "Why a series could not be forecast (the renewal estimator's reason at the origin week).",
+      "oneOf": [
+        {
+          "description": "The estimation window would start before the series, or include its first week.",
+          "type": "string",
+          "const": "incomplete_window"
+        },
+        {
+          "description": "A count in the estimation window or the serial-interval look-back is missing.",
+          "type": "string",
+          "const": "missing_count"
+        },
+        {
+          "description": "Fewer cases in the window than the minimum-count threshold.",
+          "type": "string",
+          "const": "below_threshold"
+        },
+        {
+          "description": "No cases in the look-back, so the window's cases have no infectors in the data.",
+          "type": "string",
+          "const": "no_infectivity"
+        }
+      ]
+    },
+    "MmwrWeek": {
+      "description": "An MMWR year and week number (`week` is `1..=52` or `1..=53`).",
+      "type": "object",
+      "properties": {
+        "week": {
+          "description": "Week of the MMWR year; 1 to 52, or 53 in a 53-week year.",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 53,
+          "minimum": 1
+        },
+        "year": {
+          "description": "MMWR year (not always the calendar year of every day in the week).",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 2200,
+          "minimum": 1900
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "week"
+      ]
+    },
+    "ParameterProvenance": {
+      "description": "One model parameter exactly as the scenario ran it, with its citation (#1400).",
+      "type": "object",
+      "properties": {
+        "note": {
+          "description": "What the source supports and what it does not (non-empty).",
+          "type": "string"
+        },
+        "parameter": {
+          "description": "The `SeirParameters` field name.",
+          "type": "string"
+        },
+        "source": {
+          "description": "The published source (non-empty).",
+          "type": "string"
+        },
+        "url": {
+          "description": "Where to read it, when the source is a public page.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "description": "The value the scenario ran with, as it appears in the scenario's `parameters`."
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "parameter",
+        "value",
+        "source",
+        "note"
+      ]
+    },
+    "SeriesSkill": {
+      "description": "Whether a series has a measured skill. A forecast method is only as good as its tests on the\ndata it is run on: a series the backtest did not score has no measured skill, and says so.",
+      "oneOf": [
+        {
+          "description": "The series is the one the backtest scored (same geography, case definition and source);\nits measured skill is in `backtest`.",
+          "type": "string",
+          "const": "backtested"
+        },
+        {
+          "description": "The backtest did not score this series. Nothing has been measured about how this forecast\nwill do, and the backtest's scores are not evidence about it.",
+          "type": "string",
+          "const": "not backtested; no measured skill"
+        }
+      ]
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "SkillByHorizon": {
+      "description": "Measured skill at one horizon.",
+      "type": "object",
+      "properties": {
+        "coverage_50": {
+          "description": "Share of targets inside the central 50% interval; absent when `n` is 0.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "coverage_90": {
+          "description": "Share of targets inside the central 90% interval; absent when `n` is 0.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "horizon": {
+          "description": "Weeks after the origin week (1-based).",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "mean_crps": {
+          "description": "Mean CRPS in cases; absent when `n` is 0.",
+          "type": [
+            "number",
+            "null"
+          ],
+          "format": "double"
+        },
+        "n": {
+          "description": "Scored targets at this horizon.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "horizon",
+        "n"
+      ]
+    }
+  }
+}
