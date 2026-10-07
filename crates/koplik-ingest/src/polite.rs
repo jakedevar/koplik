@@ -195,21 +195,48 @@ fn census_contact_from(
     if env.is_some() {
         return resolve_census_contact(env, None);
     }
-    let local = match start.and_then(repository_root) {
-        Some(root) => {
-            let path = root.join(LOCAL_CONFIG_FILE);
-            match std::fs::read_to_string(&path) {
-                Ok(text) => Some(text),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                Err(source) => return Err(IngestError::Io { path, source }),
+    census_contact_from_path(
+        env,
+        start
+            .and_then(repository_root)
+            .map(|root| root.join(LOCAL_CONFIG_FILE))
+            .as_deref(),
+    )
+}
+
+/// Resolve an explicit local configuration path without copying its private contents.
+fn census_contact_from_path(
+    env: Option<&std::ffi::OsStr>,
+    path: Option<&std::path::Path>,
+) -> Result<CensusContact> {
+    if env.is_some() {
+        return resolve_census_contact(env, None);
+    }
+    let local = match path {
+        Some(path) => match std::fs::read_to_string(&path) {
+            Ok(text) => Some(text),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(source) => {
+                return Err(IngestError::Io {
+                    path: path.to_path_buf(),
+                    source,
+                });
             }
-        }
+        },
         None => None,
     };
     resolve_census_contact(None, local.as_deref())
 }
 
 fn census_contact_from_env() -> Result<CensusContact> {
+    // The refresh worktree reads the shared checkout's gitignored config by explicit path.
+    // Only the path crosses the process boundary; the contact is never copied or logged.
+    if let Some(path) = std::env::var_os("KOPLIK_ENV_LOCAL") {
+        return census_contact_from_path(
+            std::env::var_os(CENSUS_CONTACT_ENV).as_deref(),
+            Some(std::path::Path::new(&path)),
+        );
+    }
     census_contact_from(
         std::env::var_os(CENSUS_CONTACT_ENV).as_deref(),
         std::env::current_dir().ok().as_deref(),
@@ -1676,5 +1703,32 @@ mod tests {
             );
         }
         assert!(c.calls.borrow().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod refresh_config_tests {
+    use super::*;
+
+    #[test]
+    fn explicit_config_path_reads_shared_contact_and_environment_takes_precedence() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shared.env.local");
+        std::fs::write(&path, "KOPLIK_CENSUS_CONTACT=refresh@example.invalid\n").unwrap();
+        assert_eq!(
+            census_contact_from_path(None, Some(&path)).unwrap(),
+            CensusContact::Configured("refresh@example.invalid".into())
+        );
+        let absent = dir.path().join("absent");
+        assert_eq!(
+            census_contact_from_path(
+                Some(std::ffi::OsStr::new("env@example.invalid")),
+                Some(&absent)
+            )
+            .unwrap(),
+            CensusContact::Configured("env@example.invalid".into())
+        );
+        std::fs::write(&path, "KOPLIK_CENSUS_CONTACT=\n").unwrap();
+        assert!(census_contact_from_path(None, Some(&path)).is_err());
     }
 }
