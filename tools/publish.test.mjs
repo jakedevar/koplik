@@ -26,7 +26,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     const caller = join(scratch, 'caller');
     const remote = join(scratch, 'origin.git');
     await mkdir(caller);
-    for (const path of ['web', 'crates', 'data/fixtures', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
+    for (const path of ['web', 'crates', 'data/fixtures', 'data/release', 'data/reports', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml']) {
       await cp(join(project, path), join(caller, path), {
         recursive: true,
         filter: (path) => !['node_modules', 'dist', 'test-results', 'playwright-report', 'public'].includes(basename(path)),
@@ -42,7 +42,7 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     git('init', '--initial-branch=worker');
     git('config', 'user.name', 'Publish test');
     git('config', 'user.email', 'publish-test@example.invalid');
-    git('add', '--', 'web', 'crates', 'data/fixtures', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml');
+    git('add', '--', 'web', 'crates', 'data/fixtures', 'data/release', 'data/reports', 'tools', 'Makefile', '.gitignore', 'Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml');
     git('commit', '-m', 'Publishing test source');
     const source = git('rev-parse', 'HEAD');
     git('init', '--bare', remote);
@@ -124,6 +124,8 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     }
     const manifest = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/manifest.json`));
     assert.equal(manifest.mode, 'fixtures');
+    const publication = JSON.parse(git('--git-dir', remote, 'show', `${first}:data/publication.json`));
+    assert.equal(publication.source, 'data/release');
     assert.deepEqual(Object.keys(manifest.stages).sort(), ['forecast', 'infer', 'ingest', 'validate']);
     assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v1/')).sort(),
       ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v1/${name}.json`).sort());

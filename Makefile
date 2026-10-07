@@ -10,7 +10,7 @@ PUBLISH_REMOTE ?= origin
 PUBLISH_DRY_RUN ?= 0
 export PUBLISH_REMOTE PUBLISH_DRY_RUN
 
-.PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline pipeline-fixtures serve publish
+.PHONY: check test schema wasm determinism wasm-benchmark web-test pipeline pipeline-fixtures serve publish install-refresh-timer refresh-test pipeline-release
 
 check:
 	$(CARGO) fetch --locked
@@ -45,7 +45,7 @@ web/node_modules/.package-lock.json: web/package-lock.json
 	cd web && npm ci --no-audit --no-fund
 
 web-test: wasm web/node_modules/.package-lock.json
-	tools/offline-test.sh sh -eu -c 'node --test tools/offline-test.test.mjs; cd web; test_port="$$(node scripts/free-port.mjs)"; KOPLIK_TEST_PORT="$$test_port" KOPLIK_TEST_OUTPUT_DIR="test-results-$$test_port" npm test; cd ..; mkdir -p "$$CARGO_TARGET_DIR/publish-tests"; TMPDIR="$$CARGO_TARGET_DIR/publish-tests" node --test tools/publish.test.mjs'
+	tools/offline-test.sh sh -eu -c 'node --test tools/offline-test.test.mjs tools/refresh/refresh.test.mjs tools/refresh/data.test.mjs; cd web; test_port="$$(node scripts/free-port.mjs)"; KOPLIK_TEST_PORT="$$test_port" KOPLIK_TEST_OUTPUT_DIR="test-results-$$test_port" npm test; cd ..; mkdir -p "$$CARGO_TARGET_DIR/publish-tests"; TMPDIR="$$CARGO_TARGET_DIR/publish-tests" node --test tools/publish.test.mjs'
 
 # Live pipeline: ingest (network, identified by KOPLIK_CONTACT or the operator's default contact;
 # a blank KOPLIK_CONTACT refuses) then validate, infer, forecast and build into web/public/data.
@@ -63,3 +63,14 @@ serve: wasm web/node_modules/.package-lock.json
 
 publish:
 	node tools/publish.mjs
+
+# Publication input selection: committed release store when present, else fixtures (offline).
+pipeline-release:
+	node tools/refresh/data.mjs . data/pipeline web/public/data
+
+refresh-test:
+	tools/offline-test.sh node --test tools/refresh/refresh.test.mjs tools/refresh/data.test.mjs
+
+# Manager/operator only, after tier2 review; never run from an agent sandbox.
+install-refresh-timer:
+	tools/refresh/install.sh

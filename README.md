@@ -74,7 +74,7 @@ make pipeline           # live: fetch the sources, then build (identifies itself
 ## Honest limits
 
 - The published data are built from committed source snapshots; each number shows its own
-  retrieval time. There is no scheduled live refresh yet.
+  retrieval time. The reviewed weekly refresh timer is installed by the manager (see below).
 - Texas DSHS published county tables only for some reports, so most Texas county weeks are shown as
   "No data" rather than estimated (#1439).
 - The what-if panel is a hypothetical introduction, not a fit to the 2025 outbreak: the retained
@@ -100,3 +100,67 @@ fast-forward only.
 
 Branches: `rolling` is agent intake (fast-forward only). `main` is promoted from a QA-green SHA
 (`thoughts/shared/qa/qa-green.sha`). `gh-pages` is the published site.
+
+## Weekly refresh (#1507)
+
+After tier2 review, the manager installs from `~/koplik` with
+`make install-refresh-timer`, and runs the first refresh by hand with
+`systemctl --user start koplik-refresh.service`. The timer runs Thursdays at
+21:00 America/Chicago with `Persistent=true`. Inspect it with
+`systemctl --user list-timers koplik-refresh.timer` and
+`journalctl --user -u koplik-refresh.service`. Enable user lingering separately
+if the hub must run timers while logged out.
+
+The refresh creates a fresh detached clone at `origin/rolling` under
+`~/.rsi/koplik-refresh/<run-id>/worktree`, never in the shared checkout or an
+agent sandbox. Existing release blobs are immutable and the retrieval log is
+append-only. The candidate commit may change only `data/release/**`; staged,
+unstaged, untracked and committed paths are guarded. Tests still use
+`data/fixtures/`. Failed worktrees are retained for diagnosis; cleanup is an
+operator action. A directory lock prevents overlapping runs; after a killed
+run, inspect the journal before removing `~/.rsi/koplik-refresh/lock`.
+
+Before installation, configure the Census contact in the shared checkout's
+**gitignored** `.env.local` (`KOPLIK_CENSUS_CONTACT`), and put literal private
+personal-data scan patterns, one per line, in
+`~/.config/koplik/pii-patterns` (outside git; do not print their contents).
+`KOPLIK_ENV_LOCAL` passes only the config path to ingest. The refresh clears
+inherited Census overrides so that the shared file is the contact authority.
+No contact is copied into the refresh worktree or command logs. Missing config
+or an empty/missing pattern file refuses the run.
+
+The gate runs `make check`, isolated `make test`, `make web-test`, and
+`make determinism`, builds release data twice and compares every output hash,
+then commits the data-only candidate and does a publish dry-run against a
+**temporary local bare repo**. Personal-data and secrets scans cover the
+candidate's complete reachable history, including commit identities/messages,
+blob contents and filenames; `.env*` paths are forbidden in every tree.
+`data/release/qa/<run-id>.json` holds the base SHA, checks, output hashes and
+scan counts; the refresh does not write the code-tree QA pointer.
+A concurrent change to `origin/rolling` skips the run; there is no rebase or
+force push. Only green candidates fast-forward rolling and main atomically
+(`KOPLIK_PROMOTE_MAIN=1`), then invoke `make publish`.
+
+On a failure before promotion, nothing is pushed or published. A failure in
+publication after successful promotion cannot undo the preceding fast-forward:
+the refreshed data commit remains on rolling/main, and the previous gh-pages
+site remains until publication succeeds. This ordering is an explicit review
+point because a Git promotion and a subsequent publication are separate
+transactions. Every failure attempts an Issue labeled `refresh-failure` through
+`rsi-rpc AgentCreateIssue` when an RSI token is available; otherwise (also on RPC
+refusal) it writes `~/.rsi/koplik-refresh/FAILED-<run-id>.md` and attempts a local
+notification. Logs and reports contain phase identifiers, never captured child
+output or scan matches.
+
+`make publish` archives committed HEAD and builds offline from `data/release/`
+when it exists. Only absence of that directory permits fixture fallback;
+a corrupt or incomplete release store refuses publication. The published
+`data/publication.json` manifest names the selected input and hashes
+`data/manifest.json`. The initial release store was written by the pipeline's
+fixture ingest: 22 raw snapshots and original retrieval receipts, with all
+12 existing pipeline artifacts byte-identical to the fixture build.
+`make pipeline-release` uses the same selection locally. `make refresh-test`
+exercises fake ingest, fake QA and temporary repositories inside the offline
+gate; no timer installation, live request or real-origin push is part of tests.
+`--dry-run` on the refresh suppresses promotion/publication but **still performs
+live ingest**; it is for the manager's reviewed manual run, not an offline test.

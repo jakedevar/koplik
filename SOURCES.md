@@ -526,3 +526,23 @@ Each forecast describes the case definition of its series and never mixes defini
 | Seed, runs | Seed `20250101` (arbitrary, fixed, the backtest's), 1,000 members, 23 hub quantile levels. |
 | Skill | `data/reports/backtest/west-texas-2025.json`, attached only when it was run with exactly this configuration, published unchanged beside the forecast. It scored the Texas DSHS 2025 outbreak total by report date: **no series forecast here is that series**, and the companion says `not backtested; no measured skill` for each. |
 
+
+## Weekly publication snapshots (#1507)
+
+Publication consumes the content-addressed `data/release/` store (same
+`blobs/<prefix>/<sha256>` and append-only `retrievals.jsonl` layout as ingest),
+plus its recorded `ingest.manifest.json`. The initial 22 snapshots are seeded
+by offline fixture ingest without changing bytes, URLs, hashes or retrieval
+times. Fixtures remain the test inputs. Publication falls back to fixtures
+only when the release directory is absent; the published `publication.json`
+records this selection and the pipeline manifest digest.
+
+The reviewed refresh runs Thursdays at 21:00 America/Chicago, after the CDC
+weekly update. It uses the existing polite live entry point and named-file
+pins; pin mismatches or missing fetches refuse the refresh, rather than updating
+pins or substituting old data silently. `KOPLIK_ENV_LOCAL` names the shared
+checkout's gitignored `.env.local` for Census contact resolution at run time.
+The file and its contact value are never copied into publication snapshots.
+All source terms, parser rules and missing-data semantics above still apply.
+See README's weekly refresh instructions for the full QA gate, private scan
+pattern file, failure reports and the promotion/publication ordering limit.

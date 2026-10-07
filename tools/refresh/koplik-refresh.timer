@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh Koplik after the Thursday CDC update
+
+[Timer]
+OnCalendar=Thu *-*-* 21:00 America/Chicago
+Persistent=true
+Unit=koplik-refresh.service
+
+[Install]
+WantedBy=timers.target
