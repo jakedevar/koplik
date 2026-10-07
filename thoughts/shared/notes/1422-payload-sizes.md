@@ -43,3 +43,18 @@ GeoJSON boundaries and scenario/forecast companions keep their existing shapes.
 
 Two final v6 `make pipeline-fixtures` runs produced identical SHA-256 hashes for all 12 published files.
 Total raw reduction: 79.1%; gzip reduction: 31.7%. No observations or provenance were removed.
+
+Final verification (CARGO_TARGET_DIR set to this sandbox's target/ for all runs):
+- `tools/cargo-test.sh -p koplik-contracts -p koplik-pipeline`: passed offline, including doctests.
+- `make schema`: passed; released v1–v5 sources and schema files have no diff from the baseline.
+- `make check`: passed offline for the workspace and all targets.
+- `TMPDIR=/tmp make web-test`: passed offline (108 unit tests, browser smoke test, and local publishing test).
+- `make pipeline-fixtures` twice: all 12 published hashes identical.
+- `tools/offline-test.sh sh -c 'cd web && node node_modules/typescript/bin/tsc --noEmit'`: passed.
+
+The browser integration test compares every expanded observation and forecast row
+with its current-contract stage output, including the exact ordered provenance.
+An initial comparison caught one-ULP drift from decimal parsing; raw field packing
+fixed it without changing upstream parsing, scientific methods or their results.
+No deferred-loading change was needed. Tier2 review should check `v6::pack_json`,
+the v6 schema/reference validation and the all-row browser equivalence test first.
