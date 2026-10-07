@@ -8,8 +8,9 @@ Build the WASM bindings with `make wasm` before running Vite directly. `make ser
 and `make web-test` build them automatically. Unit tests render actual v2 WASM
 output from the committed SEIR fixture through an injected Worker adapter.
 
-Run `npm ci` in `web/` once. `make web-test` runs Vitest offline against committed
-fixtures. `make serve` builds and previews the production site on localhost.
+Run `npm ci` in `web/` once. `TMPDIR=/tmp make web-test` runs Vitest and the
+Playwright smoke test offline against committed fixtures. `make serve` builds
+and previews the production site on localhost.
 `KOPLIK_BASE_PATH=/koplik/ make serve` sets the GitHub Pages path; the same variable
 applies to `npm run build` and `npm run dev`. Serve `dist/` with any static host.
 
@@ -143,3 +144,49 @@ establish performance on the future real Gaines County artifact.
 provenance drawer can attach there; exact report rows also have `data-geography`
 and `data-week` attributes. The map's native state/county selector remains usable
 when WebGL is unavailable. The disclaimer is also rendered on loading/error views.
+
+## Number provenance and browser smoke test
+
+Underlined numeric values open the provenance drawer with mouse, Enter or Space.
+Chart marks and whole charts also support keyboard activation. The native modal
+dialog moves focus to its close button, traps Tab/Shift-Tab and closes with Escape,
+returning focus to the triggering number. The drawer shows only artifact fields:
+snapshot sha256, source identifier, source URL, retrieval time and licence/terms
+identifier. Empty or absent fields say `Missing`; absent records are explicitly
+labelled missing. HTTP(S) source URLs are links; other URIs (including the synthetic
+SEIR fixture's local `file:` URI) remain exact plain text. No raw snapshot URL,
+licence text or source attribution is guessed. Fixture records are labelled
+**synthetic, not a published source** inside the drawer as well as on the page.
+
+Case period totals list every input weekly record's provenance. R_t rows and chart
+segments list the provenance attached to those derived artifact rows, rather than
+looking up nearby case reports. Ensemble values and fingerprints list the union
+of linked population/centroid and baseline-coverage provenance for **all counties**
+in the exact result replay scenario. Exact duplicate records are shown once;
+differing URLs, licence ids or retrieval times are retained even for the same hash.
+The v1 scenario has no separate source links for model parameters, initial
+seeding or overrides. The drawer states that limitation; seeds, model settings,
+user-selected coverage and locally measured update times are configuration or local
+measurements, not published observations. Follow-up #1400 asks pipeline #1359 to
+link parameter and initial-seeding sources without modifying released contracts.
+
+The geography selector keeps native keyboard selection. Its numeric summaries
+are now in the expandable **Compare geography values and sources** table, where
+every value can independently open its provenance.
+
+`make web-test` builds WASM and runs the units followed by **one Playwright smoke
+test**. It generates the web fixture artifacts from the committed synthetic
+source, starts and stops a dev server under `/koplik/`, blocks external page
+requests and verifies rendered map readiness, a keyboard slider change, changed
+ensemble bands/fingerprint, number and SVG activation, all drawer fields, focus
+trapping and Escape focus restoration. Synthetic artifacts stay outside `public/`
+and never enter the production build. Failed browser tests keep a local trace in
+ignored `web/test-results/`.
+
+The smoke test uses `CHROME_BIN` when set, otherwise system Chrome at
+`/opt/google/chrome/chrome`, otherwise an already-installed Playwright Chromium.
+It fails explicitly if no executable is available; it never skips or downloads a
+browser during tests. Install a browser separately if needed. Always set
+`TMPDIR=/tmp` in RSI sandboxes to avoid Chromium's long Unix socket path (#1367).
+To run only the smoke test after `make wasm`, use
+`cd web && TMPDIR=/tmp npm run test:smoke`.
