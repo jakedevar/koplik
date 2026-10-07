@@ -250,6 +250,20 @@ exit 0
   }
 });
 
+test('a bookkeeping failure after verified Pages success reports the built commit accurately', async () => {
+  const state = await mkdtemp('/tmp/koplik-refresh-bookkeeping-');
+  try {
+    const released = { sha: 'a'.repeat(40), pages: 'b'.repeat(40), repository: 'example/koplik', built: true };
+    const notices = [];
+    await failure({ state, runId: 'bookkeeping', phase: 'pages-report', released, env: {},
+      run: async (program, args) => { assert.equal(program, 'notify-send'); notices.push(args); } });
+    const report = await readFile(join(state, 'FAILED-bookkeeping.md'), 'utf8');
+    assert.ok(report.includes('Pages was verified built; post-release bookkeeping failed.'));
+    assert.ok(notices[0][1].includes('Pages was verified built; post-release bookkeeping failed.'));
+    assert.ok(report.includes(`make pages-verify PAGES_COMMIT=${released.pages}`));
+  } finally { await rm(state, { recursive: true, force: true }); }
+});
+
 test('scans refuse private patterns, secrets, tracked environment files and secrets removed from current tree', async () => {
   assert.throws(() => scanText('private-contact-sentinel', ['private-contact-sentinel']), /Personal-data/);
   assert.throws(() => scanText('ghp_' + 'a'.repeat(36), []), /Secrets/);

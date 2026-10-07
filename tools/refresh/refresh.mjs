@@ -40,7 +40,7 @@ export function ingestGreen(previous, current) {
 export async function failure({ state, runId, phase, tail, released, run = command, env = process.env }) {
   // Phase identifiers are controlled by this script, never child output or private input.
   const recovery = released
-    ? `Refs moved: rolling/main=${released.sha}, gh-pages=${released.pages}. The site is stale until Pages builds this commit; verification did not succeed. Refs were not rolled back.\nRetry from the shared checkout:\n${pagesRetry(released.repository, released.pages)}\n`
+    ? `Refs moved: rolling/main=${released.sha}, gh-pages=${released.pages}. ${released.built ? 'Pages was verified built; post-release bookkeeping failed.' : 'The site is stale until Pages builds this commit; verification did not succeed.'} Refs were not rolled back.\nRetry from the shared checkout:\n${pagesRetry(released.repository, released.pages)}\n`
     : 'No further promotion or publication was attempted.\nInspect the refresh journal and dedicated worktree; rerun full QA before retrying.\n';
   const body = `Weekly refresh ${runId} failed at ${phase}.\n${recovery}` + (tail ? `\nRedacted command tail (last 200 lines):\n\n${tail.split('\n').map((line) => `    ${line}`).join('\n')}\n` : '');
   await mkdir(state, { recursive: true });
@@ -209,8 +209,11 @@ export async function refresh({ shared = join(homedir(), 'koplik'), state = join
     }
     phase = 'pages-verify'; console.log(`Refresh ${runId}: request and verify Pages ${g}`);
     const pagesBuild = await verifyPages({ ...pagesOptions, repository, commit: g, cwd: work, run, env: safeEnv });
+    released.built = true;
+    phase = 'pages-report';
     await writeFile(join(state, runId, 'pages-build.json'), `${JSON.stringify(pagesBuild)}\n`, { mode: 0o600 });
     await status('green');
+    phase = 'cleanup';
     await rm(join(work, 'target'), { recursive: true, force: true });
     console.log(`Refresh green ${sha}`);
     return { sha, pages: g, work, receipt };
