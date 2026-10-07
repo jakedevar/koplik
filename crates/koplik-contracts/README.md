@@ -35,18 +35,28 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   upgrades a v1 row losslessly (`case_definition: confirmed`); v2 re-exports v1's row, so the
   same impl is also the v2 upgrade. Consumers still on v1/v2 rows (R_t, web loader, Texas DSHS
   connector) migrate in follow-ups.
-- **v4** (`CONTRACT_VERSION` 4): v3 plus one new type, `ScenarioProvenance` (#1400, #1455): the
+- **v4** (released, frozen by `tests/frozen.rs`): v3 plus one new type, `ScenarioProvenance` (#1400, #1455): the
   companion of a what-if `ScenarioInput`. It states the seeding as an assumption (not data),
   names where the node inputs came from, and cites every model parameter with the value the
   scenario ran with. `ScenarioProvenance::check_against(&ScenarioInput)` is the rule that a
   scenario is only published beside a companion that describes it (same seed, run count, start
   week, nodes, seeding and parameter values). The scenario input keeps its v1 shape. Every
   other type is re-exported from v3 unchanged. Schema: `schema/v4/`.
+- **v5** (`CONTRACT_VERSION` 5): v4 plus `ForecastProvenance` and the types it is made of (#1465):
+  the companion of a published set of v1 `Forecast` rows. It lists every series considered and
+  whether it was forecast or `insufficient_data` (with the estimator's reason), fixes the
+  method, every configuration value with its citation, the seed, run count, quantile levels and
+  origin week, hashes the input series, and carries the backtest's measured skill (CRPS, 50%/90%
+  coverage, per horizon) with the scope it was measured on and a per-series `skill`: `backtested`, or
+  `not backtested; no measured skill`.
+  `ForecastProvenance::check_against(&[Forecast])` is the rule that forecast rows are only
+  published beside a companion that describes them. The forecast rows keep their v1 shape. Every
+  other type is re-exported from v4 unchanged. Schema: `schema/v5/`.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5
 git add crates/koplik-contracts/schema
 ```
 

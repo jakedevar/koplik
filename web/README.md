@@ -232,6 +232,49 @@ seven-county, 180-day, 1,000-run **synthetic** fixture. Warm through-paint sampl
 range from 599.1000000014901 to 648.6000000014901 ms. These measurements do not
 establish performance on the future real Gaines County artifact.
 
+## Forecast panel ("Where next?")
+
+The pipeline's `forecast` stage (#1465) runs `koplik_epi::forecast::forecast_weekly` on the
+validated weekly case series with the **pre-registered defaults, unchanged** (3-week window, 3-week
+look-back, at least 11 cases in the window, 8 weeks ahead, 1,000 members, the 23 hub quantile
+levels) and the recorded seed `20250101`, from an origin week two provisional weeks before the
+latest data. `build` publishes three files under `data/forecasts/`, or none:
+`weekly-cases.json` (v1 `Forecast` rows), `weekly-cases.provenance.json` (**contract v5**
+`ForecastProvenance`, schema `crates/koplik-contracts/schema/v5/ForecastProvenance.schema.json`,
+types generated into `src/generated/v5/`) and `backtest-west-texas-2025.json` (the committed
+backtest report the skill was read from, byte for byte). The companion lists **every series**
+considered, each forecast or `insufficient_data` with the estimator's reason, the method and every
+parameter with its citation, the seed, run count, quantile levels and origin week, the sha256 of the
+input series, and the backtest's measured skill with its scope. `src/forecast.ts` validates both
+files against the committed schemas and refuses a pair where the companion does not describe the
+rows (the cross-checks mirror `ForecastProvenance::check_against`); a missing companion is an
+error, never a bare forecast. No file means a visible "not yet available" state.
+
+`src/forecast-view.ts` draws one series at a time (keyboard-accessible selector; it follows the
+dashboard's selected geography): reported weekly counts as bars, the forecast median and the 50%
+and 90% bands, the origin as a dashed line, and the provisional weeks (reported but still being
+revised, and not used) as dashed bars. The exact values are in a table with provenance on every
+number. A series that does not meet the method's minimum-count rule says **insufficient data** and
+why, in words that name the counts; it never gets a number.
+
+A forecast of a series the backtest did not score is introduced, **first, above its chart**, by:
+"No measured skill for this series. This forecast method has not been tested on this data; treat
+the bands as illustrative, not as calibrated uncertainty." No skill number and no calibration
+adjective sits in or next to the chart. Each series carries `skill` in the companion
+(`backtested`, or `not backtested; no measured skill`); the page refuses any other value. **None of
+the published series is backtested**: the backtest scored one series (the Texas DSHS 2025 outbreak
+total by report date), while the published forecasts are of CDC NNDSS state series
+(`confirmed_or_unknown_status`).
+
+The backtest is reported in its own section, **How we evaluate forecasts**, after the forecast:
+what was scored (the Texas DSHS outbreak total by report date, 2025; 48 targets from 7 forecast
+dates and 5 origin weeks), the numbers exactly as measured with one precision and counts ("90%
+intervals contained the true count 62.5% of the time (30 of 48)", 50%: 47.9% (23 of 48), mean CRPS
+3.66, persistence 5.79; the backtest's intervals were too narrow), the per-horizon table and the
+limitations, and that it does not measure the published state series (testing them is tracked as
+#1503). Synthetic dev mode serves an invented, clearly labelled forecast pair
+(`data/fixtures/web/synthetic-v1/synthetic-forecast*.json`) from `npm run fixtures`.
+
 ## Integration events
 
 `mountDashboard` emits a bubbling `koplik:selection` CustomEvent with

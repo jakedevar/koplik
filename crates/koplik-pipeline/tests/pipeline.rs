@@ -7,11 +7,12 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use koplik_contracts::v1::{
-    BaselineCoverage, GeoId, Geography, KindergartenMmrCoverage, RtEstimate, RtStatus,
+    BaselineCoverage, Forecast, GeoId, Geography, KindergartenMmrCoverage, RtEstimate, RtStatus,
     ScenarioInput,
 };
 use koplik_contracts::v3::{CaseDefinition, WeeklyCaseCount};
 use koplik_contracts::v4::ScenarioProvenance;
+use koplik_contracts::v5::{ForecastProvenance, ForecastStatus, InsufficientReason, SeriesSkill};
 use koplik_ingest::store::sha256_of;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
@@ -27,6 +28,7 @@ fn fixture_config(root: &Path) -> Config {
         work,
         out: root.join("out"),
         fixtures: repo().join("data/fixtures"),
+        reports: repo().join("data/reports"),
     }
 }
 
@@ -106,8 +108,13 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
                 assert_hashes_match(&config.work, &m.outputs);
             }
             Stage::Forecast => {
-                assert!(m.inputs.is_empty() && m.outputs.is_empty());
-                assert!(matches!(m.items["forecast"], ItemStatus::Skipped { .. }));
+                assert_hashes_match(&config.work, &m.inputs);
+                assert_hashes_match(&config.work, &m.outputs);
+                assert_eq!(
+                    m.inputs.iter().map(|f| f.path.as_str()).collect::<Vec<_>>(),
+                    ["validate/weekly-cases.json"]
+                );
+                assert!(matches!(m.items["forecast"], ItemStatus::Present { .. }));
             }
             Stage::Build => {
                 assert_hashes_match(&config.work, &m.inputs);
@@ -671,6 +678,8 @@ fn cli_runs_every_stage_from_fixtures_offline() {
         .arg(dir.path().join("out"))
         .arg("--fixtures")
         .arg(repo().join("data/fixtures"))
+        .arg("--reports")
+        .arg(repo().join("data/reports"))
         .output()
         .unwrap();
     let err = String::from_utf8_lossy(&out.stderr);
@@ -692,10 +701,346 @@ fn cli_runs_every_stage_from_fixtures_offline() {
             .is_file()
     );
     assert!(dir.path().join("out/v1/weekly-cases.json").is_file());
+    assert!(dir.path().join("out/forecasts/weekly-cases.json").is_file());
+    assert!(
+        dir.path()
+            .join("out/forecasts/backtest-west-texas-2025.json")
+            .is_file()
+    );
     // Unknown stages and dangling flags are usage errors.
     let bad = cli().args(["publish"]).output().unwrap();
     assert!(!bad.status.success());
     assert!(String::from_utf8_lossy(&bad.stderr).contains("usage"));
     let bad = cli().args(["build", "--work"]).output().unwrap();
     assert!(!bad.status.success());
+}
+
+// ---------------------------------------------------------------------------------------------
+// forecast (#1465)
+
+fn forecast_outputs(config: &Config) -> (Vec<Forecast>, ForecastProvenance) {
+    (
+        read(&config.work.join("forecast/forecast.json")),
+        read(&config.work.join("forecast/forecast.provenance.json")),
+    )
+}
+
+#[test]
+fn forecast_runs_the_pre_registered_method_on_the_published_series_with_its_provenance() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let (rows, p) = forecast_outputs(&config);
+    let cases: Vec<WeeklyCaseCount> = read(&config.work.join("validate/weekly-cases.json"));
+
+    // The method and its configuration are the pre-registered defaults, with an explicit seed.
+    assert_eq!(
+        (p.seed, p.run_count, p.horizon_weeks),
+        (koplik_pipeline::forecast_stage::FORECAST_SEED, 1000, 8)
+    );
+    assert_eq!(p.levels.len(), 23);
+    let parameter = |name: &str| p.parameters.iter().find(|x| x.parameter == name).unwrap();
+    assert_eq!(parameter("window_weeks").value, serde_json::json!(3));
+    assert_eq!(parameter("min_cases").value, serde_json::json!(11));
+    assert_eq!(parameter("seed").value, serde_json::json!(p.seed));
+
+    // The origin is two weeks before the latest data, and every target is after it.
+    let latest = cases.iter().map(|r| r.week).max().unwrap();
+    assert_eq!(p.latest_data_week, latest);
+    assert_eq!(p.origin_week, latest.prev().unwrap().prev().unwrap());
+    assert!(
+        !rows.is_empty(),
+        "the fixtures hold series the rule lets us forecast"
+    );
+    assert!(
+        rows.iter()
+            .all(|r| r.origin_week == p.origin_week && r.target_week > p.origin_week)
+    );
+    p.check_against(&rows).unwrap();
+
+    // The input series is hashed as it was read, and every series is accounted for once.
+    let weekly = fs::read(config.work.join("validate/weekly-cases.json")).unwrap();
+    assert_eq!(p.input.sha256, sha256_of(&weekly));
+    assert_eq!(p.input.rows as usize, cases.len());
+    let geographies: BTreeSet<GeoId> = cases.iter().map(|r| r.geography).collect();
+    assert_eq!(
+        p.series
+            .iter()
+            .map(|s| s.geography)
+            .collect::<BTreeSet<_>>(),
+        geographies
+    );
+
+    // A series is forecast only where the minimum-count rule holds; every other series says why.
+    let forecast: Vec<_> = p
+        .series
+        .iter()
+        .filter(|s| s.status == ForecastStatus::Forecast)
+        .collect();
+    assert!(!forecast.is_empty());
+    for s in &forecast {
+        assert!(
+            s.cases_in_window.unwrap() >= 11,
+            "{}: {:?}",
+            s.geography,
+            s.cases_in_window
+        );
+    }
+    let thin = p
+        .series
+        .iter()
+        .filter(|s| s.reason == Some(InsufficientReason::BelowThreshold))
+        .collect::<Vec<_>>();
+    assert!(!thin.is_empty());
+    assert!(thin.iter().all(|s| s.cases_in_window.unwrap() < 11));
+    let published: BTreeSet<GeoId> = rows.iter().map(|r| r.geography).collect();
+    assert_eq!(
+        published,
+        forecast
+            .iter()
+            .map(|s| s.geography)
+            .collect::<BTreeSet<_>>()
+    );
+    // Texas counties come from DSHS reports that end long before the origin: insufficient, not
+    // carried forward.
+    let county = p
+        .series
+        .iter()
+        .find(|s| s.geography.to_string() == "48165")
+        .unwrap();
+    assert_eq!(county.status, ForecastStatus::InsufficientData);
+    assert!(rows.iter().all(|r| r.geography.to_string() != "48165"));
+
+    // Every forecast describes the case definition of its own series.
+    for s in &p.series {
+        let mut definitions: Vec<_> = cases
+            .iter()
+            .filter(|r| r.geography == s.geography)
+            .map(|r| r.case_definition)
+            .collect();
+        definitions.dedup();
+        assert_eq!(definitions, [s.case_definition]);
+    }
+    // Every row carries source records that are the series' own.
+    for r in &rows {
+        let sources: BTreeSet<&str> = r
+            .provenance
+            .as_slice()
+            .iter()
+            .map(|x| x.source_id.as_str())
+            .collect();
+        let own: BTreeSet<&str> = cases
+            .iter()
+            .filter(|c| c.geography == r.geography)
+            .flat_map(|c| c.provenance.as_slice().iter().map(|x| x.source_id.as_str()))
+            .collect();
+        assert_eq!(sources, own);
+    }
+}
+
+#[test]
+fn the_backtest_skill_is_the_committed_report_exactly_and_its_scope_is_stated() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let (_, p) = forecast_outputs(&config);
+    let skill = p
+        .backtest
+        .as_ref()
+        .expect("the committed report matches the configuration");
+    let path = repo().join("data/reports/backtest/west-texas-2025.json");
+    let bytes = fs::read(&path).unwrap();
+    let report: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+    let pooled = &report["primary"]["pooled"];
+    assert_eq!(skill.report_sha256, sha256_of(&bytes));
+    assert_eq!(
+        skill.report_path,
+        "data/reports/backtest/west-texas-2025.json"
+    );
+    assert_eq!(skill.targets as u64, pooled["n"].as_u64().unwrap());
+    assert_eq!(skill.mean_crps, pooled["mean_crps"].as_f64().unwrap());
+    assert_eq!(skill.coverage_50, pooled["coverage_50"].as_f64().unwrap());
+    assert_eq!(skill.coverage_90, pooled["coverage_90"].as_f64().unwrap());
+    assert_eq!(
+        skill.manifest_sha256.as_str(),
+        report["manifest_sha256"].as_str().unwrap()
+    );
+    assert_eq!(
+        skill.seed, p.seed,
+        "the published forecast runs with the backtest's seed"
+    );
+    assert_eq!(skill.seed, report["primary"]["seed"].as_u64().unwrap());
+    assert_eq!(skill.by_horizon.len(), 8);
+    // The measured numbers, as recorded in thoughts/shared/research/backtest-2025-west-texas.md.
+    assert_eq!(skill.targets, 48);
+    assert_eq!(format!("{:.2}", skill.mean_crps), "3.66");
+    assert_eq!(
+        (
+            format!("{:.2}", skill.coverage_50),
+            format!("{:.2}", skill.coverage_90)
+        ),
+        ("0.48".to_owned(), "0.62".to_owned())
+    );
+    assert_eq!((skill.forecast_dates, skill.origin_weeks), (7, 5));
+    // The backtest scored the Texas DSHS outbreak total, not any series forecast here.
+    assert!(skill.series.contains("Texas DSHS outbreak total"));
+    assert!(skill.series.contains("confirmed"));
+    assert!(skill.limitations[0].contains("no county-level backtest"));
+    assert!(
+        p.series
+            .iter()
+            .all(|s| s.skill == SeriesSkill::NotBacktested)
+    );
+    assert!(
+        p.scope_note
+            .contains("is that series: none was backtested and none has a measured skill"),
+        "{}",
+        p.scope_note
+    );
+    // The limitations quote the measured coverage with one precision and counts, and the range of
+    // the scored targets (not of the whole history: 61 appears only there).
+    let limitations = skill.limitations.join("\n");
+    assert!(limitations.contains("62.5% (30 of 48)"), "{limitations}");
+    assert!(limitations.contains("47.9% (23 of 48)"), "{limitations}");
+    assert!(
+        limitations
+            .contains("48 weekly counts the forecasts were scored against ran from 0 to 10 cases"),
+        "{limitations}"
+    );
+    assert!(!limitations.contains("61"), "{limitations}");
+    // The report is published byte for byte beside the rows, so the numbers can be checked.
+    assert_eq!(
+        fs::read(config.work.join("forecast/backtest-west-texas-2025.json")).unwrap(),
+        bytes
+    );
+}
+
+#[test]
+fn without_a_report_for_exactly_this_configuration_no_skill_is_attached() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut config = fixture_config(dir.path());
+    config.reports = dir.path().join("no-reports");
+    let all = run_all(&config);
+    let (rows, p) = forecast_outputs(&config);
+    assert!(p.backtest.is_none());
+    assert!(p.scope_note.contains("no skill has been measured"));
+    assert!(
+        !rows.is_empty(),
+        "the forecast itself does not depend on the report"
+    );
+    assert!(
+        all[&Stage::Forecast]
+            .notes
+            .iter()
+            .any(|n| n.contains("no backtest skill attached"))
+    );
+    assert!(
+        !config
+            .work
+            .join("forecast/backtest-west-texas-2025.json")
+            .exists()
+    );
+    assert!(
+        !config
+            .out
+            .join("forecasts/backtest-west-texas-2025.json")
+            .exists()
+    );
+    assert!(config.out.join("forecasts/weekly-cases.json").is_file());
+
+    // A report run with another configuration is not attached either: its numbers would
+    // describe a different method.
+    let reports = dir.path().join("other-reports");
+    fs::create_dir_all(reports.join("backtest")).unwrap();
+    let mut report: serde_json::Value =
+        read(&repo().join("data/reports/backtest/west-texas-2025.json"));
+    report["primary"]["window_weeks"] = serde_json::json!(2);
+    fs::write(
+        reports.join("backtest/west-texas-2025.json"),
+        serde_json::to_vec(&report).unwrap(),
+    )
+    .unwrap();
+    config.reports = reports;
+    let m = run_stage(Stage::Forecast, &config).unwrap();
+    assert!(
+        m.notes
+            .iter()
+            .any(|n| n.contains("no backtest skill attached")),
+        "{:?}",
+        m.notes
+    );
+    assert!(forecast_outputs(&config).1.backtest.is_none());
+}
+
+#[test]
+fn build_publishes_the_forecast_with_its_companion_and_never_one_without_it() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let m = run_stage(Stage::Build, &config).unwrap();
+    assert!(matches!(m.items["forecast"], ItemStatus::Present { .. }));
+    let out = config.out.join("forecasts");
+    let rows: Vec<Forecast> = read(&out.join("weekly-cases.json"));
+    let companion: ForecastProvenance = read(&out.join("weekly-cases.provenance.json"));
+    companion.check_against(&rows).unwrap();
+    let skill = companion.backtest.as_ref().unwrap();
+    assert_eq!(
+        sha256_of(&fs::read(out.join("backtest-west-texas-2025.json")).unwrap()),
+        skill.report_sha256
+    );
+    assert_hashes_match(&config.out, &m.outputs);
+    assert!(
+        m.inputs
+            .iter()
+            .any(|f| f.path == "forecast/forecast.provenance.json")
+    );
+
+    // Rows without their companion are refused, not published bare.
+    let companion_path = config.work.join("forecast/forecast.provenance.json");
+    let saved = fs::read(&companion_path).unwrap();
+    fs::remove_file(&companion_path).unwrap();
+    let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
+    assert!(err.contains("provenance companion"), "{err}");
+
+    // So are rows that a companion does not describe (here, one row removed).
+    fs::write(&companion_path, &saved).unwrap();
+    let mut shortened: Vec<Forecast> = read(&config.work.join("forecast/forecast.json"));
+    shortened.pop();
+    fs::write(
+        config.work.join("forecast/forecast.json"),
+        serde_json::to_vec(&shortened).unwrap(),
+    )
+    .unwrap();
+    let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
+    assert!(err.contains("does not describe the forecast rows"), "{err}");
+
+    // A report copy that does not match the hash its skill cites is refused too.
+    run_stage(Stage::Forecast, &config).unwrap();
+    fs::write(
+        config.work.join("forecast/backtest-west-texas-2025.json"),
+        b"{}\n",
+    )
+    .unwrap();
+    let err = run_stage(Stage::Build, &config).unwrap_err().to_string();
+    assert!(err.contains("does not match the report hash"), "{err}");
+
+    // With no forecast the artifact is absent and the manifest says so.
+    fs::remove_dir_all(config.work.join("forecast")).unwrap();
+    let m = run_stage(Stage::Build, &config).unwrap();
+    assert!(matches!(m.items["forecast"], ItemStatus::Missing { .. }));
+    assert!(!config.out.join("forecasts").exists());
+}
+
+#[test]
+fn forecast_refuses_to_run_before_validate_and_publishes_nothing_for_an_empty_series() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    let err = run_stage(Stage::Forecast, &config).unwrap_err().to_string();
+    assert!(err.contains("run the validate stage first"), "{err}");
+    // An empty store validates to an empty series: nothing to forecast, said as missing.
+    fs::create_dir_all(&config.store).unwrap();
+    run_stage(Stage::Validate, &config).unwrap();
+    let m = run_stage(Stage::Forecast, &config).unwrap();
+    assert!(matches!(m.items["forecast"], ItemStatus::Missing { .. }));
+    assert!(!config.work.join("forecast/forecast.json").exists());
 }

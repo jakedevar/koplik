@@ -84,5 +84,26 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await panel.locator('.parameter-citations tbody tr').first().getByRole('button').click();
   await expect(drawer).toContainText('Published source: SYNTHETIC fixture');
   await close.press('Escape');
+
+  // The forecast sits beside its measured backtest skill in plain words, with the exact values and their provenance.
+  const forecast = page.locator('.forecast');
+  await expect(forecast.getByRole('heading', { name: /Where next/ })).toBeVisible();
+  await expect(forecast.locator('svg.forecast-chart')).toBeVisible();
+  // First thing above the chart of a series that was not backtested; the backtest is its own section below.
+  await expect(forecast.locator('.forecast-result').locator('> :first-child')).toHaveText('No measured skill for this series. This forecast method has not been tested on this data; treat the bands as illustrative, not as calibrated uncertainty.');
+  const evaluation = page.locator('.forecast-evaluation');
+  await expect(evaluation.getByRole('heading', { name: 'How we evaluate forecasts' })).toBeVisible();
+  await expect(evaluation.locator('.forecast-headline')).toContainText('In a backtest on the synthetic fixture outbreak, 90% intervals contained the true count 50.0% of the time (2 of 4)');
+  await expect(evaluation.locator('.forecast-narrow')).toContainText('In this backtest the intervals were too narrow');
+  await expect(evaluation.locator('.forecast-evaluation-scope')).toContainText('does not measure how the forecasts above will do');
+  await forecast.getByText('Exact forecast values', { exact: true }).click();
+  const forecastMedian = forecast.locator('.forecast-result tbody tr').first().getByRole('button').first();
+  await forecastMedian.click(); await expect(drawer).toBeVisible();
+  await expect(drawer).toContainText('SYNTHETIC');
+  await expect(drawer).toContainText('not a source observation');
+  await close.press('Escape'); await expect(forecastMedian).toBeFocused();
+  await forecast.getByLabel('Forecast for').selectOption('40');
+  await expect(forecast.locator('.forecast-insufficient')).toContainText('Insufficient data');
+  await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);
   expect(external).toEqual([]); expect(pageErrors).toEqual([]);
 });

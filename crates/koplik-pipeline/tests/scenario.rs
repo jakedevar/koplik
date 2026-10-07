@@ -34,6 +34,7 @@ fn load() -> Fixture {
         work,
         out: dir.path().join("out"),
         fixtures: repo().join("data/fixtures"),
+        reports: repo().join("data/reports"),
     };
     run_stage(Stage::Ingest, &config).unwrap();
     let store = SnapshotStore::open(&config.store).unwrap();

@@ -10,9 +10,10 @@
 //!                                                                 us-states,texas-counties,dshs-*,gaps}.json
 //!                                                                 <work>/scenarios/gaines-2025{,.provenance}.json
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
-//! forecast  (no forecaster yet: skipped, manifest only)
-//! build     <work>/validate + <work>/infer                     -> <out>/v1/*.json, <out>/scenarios/*.json,
-//!                                                                 <out>/manifest.json
+//! forecast  <work>/validate/weekly-cases.json                  -> <work>/forecast/forecast{,.provenance}.json
+//!           + the committed backtest report in <reports>          <work>/forecast/backtest-west-texas-2025.json
+//! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v1/*.json, <out>/scenarios/*.json,
+//!                                                                 <out>/forecasts/*.json, <out>/manifest.json
 //! ```
 //!
 //! Sources: CDC NNDSS weekly cases by state (v3 rows, `confirmed_or_unknown_status`), Texas
@@ -25,8 +26,14 @@
 //! population and Gazetteer snapshots and the kindergarten coverage rows, by the pre-registered
 //! rule in [`scenario`]: a hypothetical introduction into Gaines County, not a replay of the
 //! 2025 outbreak. Its companion `scenarios/gaines-2025.provenance.json` (contract v4) states the
-//! seeding as an assumption and cites every parameter.
+//! seeding as an assumption and cites every parameter. The 4-8 week forecast (#1465) is made in
+//! `forecast` from the validated weekly case series by the pre-registered method of
+//! `koplik_epi::forecast`; see [`forecast_stage`] for the rule, which series it forecasts and why
+//! the rest are `insufficient_data`. Its companion `forecasts/weekly-cases.provenance.json`
+//! (contract v5) carries the method, parameter citations, seed, input hash and the backtest's
+//! measured skill with its scope.
 
+pub mod forecast_stage;
 pub mod scenario;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -39,7 +46,7 @@ use koplik_contracts::v1::{
     GeoId, Geography, KindergartenMmrCoverage, Provenances, RtEstimate, Sha256Hex, StateFips,
 };
 use koplik_contracts::v3::WeeklyCaseCount;
-use koplik_contracts::{v1, v3};
+use koplik_contracts::{v1, v3, v5};
 use koplik_epi::rt::{RtConfig, RtError, case_definitions, estimate_weekly};
 use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
@@ -57,6 +64,8 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_WORK: &str = "data/pipeline";
 pub const DEFAULT_OUT: &str = "web/public/data";
 pub const DEFAULT_FIXTURES: &str = "data/fixtures";
+/// Committed reports the forecast stage reads (the backtest report, `backtest/*.json`).
+pub const DEFAULT_REPORTS: &str = "data/reports";
 /// Largest response body accepted by live ingest (the CDC measles query is about 1 MB).
 const MAX_BODY_BYTES: u64 = 64 * 1024 * 1024;
 /// Gap between requests to web.archive.org: it rate-limits well below one request a second
@@ -84,6 +93,10 @@ pub const WEB_ROW_ARTIFACTS: [&str; 4] = ["geographies", "weekly-cases", "covera
 pub const WEB_BOUNDARY_ARTIFACTS: [&str; 2] = ["us-states", "texas-counties"];
 /// The what-if scenario the web app loads from `<out>/scenarios/` (see `web/src/scenario.ts`).
 pub const SCENARIO_ARTIFACT: &str = "gaines-2025";
+/// The forecast the web app loads from `<out>/forecasts/` (see `web/src/forecast.ts`): v1
+/// `Forecast` rows, their v5 provenance companion and the backtest report the skill was read from.
+pub const FORECAST_ARTIFACT: &str = forecast_stage::ARTIFACT;
+pub const FORECAST_BACKTEST_ARTIFACT: &str = "backtest-west-texas-2025";
 
 #[derive(Debug, thiserror::Error)]
 pub enum PipelineError {
@@ -97,6 +110,8 @@ pub enum PipelineError {
     Ingest(#[from] IngestError),
     #[error(transparent)]
     Rt(#[from] RtError),
+    #[error(transparent)]
+    Forecast(#[from] koplik_epi::forecast::ForecastError),
     #[error("json error at {path}: {source}")]
     Json {
         path: PathBuf,
@@ -178,6 +193,8 @@ pub struct Config {
     pub out: PathBuf,
     /// Fixture root for [`Mode::Fixtures`].
     pub fixtures: PathBuf,
+    /// Committed reports root (`data/reports`): the forecast stage reads the backtest report.
+    pub reports: PathBuf,
 }
 
 impl Config {
@@ -1313,14 +1330,118 @@ fn infer(config: &Config) -> Result<Manifest> {
 // ---------------------------------------------------------------------------------------------
 // forecast
 
+/// Work-directory paths of the forecast stage's outputs.
+const FORECAST_ROWS_REL: &str = "forecast/forecast.json";
+const FORECAST_PROVENANCE_REL: &str = "forecast/forecast.provenance.json";
+const FORECAST_BACKTEST_REL: &str = "forecast/backtest-west-texas-2025.json";
+
 fn forecast(config: &Config) -> Result<Manifest> {
+    clear_dir(&config.work.join("forecast"))?;
     let mut m = Manifest::new(Stage::Forecast, config.mode);
-    m.items.insert(
-        "forecast".to_owned(),
-        ItemStatus::Skipped {
-            reason: "no forecaster exists yet (#1361); nothing is written".into(),
+    let rel = "validate/weekly-cases.json";
+    let path = config.work.join(rel);
+    if !path.is_file() {
+        return Err(PipelineError::Data(format!(
+            "{} not found: run the validate stage first",
+            path.display()
+        )));
+    }
+    m.inputs.push(hash_file(&config.work, rel)?);
+    let bytes = fs::read(&path).map_err(|e| PipelineError::io(&path, e))?;
+    let cases: Vec<WeeklyCaseCount> =
+        serde_json::from_slice(&bytes).map_err(|source| PipelineError::Json {
+            path: path.clone(),
+            source,
+        })?;
+
+    // The measured skill is attached only from the committed report run with exactly this
+    // configuration; otherwise the companion says there is none.
+    let report_path = config.reports.join(forecast_stage::BACKTEST_REPORT_REL);
+    let report = match fs::read(&report_path) {
+        Ok(report) => Some(report),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(PipelineError::io(&report_path, e)),
+    };
+    let skill = match &report {
+        None => {
+            m.notes.push(format!(
+                "no backtest skill attached: {} is not present",
+                forecast_stage::BACKTEST_REPORT_PATH
+            ));
+            None
+        }
+        Some(report) => match forecast_stage::skill_from_report(report, &forecast_stage::forecast_config()) {
+            Ok(skill) => Some(skill),
+            Err(why) => {
+                m.notes
+                    .push(format!("no backtest skill attached: {why}"));
+                None
+            }
         },
-    );
+    };
+
+    match forecast_stage::build(&cases, forecast_stage::input_of(&bytes, cases.len()), skill)? {
+        None => {
+            m.items.insert(
+                "forecast".to_owned(),
+                ItemStatus::Missing {
+                    reason: "validate wrote no weekly case rows: there is nothing to forecast"
+                        .into(),
+                },
+            );
+        }
+        Some(built) => {
+            let p = &built.provenance;
+            let insufficient = p
+                .series
+                .iter()
+                .filter(|s| s.status == v5::ForecastStatus::InsufficientData)
+                .count();
+            m.notes.push(format!(
+                "origin MMWR {} (latest week with data {}); seed {}; {} series forecast, {} insufficient data; the pre-registered method and defaults of koplik_epi::forecast, unchanged",
+                p.origin_week,
+                p.latest_data_week,
+                p.seed,
+                p.series.len() - insufficient,
+                insufficient
+            ));
+            m.outputs.push(write_file(
+                &config.work,
+                FORECAST_ROWS_REL,
+                &json_bytes(&built.rows),
+            )?);
+            m.outputs.push(write_file(
+                &config.work,
+                FORECAST_PROVENANCE_REL,
+                &json_bytes(&built.provenance),
+            )?);
+            if let (Some(skill), Some(report)) = (&p.backtest, &report) {
+                // The report the skill was read from, byte for byte, so the published numbers
+                // can be checked against it (`skill.report_sha256`).
+                let copy = write_file(&config.work, FORECAST_BACKTEST_REL, report)?;
+                if copy.sha256 != skill.report_sha256 {
+                    return Err(PipelineError::Data(
+                        "the copied backtest report does not match the hash its skill cites".into(),
+                    ));
+                }
+                m.outputs.push(copy);
+                m.notes.push(format!(
+                    "backtest skill read from {} (sha256 {})",
+                    skill.report_path, skill.report_sha256
+                ));
+            }
+            m.items.insert(
+                "forecast".to_owned(),
+                ItemStatus::Present {
+                    retrieval: None,
+                    rows: Some(built.rows.len() as u64),
+                    gaps: Some(insufficient as u64),
+                },
+            );
+        }
+    }
+    m.inputs.sort_by(|a, b| a.path.cmp(&b.path));
+    m.outputs.sort_by(|a, b| a.path.cmp(&b.path));
     Ok(m)
 }
 
@@ -1358,7 +1479,7 @@ fn build(config: &Config) -> Result<Manifest> {
         }
     }
     // The output tree is a function of the inputs: clear what a previous build wrote.
-    for rel in ["v1", "scenarios", "manifest.json"] {
+    for rel in ["v1", "scenarios", "forecasts", "manifest.json"] {
         let path = config.out.join(rel);
         let removed = if path.is_dir() {
             fs::remove_dir_all(&path)
@@ -1499,6 +1620,74 @@ fn build(config: &Config) -> Result<Manifest> {
             SCENARIO_ARTIFACT.to_owned(),
             ItemStatus::Missing {
                 reason: "validate wrote no scenario (an input is missing from the store, see its manifest); nothing is published and the what-if panel shows unavailable".into(),
+            },
+        );
+    }
+
+    // The forecast (#1465): rows are only published beside a companion that describes them, and
+    // the skill beside them only with the report it was read from.
+    let rows_path = config.work.join(FORECAST_ROWS_REL);
+    if rows_path.is_file() {
+        // Deserialising runs the contract's own validation of every row and of the companion.
+        let rows: Vec<v1::Forecast> = read_json(&rows_path)?;
+        let provenance_path = config.work.join(FORECAST_PROVENANCE_REL);
+        if !provenance_path.is_file() {
+            return Err(PipelineError::Data(format!(
+                "{} exists without its provenance companion {}; a forecast is never published without one",
+                rows_path.display(),
+                provenance_path.display()
+            )));
+        }
+        let provenance: v5::ForecastProvenance = read_json(&provenance_path)?;
+        provenance
+            .check_against(&rows)
+            .map_err(|e| PipelineError::Data(format!("{}: {e}", provenance_path.display())))?;
+        let mut files = vec![
+            (FORECAST_ROWS_REL, format!("forecasts/{FORECAST_ARTIFACT}.json")),
+            (
+                FORECAST_PROVENANCE_REL,
+                format!("forecasts/{FORECAST_ARTIFACT}.provenance.json"),
+            ),
+        ];
+        if let Some(skill) = &provenance.backtest {
+            let report_path = config.work.join(FORECAST_BACKTEST_REL);
+            let report = fs::read(&report_path).map_err(|e| PipelineError::io(&report_path, e))?;
+            if hash_bytes(&report) != skill.report_sha256 {
+                return Err(PipelineError::Data(format!(
+                    "{} does not match the report hash its skill cites",
+                    report_path.display()
+                )));
+            }
+            files.push((
+                FORECAST_BACKTEST_REL,
+                format!("forecasts/{FORECAST_BACKTEST_ARTIFACT}.json"),
+            ));
+        }
+        for (from, to) in files {
+            m.inputs.push(hash_file(&config.work, from)?);
+            let path = config.work.join(from);
+            let bytes = fs::read(&path).map_err(|e| PipelineError::io(&path, e))?;
+            m.outputs.push(write_file(&config.out, &to, &bytes)?);
+        }
+        m.items.insert(
+            "forecast".to_owned(),
+            ItemStatus::Present {
+                retrieval: None,
+                rows: Some(rows.len() as u64),
+                gaps: Some(
+                    provenance
+                        .series
+                        .iter()
+                        .filter(|s| s.status == v5::ForecastStatus::InsufficientData)
+                        .count() as u64,
+                ),
+            },
+        );
+    } else {
+        m.items.insert(
+            "forecast".to_owned(),
+            ItemStatus::Missing {
+                reason: "the forecast stage wrote no forecast (see its manifest); nothing is published and the page shows the forecast unavailable".into(),
             },
         );
     }
