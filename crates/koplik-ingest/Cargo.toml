@@ -1,0 +1,29 @@
+[package]
+name = "koplik-ingest"
+version = "0.1.0"
+description = "Koplik source connectors and the content-addressed snapshot store (the only crate that touches the network)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "koplik_ingest"
+
+[[bin]]
+name = "koplik-ingest"
+path = "src/main.rs"
+
+[dependencies]
+koplik-contracts = { path = "../koplik-contracts" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono = { workspace = true, features = ["clock"] }
+sha2.workspace = true
+hex.workspace = true
+# Small blocking HTTP client; TLS via rustls (no OpenSSL, no async runtime).
+ureq = { version = "3", default-features = false, features = ["rustls"] }
+
+[dev-dependencies]
+tempfile = "3"
