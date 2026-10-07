@@ -1,0 +1,49 @@
+{
+  "browser_version": "Chrome/155.0.8059.39",
+  "headless": true,
+  "measured_at": "2026-10-07T02:37:13.487Z",
+  "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/155.0.0.0 Safari/537.36",
+  "synthetic": true,
+  "fixture": "data/fixtures/seir/synthetic-scenario.json",
+  "runs": 1000,
+  "counties": 7,
+  "horizon_days": 180,
+  "time_step_days": 1,
+  "seed": "1353",
+  "measured_scope": "WASM facade: input JSON parse, engine, summaries, all member hashes, result JSON serialize + JS parse; excludes module load",
+  "cold": {
+    "elapsed_ms": 494.69999999925494,
+    "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+    "output_json_bytes": 1016604
+  },
+  "warm": [
+    {
+      "elapsed_ms": 475.19999999925494,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 474.69999999925494,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 472.5,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 470.0999999977648,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    },
+    {
+      "elapsed_ms": 468.20000000298023,
+      "fingerprint": "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb",
+      "output_json_bytes": 1016604
+    }
+  ],
+  "warm_median_ms": 472.5,
+  "target_ms": 3000,
+  "warm_median_meets_target": true
+}

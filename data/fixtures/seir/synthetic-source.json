@@ -1,0 +1,69 @@
+{
+  "synthetic": true,
+  "description": "ARTIFICIAL test inputs only. FIPS are keys; populations, centroids and coverage are invented for testing, NOT observations of these counties.",
+  "nodes": [
+    {
+      "id": "48003",
+      "population": 20000,
+      "latitude": 31.8,
+      "longitude": -102.6,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    },
+    {
+      "id": "48115",
+      "population": 15000,
+      "latitude": 32.7,
+      "longitude": -101.8,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    },
+    {
+      "id": "48165",
+      "population": 20000,
+      "latitude": 32.7,
+      "longitude": -102.6,
+      "coverage_pct": 70,
+      "initial_exposed": 5,
+      "initial_infectious": 5
+    },
+    {
+      "id": "48305",
+      "population": 10000,
+      "latitude": 33.2,
+      "longitude": -101.8,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    },
+    {
+      "id": "48317",
+      "population": 10000,
+      "latitude": 32.0,
+      "longitude": -101.8,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    },
+    {
+      "id": "48445",
+      "population": 15000,
+      "latitude": 33.2,
+      "longitude": -102.3,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    },
+    {
+      "id": "48501",
+      "population": 10000,
+      "latitude": 33.2,
+      "longitude": -102.9,
+      "coverage_pct": 85,
+      "initial_exposed": 0,
+      "initial_infectious": 0
+    }
+  ]
+}
