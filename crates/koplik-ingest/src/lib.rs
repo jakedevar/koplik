@@ -9,6 +9,7 @@
 
 pub mod cdc;
 pub mod census_counties;
+pub mod coverage;
 pub mod dshs;
 pub mod dshs_series;
 pub mod dshs_sources;

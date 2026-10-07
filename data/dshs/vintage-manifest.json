@@ -899,5 +899,14 @@
   ],
   "unretrieved_captures": [
     "https://web.archive.org/web/20250830101138id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025"
-  ]
+  ],
+  "county_lookup": {
+    "source_id": "census-county-codes-2020-wayback",
+    "url": "https://web.archive.org/web/20250206022004id_/https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt",
+    "original_url": "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt",
+    "capture_time": "2025-02-06T02:20:04Z",
+    "retrieved_at": "2026-10-07T02:38:44Z",
+    "sha256": "9f6e5f6eb6ac2f5e9a36d5fd01dec77991bddc75118f748a069441a4782970d6",
+    "licence_id": "census-open-data-terms-unconfirmed"
+  }
 }

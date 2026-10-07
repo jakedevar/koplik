@@ -524,3 +524,116 @@ fn counts_are_called_confirmed_only_where_dshs_labels_them_so() {
     // (it has no county rows to label anyway).
     assert_eq!(report("page-2025-03-28.html.gz").confirmed_basis, None);
 }
+
+/// The Mar 4 page re-parsed from edited bytes, standing in for a later capture of a revised
+/// version; `capture` is its 14-digit Archive capture time.
+fn revised(from: &[u8], find: &str, replace: &str, capture: &str) -> Report {
+    let text = std::str::from_utf8(from).unwrap();
+    assert!(text.contains(find), "{find:?} not in the fixture");
+    let mut r = retrieval("page-2025-03-04.html");
+    r.url = format!(
+        "https://web.archive.org/web/{capture}id_/https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025"
+    );
+    dshs::parse_html_report(text.replace(find, replace).as_bytes(), &r).unwrap()
+}
+
+#[test]
+fn a_revised_version_is_never_merged_into_an_earlier_one() {
+    let base_bytes = bytes("page-2025-03-04.html");
+    let original = report("page-2025-03-04.html");
+
+    // Identical content captured again is the same version, kept as a second snapshot.
+    let again = revised(
+        &base_bytes,
+        "Texas Case Count by County",
+        "Texas Case Count by County",
+        "20250306000000",
+    );
+    let v = dshs_series::group_vintages(vec![original.clone(), again]).unwrap();
+    assert_eq!((v.len(), v[0].snapshots.len()), (1, 2));
+
+    // DSHS drops the "Confirmed Cases" label: a different version with its own (absent) basis.
+    let unlabelled = revised(
+        &base_bytes,
+        "Vaccination Status of Confirmed Cases",
+        "Vaccination Status of Cases",
+        "20250307000000",
+    );
+    assert!(original.confirmed_basis.is_some() && unlabelled.confirmed_basis.is_none());
+    let v = dshs_series::group_vintages(vec![original.clone(), unlabelled]).unwrap();
+    assert_eq!(v.len(), 2);
+    assert!(v[0].is_confirmed() && !v[1].is_confirmed());
+
+    // The printed Total changes from 159 to 160: a different version that keeps its own
+    // total and its own parser warnings.
+    let bumped = revised(
+        &base_bytes,
+        "<strong>159</strong>",
+        "<strong>160</strong>",
+        "20250308000000",
+    );
+    assert_eq!(bumped.outbreak_counties.as_ref().unwrap().total, Some(160));
+    assert!(!bumped.issues.is_empty());
+    let v = dshs_series::group_vintages(vec![original.clone(), bumped]).unwrap();
+    assert_eq!(v.len(), 2);
+    assert_eq!(
+        v[0].report.outbreak_counties.as_ref().unwrap().total,
+        Some(159)
+    );
+    assert!(v[0].report.issues.is_empty());
+    assert_eq!(
+        v[1].report.outbreak_counties.as_ref().unwrap().total,
+        Some(160)
+    );
+    assert!(
+        v[1].report.issues.iter().any(|i| i.contains("160")),
+        "{:?}",
+        v[1].report.issues
+    );
+    let m = dshs_series::manifest(&v);
+    assert_eq!(m.entries.len(), 2);
+}
+
+#[test]
+fn derived_rows_and_the_manifest_cite_the_census_snapshot_that_keyed_the_counties() {
+    let (_d, store) = store_with_fixtures();
+    let lookup = CountyLookup::from_store(&store, texas()).unwrap();
+    let built = dshs_series::build_from_store(&store, &lookup).unwrap();
+    let census = retrieval("census-national_county2020.txt");
+    let linked = |p: &koplik_contracts::v3::Provenances| {
+        p.as_slice().iter().any(|r| {
+            r.sha256 == census.sha256
+                && r.url == census.url
+                && r.retrieved_at == census.retrieved_at
+                && r.source_id == "census-county-codes-2020-wayback"
+        })
+    };
+    assert!(
+        census
+            .url
+            .starts_with("https://web.archive.org/web/20250206022004id_/https://www2.census.gov/")
+    );
+    assert!(!built.series.weekly.is_empty());
+    assert!(built.series.weekly.iter().all(|w| linked(&w.provenance)));
+    assert!(
+        built
+            .series
+            .cumulative
+            .iter()
+            .all(|c| linked(&c.provenance))
+    );
+    assert!(built.series.intervals.iter().all(|i| linked(&i.provenance)));
+    // The DSHS snapshot is still cited next to it.
+    assert!(built.series.cumulative[0].provenance.as_slice().len() >= 2);
+    let pin = built.manifest.county_lookup.as_ref().unwrap();
+    assert_eq!(pin.sha256, census.sha256);
+    assert_eq!(pin.url, census.url);
+    assert_eq!(
+        pin.capture_time.unwrap().to_rfc3339(),
+        "2025-02-06T02:20:04+00:00"
+    );
+    assert_eq!(
+        pin.original_url,
+        "https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt"
+    );
+}

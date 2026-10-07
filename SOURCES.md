@@ -14,6 +14,10 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | `dshs-measles-data-report` / `dshs-measles-data-report-wayback` | DSHS "2025 Measles Data Report" PDFs: 2025-11-24, 2025-12-23, 2026-01-12 (live final report and Archive captures) | `https://www.dshs.texas.gov/sites/default/files/Admin-Meales/doc/2025-measles-outbreak-data-report-011226.pdf` and the Archive captures of `...2025-measles-data-report-nov-2025.pdf`, `...2025-measles-outbreak-data-report-12-23-25.pdf` | `dshs-copyright-noncommercial-no-alteration` | Three reports (about monthly), then the outbreak ended | 2026-10-07 |
 | `wayback-cdx-listing` | Internet Archive CDX index answers listing captures (stored so "which captures existed" stays on record) | `https://web.archive.org/cdx/search/cdx?url=...&output=json&fl=timestamp,original,statuscode,digest&filter=statuscode:200&from=...&to=...` | `internet-archive-terms-of-use` | On demand | 2026-10-07 |
 | `census-county-codes-2020-wayback` | Census national county reference file `national_county2020.txt` (county name to FIPS) from the Internet Archive capture of 2025-02-06 | `https://web.archive.org/web/20250206022004id_/https://www2.census.gov/geo/docs/reference/codes2020/national_county2020.txt` | `census-open-data-terms-unconfirmed` | Rarely (2020 vintage codes) | 2026-10-07 |
+| `cdc-schoolvaxview-kindergarten` | CDC SchoolVaxView, kindergarten MMR and any exemptions (Socrata `ijqb-a7ye`) | Query below; exact URL in retrieval metadata | `cdc-schoolvaxview-terms-unconfirmed` | Annual school year | 2026-10-07 |
+| `texas-dshs-kindergarten-2023` | Texas DSHS 2023–24 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2023-2024_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
+| `texas-dshs-kindergarten-2024` | Texas DSHS 2024–25 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2024-2025_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
+| `texas-dshs-county-fips` | Texas DSHS county name/FIPS crosswalk (identity only) | https://www.dshs.texas.gov/center-health-statistics/texas-county-numbers-public-health-regions | `texas-dshs-terms-unconfirmed` | As revised | 2026-10-07 |
 
 ## Licences and terms
 
@@ -176,3 +180,98 @@ take part.
 reaction was removed in March; cases reclassified into and out of the outbreak). Report dates are Tuesday/Friday
 publication dates, not data-as-of times, except the PDFs, which print "Preliminary Data as of". The final outbreak
 count by county is the PDF's; between 2025-03-25 and 2025-11-24 only state-level outbreak totals exist.
+
+## Kindergarten MMR coverage (#1351)
+
+| licence_id | Terms | Status |
+| --- | --- | --- |
+| `cdc-schoolvaxview-terms-unconfirmed` | The SchoolVaxView dataset is provided by CDC NCIRD; dataset-specific reuse terms have not been confirmed. | **Operator decision required before publishing.** |
+| `texas-dshs-terms-unconfirmed` | DSHS's pages carry an all-rights-reserved copyright footer; no explicit dataset redistribution licence was confirmed for the workbooks or county crosswalk. | **Operator decision required before publishing.** |
+| `census-county-codes-terms-unconfirmed` | Terms unconfirmed; the HTTP-200 Missing Key response is retained only as a rejected discovery fixture, never consumed as county identities or coverage data. | Fixture never consumed; **operator decision required before publishing.** |
+
+### CDC SchoolVaxView (`cdc-schoolvaxview-kindergarten`)
+
+[Dataset and field definitions](https://data.cdc.gov/Vaccinations/Vaccination-Coverage-and-Exemptions-among-Kinderga/ijqb-a7ye).
+`coverage::cdc_source_spec(first,last)` builds the following reproducible default query:
+
+```
+https://data.cdc.gov/resource/ijqb-a7ye.json?$select=vaccine,dose,geography_type,geography,year_season,coverage_estimate,foot_notes,survey_type&$where=year_season%20in%28%272023-24%27,%272024-25%27%29%20AND%20%28vaccine%3D%27MMR%27%20OR%20%28vaccine%3D%27Exemption%27%20AND%20dose%3D%27Any%20Exemption%27%29%29&$order=year_season,geography,vaccine&$limit=5000
+```
+
+Selects `vaccine,dose,geography_type,geography,year_season,coverage_estimate,foot_notes,survey_type`;
+filters school years 2023–24 and 2024–25 and `MMR` or `Exemption`/`Any Exemption`; orders by
+school year, geography and vaccine; explicitly limits to 5,000 rows. A response reaching that
+limit is refused. The complete untrimmed fixture has 214 rows. The annual MMR series has an
+empty dose field; it is the published kindergarten MMR coverage, not the separate `MMR (PAC)`
+(potentially achievable coverage) measure.
+
+The parser emits 50 states plus DC for every requested year (102 v1 rows for the default).
+It joins the published **Any Exemption** percentage by state/year; it does not sum medical
+and nonmedical rates or use exemption counts. National totals/medians and separately published
+NYC, rest-of-New-York and Houston rows are excluded. New York uses the directly published
+statewide estimate, not a sum or average of component percentages. Unknown geography or
+vaccine/dose labels and duplicate cells are errors. Territory estimates are not present in
+this source; the state output scope is explicitly 50 states plus DC.
+
+The captured source has no MMR row for Montana in either year or West Virginia in 2024–25.
+These are `missing/not_reported`, with snapshot provenance, and appear in the committed gaps
+report. Both coverage and exemption estimates may have state-specific survey limitations;
+`foot_notes` and `survey_type` are retained in the immutable snapshot and must be consulted
+before interpreting a kindergarten survey as county or whole-population susceptibility.
+
+### Texas DSHS coverage and county identity
+
+[DSHS school coverage landing page](https://www.dshs.texas.gov/immunizations/data/school/coverage).
+These are the actual `.xlsx` downloads linked by DSHS (the page calls them XLS).
+The parser checks the workbook's kindergarten/year title, then reads **Coverage by County**,
+locating the `County` and `MMR` headers (row 1 in 2023–24, row 3 in 2024–25).
+It uses DSHS's county aggregates directly, never district averages. Excel stores these
+rates as fractions; the only numeric transformation is multiplication by 100 into contract
+percentage units. The [DSHS county/FIPS table](https://www.dshs.texas.gov/center-health-statistics/texas-county-numbers-public-health-regions)
+provides explicit identifiers. The join folds ASCII case only (DSHS spells DeWitt/McCulloch/
+McLennan/McMullen differently between its own tables); unknown names, duplicate identities
+or duplicate county rows fail. FIPS is never inferred from alphabetical order. Every county
+row carries both workbook and identity-crosswalk provenance.
+
+**2025 outbreak baseline: 2023–24.** This is the last completed school year before the
+outbreak began in January 2025. It gives a pre-outbreak annual kindergarten cohort baseline;
+it is not a claim that these exact current bytes were available at a historical forecast
+cutoff. The 2024–25 workbook is also ingested as a separate measured cohort, not silently
+substituted for the baseline. The 2023–24 Gaines County (48165) fraction is
+`0.81967213114754101` (81.9672131147541% after unit conversion); the 2024–25 fraction is
+`0.77256317689530685` (77.25631768953069% after unit conversion). There is no imputation.
+
+DSHS covers responding public/private schools and excludes home schools. A kindergarten
+rate is not a whole-county/all-age vaccination rate. The workbook note omits small schools
+from the **district** list; no attempt is made to reconstruct suppressed district records.
+The county sheet explicitly says `NR=No Report` in 2024–25: schools did not respond or had no
+kindergarten class. `NR` stays `missing/not_reported`. The 2023–24 gaps are Crane (48103),
+Loving (48301), Real (48385) and Stonewall (48433); 2024–25 has Loving (48301).
+All 254 counties are emitted for each year, including any absent county as `not_reported`.
+This coverage workbook does not publish kindergarten **any** exemptions by county;
+`exemption_pct` is null throughout. Do not substitute DSHS's separate K–12 conscientious
+exemption measure into a kindergarten any-exemption field.
+
+### Missing data, provenance and use
+
+For either source: absent/blank/NR/NA/NReq values are not reported; explicit suppression
+markers are suppressed; bounded percentages (e.g. `<0.1`), malformed, nonfinite and out-of-range
+values are ambiguous. Literal numeric zero is a reported zero. Missing exemptions are null
+(the v1 contract has no separate missing reason for exemptions); no bound or midpoint is
+invented. No rows are imputed, and contract v1 is unchanged.
+
+`koplik-ingest fetch cdc-coverage` and `fetch texas-coverage --year 2023|2024` reuse the polite
+fetcher and content-addressed store; the Texas command also snapshots the identity table.
+`parse cdc-coverage` and `parse texas-coverage --year 2023|2024` are offline. Use `--out FILE`
+for the v1 row array and `--gaps FILE` for the subset with missing coverage, including reasons
+and provenance. CDC `--first-year`/`--last-year` are school-year **start** years and must match
+the stored query when parsing; defaults are 2023 and 2024. Texas defaults to baseline 2023.
+Committed gaps reports in `data/reports/coverage/` are derived from the pinned fixtures;
+offline tests regenerate and compare them. Fixture reproduction is documented in
+`data/fixtures/coverage/README.md`.
+
+Source-discovery constraint: the Census county API returned an HTTP-200 HTML **Missing Key**
+page, not data; the Census reference-file URL was denied by robots.txt. Neither was bypassed.
+The rejected API bytes are a negative fixture, never a crosswalk or coverage source. Its
+source/terms ids are recorded solely as discovery provenance, not approved publication terms.
+Credential handling follow-up: #1374. The implementation uses the public DSHS table instead.

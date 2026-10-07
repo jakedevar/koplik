@@ -132,31 +132,15 @@ impl Vintage {
     }
 }
 
-/// The content that makes two reports the same version.
+/// What makes two reports the same version: everything parsed from them except retrieval
+/// metadata. Derived from the whole serialised report (object keys are ordered), so a field
+/// added to [`Report`] later is part of the identity without anyone having to remember it.
 fn content_key(r: &Report) -> String {
-    let counties = r.outbreak_counties.as_ref().map(|t| {
-        t.entries
-            .iter()
-            .map(|e| (e.name.clone(), e.raw.clone()))
-            .collect::<Vec<_>>()
-    });
-    format!(
-        "{}|{:?}|{:?}|{:?}|{:?}",
-        r.report_date,
-        r.format,
-        r.outbreak_total,
-        counties,
-        r.other_tables
-            .iter()
-            .map(|t| (
-                &t.caption,
-                t.entries
-                    .iter()
-                    .map(|e| (&e.name, &e.raw))
-                    .collect::<Vec<_>>()
-            ))
-            .collect::<Vec<_>>()
-    )
+    let mut v = serde_json::to_value(r).expect("Report serialises");
+    v.as_object_mut()
+        .expect("Report serialises to an object")
+        .remove("retrieval");
+    v.to_string()
 }
 
 /// Group parsed reports into vintages, ordered by report date then first-seen time. The
@@ -223,6 +207,11 @@ pub struct VintageManifest {
     /// fetched (for example a persistent HTTP 500); their versions, if different, are absent
     /// from `entries`.
     pub unretrieved_captures: Vec<String>,
+    /// The Census snapshot that mapped county names to FIPS codes in the derived series
+    /// (also cited in every derived county row's provenance); `None` for a manifest built
+    /// without a lookup.
+    #[serde(default)]
+    pub county_lookup: Option<SnapshotRef>,
 }
 
 pub fn manifest(vintages: &[Vintage]) -> VintageManifest {
@@ -260,6 +249,7 @@ pub fn manifest(vintages: &[Vintage]) -> VintageManifest {
             })
             .collect(),
         unretrieved_captures: Vec::new(),
+        county_lookup: None,
     }
 }
 
@@ -408,6 +398,9 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
         .iter()
         .flat_map(|p| p.counties.keys().copied())
         .collect();
+    // Every county row depends on the report snapshots it was read from and on the Census
+    // snapshot that turned the printed county name into a FIPS code.
+    let census = lookup.retrieval.provenance();
     let prov = |ps: &[&Vintage]| -> Provenances {
         let mut recs: Vec<Provenance> = Vec::new();
         for v in ps {
@@ -416,7 +409,8 @@ pub fn derive(vintages: &[Vintage], lookup: &CountyLookup) -> Result<Series> {
                 recs.push(p);
             }
         }
-        Provenances::new(recs).expect("at least one vintage")
+        recs.push(census.clone());
+        Provenances::new(recs).expect("at least one record")
     };
 
     let mut cumulative = Vec::new();
@@ -576,6 +570,7 @@ pub fn build_from_store(
     let vintages = group_vintages(reports)?;
     let mut manifest = manifest(&vintages);
     manifest.unretrieved_captures = unretrieved_captures(store)?;
+    manifest.county_lookup = Some(SnapshotRef::from_retrieval(&lookup.retrieval)?);
     let series = derive(&vintages, lookup)?;
     Ok(Built {
         vintages,
@@ -803,7 +798,8 @@ mod tests {
         assert_eq!(s.intervals.last().unwrap().new_cases, rep(30));
         // The gap week cites the reports on both sides of it.
         let gap = s.weekly.iter().find(|w| w.week.week == 12).unwrap();
-        assert_eq!(gap.provenance.as_slice().len(), 2);
+        // ...and the Census snapshot that keyed the county.
+        assert_eq!(gap.provenance.as_slice().len(), 3);
     }
 
     #[test]

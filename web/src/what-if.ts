@@ -2,6 +2,8 @@ import { gaines, loadScenario, scenarioJson, type Scenario } from './scenario';
 import { createSimulationWorker, type SimulationWorker } from './simulation';
 import type { EnsembleResult } from './generated/v2/EnsembleResult';
 import { ensembleChart } from './what-if-chart';
+import { bindProvenance, provenanceNumber, uniqueProvenance, type ProvenanceInfo } from './provenance';
+import { parseScenario } from './scenario';
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {
   const node = document.createElement(tag);
@@ -48,6 +50,7 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
   let started = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let baseline = 0;
+  let baselineInfo: ProvenanceInfo | undefined;
   const now = options.clock || (() => performance.now());
 
   function fail(message: string) {
@@ -59,12 +62,22 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     if (result.contract_version !== 2 || result.members.length !== 1000 || result.seed !== scenario!.seed || !/^[0-9a-f]{64}$/.test(result.fingerprint)) {
       fail('Unexpected engine result'); return;
     }
+    const replayInput = parseScenario(result.scenario_json, options.synthetic);
+    const ensembleInfo: ProvenanceInfo = {
+      label: 'Gaines County simulated cumulative infections · 1,000-run ensemble', synthetic: options.synthetic,
+      records: uniqueProvenance(replayInput.nodes.flatMap((node) => [...node.provenance,
+        ...(node.baseline_coverage.status === 'reported' ? node.baseline_coverage.provenance : [])])),
+      note: 'Derived from the exact replay scenario, across all its counties. These are all source records linked to node population, centroids and baseline coverage. Parameters, initial seeding and coverage overrides have no separate source links in the v1 artifact; they are configuration, not observations. The seed and parameters appear on the panel.',
+    };
     const fingerprint = element('code', result.fingerprint);
     fingerprint.className = 'engine-fingerprint';
+    bindProvenance(fingerprint, { ...ensembleInfo, label: 'Engine fingerprint · member 0 full trajectory' });
     const fingerprintLabel = element('p', 'Engine fingerprint (sha256, member 0 full trajectory): ');
     fingerprintLabel.append(fingerprint);
     const replay = element('details');
-    replay.append(element('summary', 'Exact scenario JSON for native replay'), element('pre', result.scenario_json));
+    const replayJson = element('pre', result.scenario_json);
+    bindProvenance(replayJson, { ...ensembleInfo, label: 'Exact scenario JSON for native replay' });
+    replay.append(element('summary', 'Exact scenario JSON for native replay'), replayJson);
     const reports = element('details', undefined, 'table-scroll');
     reports.append(element('summary', 'Exact daily ensemble values'));
     const table = element('table');
@@ -79,15 +92,23 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     for (const day of result.daily.filter((r) => r.geography === gaines)) {
       const row = element('tr');
       const dayCell = element('th', String(day.day)); dayCell.scope = 'row'; row.append(dayCell);
-      for (const value of ['median', 'lower_50', 'upper_50', 'lower_90', 'upper_90'] as const) row.append(element('td', String(day.cumulative_infections[value])));
+      for (const value of ['median', 'lower_50', 'upper_50', 'lower_90', 'upper_90'] as const) {
+        const cell = element('td');
+        cell.append(provenanceNumber(String(day.cumulative_infections[value]), { ...ensembleInfo, label: `Day ${day.day} · ${value} · ${day.cumulative_infections[value]} simulated cumulative infections` }));
+        row.append(cell);
+      }
       body.append(row);
     }
     table.append(head, body); reports.append(table);
-    output.replaceChildren(element('h3', 'Simulated cumulative infections'), ensembleChart(result),
+    const chart = ensembleChart(result);
+    bindProvenance(chart, ensembleInfo);
+    output.replaceChildren(element('h3', 'Simulated cumulative infections'), chart,
       element('p', 'Line: median · Dark band: equal-tail 50% · Light band: equal-tail 90%. Predictive bands describe the simulated ensemble. Includes initial exposed and infectious individuals, excludes vaccine immunity; these are not reported cases.', 'chart-note'),
       fingerprintLabel, replay, reports);
     const elapsed = now() - started;
     status.textContent = `1,000 runs complete · update ${(elapsed / 1000).toFixed(3)} s${elapsed >= 3000 ? ' · exceeds the 3 s target' : ''}${options.synthetic ? ' · synthetic fixture' : ''}`;
+    status.replaceChildren(provenanceNumber(status.textContent, { label: status.textContent, records: [], synthetic: options.synthetic,
+      note: 'Locally measured browser update time and configured run count. These are not published surveillance observations; the timer has no source snapshot.' }));
     panel.dataset.updateMs = String(elapsed);
     panel.setAttribute('aria-busy', 'false');
   }
@@ -121,6 +142,10 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     desired++;
     started = now();
     coverage.textContent = `${slider.value}%${Number(slider.value) === baseline ? ' · baseline' : ' · what-if override'}`;
+    if (baselineInfo) bindProvenance(coverage, Number(slider.value) === baseline ? baselineInfo : {
+      label: `${slider.value}% · user-selected what-if coverage`, records: [], synthetic: options.synthetic,
+      note: 'User-selected scenario override, not measured vaccination coverage. No published source is attached to this setting.',
+    });
     slider.setAttribute('aria-valuetext', coverage.textContent);
     output.replaceChildren(); delete panel.dataset.updateMs;
     panel.setAttribute('aria-busy', 'true');
@@ -140,8 +165,18 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
     const measured = node.baseline_coverage;
     if (measured.status !== 'reported' && !options.synthetic) { fail('Measured coverage not yet available'); return; }
     baseline = measured.status === 'reported' ? measured.coverage_pct : loaded.coverage_overrides.find((o) => o.geography === gaines)!.coverage_pct;
+    baselineInfo = {
+      label: `${options.synthetic ? 'Synthetic starting coverage' : 'Measured baseline coverage'} · ${baseline}%`,
+      records: measured.status === 'reported' ? measured.provenance : [], synthetic: options.synthetic,
+      note: measured.status === 'reported' ? 'Baseline coverage sources attached to the Gaines County node.' :
+        'Explicit synthetic fixture override. Measured coverage is missing. No source records are linked to the override itself; the fixture is retained in exact replay JSON.',
+    };
     slider.value = String(baseline); slider.disabled = false; reset.disabled = false;
-    metadata.append(element('p', `${options.synthetic ? 'Synthetic fixture baseline' : 'Measured baseline coverage'}: ${baseline}% · MMWR ${loaded.start_week.year} W${loaded.start_week.week} · Seed: ${loaded.seed} · 1,000 runs`));
+    const description = element('p', `${options.synthetic ? 'Synthetic fixture baseline' : 'Measured baseline coverage'}: `);
+    description.append(provenanceNumber(`${baseline}%`, baselineInfo), document.createTextNode(` · MMWR ${loaded.start_week.year} W${loaded.start_week.week} · Seed: `),
+      provenanceNumber(loaded.seed, { label: `Seed: ${loaded.seed}`, records: [], synthetic: options.synthetic,
+        note: 'Explicit RNG seed from the scenario artifact. Configuration, not a source observation.' }), document.createTextNode(' · 1,000 runs'));
+    metadata.append(description);
     const sources = element('details');
     sources.append(element('summary', measured.status === 'reported' ? 'Baseline coverage provenance' : 'Synthetic scenario input provenance (coverage override)'));
     for (const provenance of measured.status === 'reported' ? measured.provenance : node.provenance) {
@@ -152,7 +187,10 @@ export function mountWhatIf(main: HTMLElement, options: Options): () => void {
       line.append(element('br'), element('code', provenance.sha256)); sources.append(line);
     }
     const parameters = element('details');
-    parameters.append(element('summary', 'Model parameters (from scenario artifact)'), element('pre', JSON.stringify(loaded.parameters, null, 2)));
+    const parameterJson = element('pre', JSON.stringify(loaded.parameters, null, 2));
+    bindProvenance(parameterJson, { label: 'Model parameters (from scenario artifact)', records: [], synthetic: options.synthetic,
+      note: 'All values are explicit model configuration. The v1 scenario artifact does not provide source links for these parameters; no source attribution is inferred from county data.' });
+    parameters.append(element('summary', 'Model parameters (from scenario artifact)'), parameterJson);
     metadata.append(sources, parameters);
     update(true);
   }).catch((error: unknown) => { if (!disposed) fail(error instanceof Error ? error.message : String(error)); });
