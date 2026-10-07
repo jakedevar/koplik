@@ -183,29 +183,31 @@ pub fn fetch_missing<C: HttpClient, T: Timekeeper>(
 
 /// List the Internet Archive's first capture of each day of the outbreak page between two
 /// `YYYYMMDD` dates (storing the CDX answer as a snapshot) and fetch every capture not yet in
-/// the store. `www` and bare-host variants of the page are both listed.
+/// the store. The CDX index keys URLs without the `www.` prefix, so one query lists captures
+/// under both host spellings (the listing's `original` column says which). One capture per
+/// day means a version published and replaced within a day, or an update first captured
+/// later in the day than another capture, can be missed; the manifest records exactly
+/// which captures were held.
 pub fn fetch_outbreak_captures<C: HttpClient, T: Timekeeper>(
     fetcher: &mut PoliteFetcher<C, T>,
     store: &SnapshotStore,
     from: &str,
     to: &str,
 ) -> Result<Vec<(SourceSpec, FetchOutcome)>> {
-    let mut specs = Vec::new();
-    for host_path in [
-        "www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
-        "dshs.texas.gov/news-alerts/measles-outbreak-2025",
-    ] {
-        let (listing, _) = fetch_to_store(
-            fetcher,
-            store,
-            &cdx_spec(cdx_url(host_path, from, to, true)),
-        )?;
-        for c in parse_cdx(&store.get_verified(&listing.sha256)?)? {
-            specs.push(capture_spec(SOURCE_PAGE_WAYBACK, &c));
-        }
-    }
-    // Both host variants are kept (a same-day update may be captured under only one); sorting
-    // by URL makes the run order deterministic.
+    let (listing, _) = fetch_to_store(
+        fetcher,
+        store,
+        &cdx_spec(cdx_url(
+            "www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+            from,
+            to,
+            true,
+        )),
+    )?;
+    let mut specs: Vec<SourceSpec> = parse_cdx(&store.get_verified(&listing.sha256)?)?
+        .iter()
+        .map(|c| capture_spec(SOURCE_PAGE_WAYBACK, c))
+        .collect();
     specs.sort_by(|a, b| a.url.cmp(&b.url));
     specs.dedup();
     fetch_missing(fetcher, store, &specs)
@@ -270,5 +272,62 @@ mod tests {
         assert_eq!(caps[1].original, "https://dshs.texas.gov/a");
         assert!(parse_cdx(b"[]").unwrap().is_empty());
         assert!(parse_cdx(b"not json").is_err());
+    }
+
+    #[test]
+    fn captures_are_fetched_once_each_and_failures_are_reported_not_dropped() {
+        use crate::polite::PoliteConfig;
+        use crate::polite::fakes::{FakeClient, FakeTime};
+        let page = "https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025";
+        let c = FakeClient::default();
+        c.on(
+            "https://web.archive.org/robots.txt",
+            FakeClient::status(404, b""),
+        );
+        let cdx = cdx_url(
+            "www.dshs.texas.gov/news-alerts/measles-outbreak-2025",
+            "20250301",
+            "20250310",
+            true,
+        );
+        let listing = format!(
+            r#"[["timestamp","original","statuscode","digest"],
+               ["20250305184528","{page}","200","A"],
+               ["20250306061540","{page}","200","B"]]"#
+        );
+        c.on(&cdx, FakeClient::ok(listing.as_bytes()));
+        c.on(
+            &format!("https://web.archive.org/web/20250305184528id_/{page}"),
+            FakeClient::ok(b"first"),
+        );
+        c.on(
+            &format!("https://web.archive.org/web/20250306061540id_/{page}"),
+            FakeClient::status(404, b"gone"),
+        );
+        let mut f = PoliteFetcher::new(c, FakeTime::default(), PoliteConfig::default());
+        let dir = tempfile::tempdir().unwrap();
+        let store = SnapshotStore::open(dir.path()).unwrap();
+
+        let r = fetch_outbreak_captures(&mut f, &store, "20250301", "20250310").unwrap();
+        assert!(matches!(r[0].1, FetchOutcome::Fetched(..)));
+        assert!(matches!(&r[1].1, FetchOutcome::Failed(e) if e.contains("404")));
+        // The capture's provenance URL carries its capture time and the original URL.
+        let kept = store.retrievals(Some(SOURCE_PAGE_WAYBACK)).unwrap();
+        assert_eq!(kept.len(), 1);
+        let cap = Capture::parse_url(&kept[0].url).unwrap();
+        assert_eq!(
+            (cap.timestamp.as_str(), cap.original.as_str()),
+            ("20250305184528", page)
+        );
+        assert_eq!(kept[0].licence_id, WAYBACK_LICENCE_ID);
+
+        // A second run does not request the held capture again; the failed one is retried.
+        let r = fetch_outbreak_captures(&mut f, &store, "20250301", "20250310").unwrap();
+        assert!(matches!(r[0].1, FetchOutcome::Skipped(_)));
+        assert!(matches!(r[1].1, FetchOutcome::Failed(_)));
+        assert_eq!(
+            store.retrievals(Some(SOURCE_PAGE_WAYBACK)).unwrap().len(),
+            1
+        );
     }
 }

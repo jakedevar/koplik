@@ -17,6 +17,7 @@ use std::time::Duration;
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
 use koplik_ingest::census_counties;
+use koplik_ingest::dshs_series;
 use koplik_ingest::dshs_sources::{self, FetchOutcome};
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
@@ -31,6 +32,7 @@ const USAGE: &str = "usage:
   koplik-ingest fetch dshs-live [--store DIR]
   koplik-ingest fetch dshs-wayback [--store DIR] [--from YYYYMMDD] [--to YYYYMMDD]
   koplik-ingest fetch dshs-reports [--store DIR]
+  koplik-ingest parse dshs-cases [--store DIR] [--out DIR]
   koplik-ingest list [--store DIR] [--source ID]";
 
 /// Largest response body accepted (the CDC measles query is about 1 MB).
@@ -105,6 +107,10 @@ fn report_outcomes(results: &[(SourceSpec, FetchOutcome)]) -> Result<()> {
         )));
     }
     Ok(())
+}
+
+fn to_pretty<T: serde::Serialize>(v: &T) -> String {
+    serde_json::to_string_pretty(v).expect("serialises")
 }
 
 fn run(args: Vec<String>) -> Result<()> {
@@ -237,6 +243,40 @@ fn run(args: Vec<String>) -> Result<()> {
             let mut fetcher = fetcher(u64::from(secs));
             let results = dshs_sources::fetch_report_documents(&mut fetcher, &store)?;
             report_outcomes(&results)
+        }
+        ("parse", Some("dshs-cases")) => {
+            let out = flags.take("--out")?.unwrap_or_else(|| "data/dshs".into());
+            flags.done()?;
+            let store = SnapshotStore::open(&store_dir)?;
+            let lookup = census_counties::CountyLookup::from_store(
+                &store,
+                koplik_contracts::v1::StateFips::new(48).expect("48 is Texas"),
+            )?;
+            let built = dshs_series::build_from_store(&store, &lookup)?;
+            std::fs::create_dir_all(&out).map_err(|e| IngestError::io(&out, e))?;
+            let write = |name: &str, json: String| -> Result<()> {
+                let path = std::path::Path::new(&out).join(name);
+                std::fs::write(&path, json + "\n").map_err(|e| IngestError::io(path, e))
+            };
+            write("vintage-manifest.json", to_pretty(&built.manifest))?;
+            write("cumulative.json", to_pretty(&built.series.cumulative))?;
+            write("intervals.json", to_pretty(&built.series.intervals))?;
+            write("weekly.json", to_pretty(&built.series.weekly))?;
+            write("unmapped.json", to_pretty(&built.series.unmapped))?;
+            write("parse-failures.json", to_pretty(&built.failures))?;
+            eprintln!(
+                "{} vintages ({} with county detail), {} weekly rows, {} unmapped names, {} snapshots failed to parse; written to {out}",
+                built.vintages.len(),
+                built
+                    .vintages
+                    .iter()
+                    .filter(|v| v.has_county_detail())
+                    .count(),
+                built.series.weekly.len(),
+                built.series.unmapped.len(),
+                built.failures.len()
+            );
+            Ok(())
         }
         ("list", None) => {
             let src = flags.take("--source")?;

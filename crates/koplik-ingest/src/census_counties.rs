@@ -67,16 +67,15 @@ const SUFFIXES: [&str; 6] = [
 /// whitespace collapsed. "McLennan", "Mclennan County" and "McLennan  " all match; this is
 /// punctuation/case folding only, never fuzzy matching.
 pub fn normalise_name(name: &str) -> String {
-    let trimmed = name.trim();
+    let lower = name.trim().to_lowercase();
     let base = SUFFIXES
         .iter()
-        .find_map(|s| trimmed.strip_suffix(s))
-        .unwrap_or(trimmed);
+        .find_map(|s| lower.strip_suffix(&s.to_lowercase()))
+        .unwrap_or(&lower);
     base.split_whitespace()
         .collect::<Vec<_>>()
         .join(" ")
         .replace('.', "")
-        .to_lowercase()
 }
 
 /// Why a name did not map to exactly one county.

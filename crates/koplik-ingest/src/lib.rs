@@ -8,6 +8,8 @@
 
 pub mod cdc;
 pub mod census_counties;
+pub mod dshs;
+pub mod dshs_series;
 pub mod dshs_sources;
 pub mod error;
 pub mod http;
