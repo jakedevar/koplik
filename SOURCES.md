@@ -125,6 +125,11 @@ source component order, emit compact JSON, and reject artifacts above 1,000,000 
 This bounds output without silently removing data. Full-file measurements and the recorded
 retrievals are documented with the fixtures in `data/fixtures/census/README.md`.
 
+**Measured artifacts (2026-10-07).** The unmodified ZIP fixtures produce 52 state features
+in 233,074 bytes and all 254 Texas county features in 169,613 bytes, including contracts
+v1 provenance per feature. Both remain below the 1,000,000-byte ceiling. Exact source
+digests, retrieval times, and output fingerprints are in `data/fixtures/census/README.md`.
+
 **Pipeline entry points.** `fetch(&mut polite_fetcher, &store)` stores both ZIPs with the
 existing write-once snapshot store. `write_latest(&store, output_dir)` converts both verified
 latest snapshots before writing `states.geojson` and `tx-counties.geojson`; the pipeline
