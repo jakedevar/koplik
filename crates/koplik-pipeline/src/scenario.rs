@@ -1,38 +1,36 @@
-//! The Gaines County 2025 what-if scenario (#1455): the rule that builds its v1
-//! `ScenarioInput` from snapshot-store inputs, and the configuration that rule runs with.
+//! The Gaines County what-if scenario (#1455): the rule that builds its v1 `ScenarioInput`
+//! from snapshot-store inputs, and the configuration that rule runs with.
 //!
-//! # PRE-REGISTERED RULE (committed before any run of the scenario against the outbreak data)
+//! # PRE-REGISTERED RULE v2 (committed before the scenario was rebuilt or run under it)
 //!
-//! The scenario is a **what-if tool, not a fitted model**. Nothing below is tuned, and nothing
-//! may later be adjusted, to make a simulated outbreak resemble the observed one (AGENTS.md
-//! rule 5). Every default is stated here with its citation; a change to a default is a change
-//! to the published method and goes through review, not through the replay.
+//! **What the scenario is.** A *hypothetical introduction*: what could happen if one
+//! infectious person arrived in Gaines County, given its population and kindergarten MMR
+//! coverage. It is not a reconstruction or forecast of the 2025 outbreak, and it is not a
+//! fitted model. Its output is never compared with, tuned to, or scored against reported cases.
 //!
-//! ## Seeding (documented, configurable)
-//! * *Which report.* The earliest retained Texas DSHS report vintage (ordered by report date,
-//!   then by the time the vintage was first seen) that (a) carries a readable outbreak county
-//!   table and (b) is labelled as confirmed cases by DSHS's own wording (`confirmed_basis`),
-//!   and (c) lists a Gaines County count. A vintage without a county table, or whose labelling
-//!   does not establish "confirmed", is skipped (the earliest *labelled* vintage is used) and
-//!   the skipped vintages are recorded in the companion provenance artifact with the reason.
-//! * *Start week.* The MMWR week containing that report's date (`MmwrWeek::from_date`). Day 0
-//!   of the simulation is the first day of that week; the report date's offset inside the week
-//!   is recorded, not corrected for.
-//! * *Initial infectious* of the Gaines node = that report's Gaines **confirmed count as
-//!   recorded** (cumulative since the outbreak began) multiplied by
-//!   [`ScenarioConfig::reporting_multiplier`], rounded to the nearest integer. The default
-//!   multiplier is `1.0`: **no inflation for under-reporting**. DSHS itself states that cases
-//!   exist that it could not confirm (the data report's footnote about 182 potential Gaines
-//!   County cases "due to insufficient information"), but no cited, quantitative
-//!   under-reporting factor for this outbreak is adopted here; a user who sets one must also
-//!   cite it, and the provenance artifact records the value used.
-//! * *Initial exposed* = `round(initial_infectious * exposed_per_infectious)`; the default
-//!   ratio is `0.0`, so initial exposed = 0. No cited rule gives a latent pool at the first
-//!   report, and inventing one would be tuning.
-//! * Limitation, stated to the reader: DSHS's count is cumulative, so seeding it all as
-//!   *currently infectious* treats cases that had already recovered as still transmitting, and
-//!   the engine has no initial-recovered input. The model is not corrected for this.
+//! **Why not a replay (correction of rule v1, 2026-10-07).** Rule v1 seeded the simulation with
+//! the confirmed count of the earliest retained DSHS report (107 on 2025-03-04) as the
+//! *currently infectious* people. That was wrong from first principles: DSHS counts are
+//! cumulative since the outbreak began, and a cumulative count is not the number of people
+//! infectious now (the infectious period is about 8 days). The retained report vintages cannot
+//! repair it: the closest pair with county tables, 2025-03-04 and 2025-03-25, is 21 days apart,
+//! so no pair spans one infectious period, and interpolating between them would be imputation.
+//! A data-derived seeding of the historical outbreak is therefore not possible from what is
+//! held ("insufficient data", AGENTS.md rule 5). Rule v1 was dropped, not tuned; the original
+//! rule and its measured replay stay in `thoughts/shared/notes/gaines-2025-scenario-replay.md`.
+//!
+//! ## Seeding (a stated assumption, not data; configurable)
+//! * *Initial infectious* = [`ScenarioConfig::initial_infectious`], default **1**: a single
+//!   introduced case, in the focus county. This is an assumption chosen for the hypothetical;
+//!   no source supports "1" and none is claimed.
+//! * *Initial exposed* = [`ScenarioConfig::initial_exposed`], default **0**.
 //! * Every other node starts with zero exposed and infectious people.
+//! * *Start week*: a neutral reference week, stated as an assumption. Default: the MMWR week
+//!   containing July 1 of the Census population estimate's year (2025-W27), the estimate's
+//!   own reference date. The engine has no seasonality, so the start week only labels day 0 of
+//!   the calendar and does not change any result. It is not a claim about when the 2025
+//!   outbreak began. Configurable through [`ScenarioConfig::start_week`].
+//! * The DSHS report vintages are **not** inputs of the scenario.
 //!
 //! ## Nodes
 //! * Default: **Gaines County alone** (FIPS 48165). The engine's defaults carry no gravity
@@ -55,8 +53,7 @@
 //!
 //! ## Node inputs (every one from a snapshot in the store)
 //! * *Population*: U.S. Census Bureau Vintage 2025 county population estimates,
-//!   `POPESTIMATE2025` (July 1, 2025), `co-est2025-alldata.csv`. The simulation starts in
-//!   March 2025, so the estimate is a few months later than day 0; no back-casting is done.
+//!   `POPESTIMATE2025` (July 1, 2025), `co-est2025-alldata.csv`.
 //! * *Centroid*: Census 2025 Gazetteer county **internal point** (`INTPTLAT`, `INTPTLONG`), a
 //!   representative point, not a population-weighted or geometric centroid.
 //! * *Baseline coverage*: Texas DSHS kindergarten MMR coverage for the school year
@@ -70,6 +67,11 @@
 //!   published beside the scenario (`scenarios/gaines-2025.provenance.json`, #1400).
 //! * `seed` = [`SEED`], an arbitrary fixed constant chosen once before any run; changing it
 //!   changes only the Monte Carlo draw, never the model. `run_count` = 1000 (spec E6).
+//!
+//! ## Changing this rule
+//! A change to a default is a change to the published method: it needs a reason that does not
+//! depend on what the output looks like, a review, and a dated note. It is never made to make
+//! the output resemble reported counts.
 
 use std::collections::BTreeMap;
 

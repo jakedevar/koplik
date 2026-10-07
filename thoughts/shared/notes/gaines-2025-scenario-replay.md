@@ -2,8 +2,8 @@
 
 Status: measured once, on the fixture-built scenario, after the seeding rule was committed
 (`wip(#1455): pre-registered seeding rule`, `crates/koplik-pipeline/src/scenario.rs`). Nothing in
-the rule, the parameters or the seed was adjusted after this run, and none may be: the scenario is
-a what-if tool, not a fitted model.
+the rule, the parameters or the seed was adjusted after this run. **Superseded: see the
+correction at the end of this note; rule v1 below was withdrawn on first principles.**
 
 Reproduce: `make pipeline-fixtures` then
 `cargo run --release -p koplik-pipeline --example scenario_replay`.
@@ -75,3 +75,49 @@ observed: DSHS cumulative confirmed cases reported by each report date
 * Simulated cumulative infections and DSHS confirmed counts are different quantities. The
   comparison is an illustration of what this model does, not a score. The scored backtest is
   E5's, not this panel's.
+
+## Correction (2026-10-07): rule v1 withdrawn; the scenario is now a hypothetical introduction
+
+The text above is kept verbatim as the record of rule v1 and its replay. This section corrects
+the method; it does not revise the measurement.
+
+**The error.** Rule v1 seeded the 107 *cumulative* confirmed cases DSHS had recorded by
+2025-03-04 as the number of people *currently infectious*. Those are different quantities: the
+count includes everyone ever confirmed since the outbreak began, most of whom had already
+recovered or would no longer transmit, while the model's infectious period is about 8 days. The
+mistake was in the rule, not in the engine, and it was the manager's own default that this
+worker implemented as written. The review of the landed SHA found it.
+
+**The replay outcome had been seen.** The measured replay above was run and read before this
+correction. The reason for withdrawing rule v1 is the first-principles argument in the paragraph
+above, which does not depend on the replay's result (a seeding that matched the observed counts
+would be equally invalid), and no parameter was changed in response to it. The new rule is
+registered below before any scenario is built under it.
+
+**Why no data-derived seeding of the 2025 outbreak is possible from what we hold.** Current
+infectious prevalence at a start date needs the cases whose infectious window (about 8 days)
+covers that date, that is, the new cases of the preceding days. The retained report vintages
+with county tables are 2025-03-04, 2025-03-25, 2025-11-24, 2025-12-23 and 2026-01-12. The
+closest pair, 2025-03-04 and 2025-03-25, is 21 days apart, so no pair of vintages spans one
+infectious period, and spreading the difference between them over days would be imputation
+(AGENTS.md rule 3). A historical replay is therefore "insufficient data" (rule 5).
+
+**Decision.** The what-if panel publishes an explicit *hypothetical introduction* for Gaines
+County: what could happen if one infectious person arrived, given the county's population and
+kindergarten MMR coverage. It is not a reconstruction or forecast of the 2025 outbreak, and no
+comparison with reported cases is shown or scored.
+
+**Pre-registered rule v2** (registered in the commit that adds this section, before the
+scenario was rebuilt or run under it; the full text is the module documentation of
+`crates/koplik-pipeline/src/scenario.rs`):
+
+| Input | Rule |
+| --- | --- |
+| Population, centroid, baseline coverage | Unchanged and sourced: Census Vintage 2025 `POPESTIMATE2025`, Census 2025 Gazetteer internal point, Texas DSHS 2023-24 kindergarten MMR coverage. |
+| Initial infectious | **1**, a stated assumption (configurable in the pipeline); no source is claimed for it. |
+| Initial exposed | **0**, a stated assumption. |
+| Start week | The MMWR week containing July 1 of the population estimate's year (2025-W27), a neutral reference week stated as an assumption; the engine has no seasonality, so it only labels day 0. |
+| Parameters | `koplik_epi::default_parameters()` unchanged, each cited. |
+| Seed, runs | Seed 20250304 (unchanged, arbitrary, recorded), 1,000 runs. |
+| Nodes | Gaines County alone (the cited defaults have no gravity coupling). |
+| DSHS report vintages | Not an input. |
