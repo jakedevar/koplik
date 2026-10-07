@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 
-const names = new Set(['geographies', 'weekly-cases', 'coverage', 'rt', 'us-states', 'texas-counties'].map((name) => `synthetic-${name}.json`));
+const names = new Set(['geographies', 'weekly-cases', 'coverage', 'rt', 'us-states', 'texas-counties', 'cumulative-cases'].map((name) => `synthetic-${name}.json`));
 
 /** Fixtures live outside public/ and are exposed only by the opted-in dev server. */
 export function syntheticFixtures(fixtureRoot: string, enabled: boolean): Plugin {

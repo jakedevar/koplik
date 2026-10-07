@@ -105,5 +105,25 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await forecast.getByLabel('Forecast for').selectOption('40');
   await expect(forecast.locator('.forecast-insufficient')).toContainText('Insufficient data');
   await expect(forecast.locator('svg.forecast-chart')).toHaveCount(0);
+
+  // The Texas county drill-down charts the cumulative count each DSHS report printed, one point per report, never joined
+  // by a line, each point opening its provenance, and says in words that weekly counts are not derived from it.
+  await page.getByRole('button', { name: 'Explore Texas counties →' }).click();
+  const cumulative = page.locator('.cumulative-reports');
+  await expect(cumulative.getByRole('heading', { name: 'Cumulative confirmed cases as reported by Texas DSHS' })).toBeVisible();
+  await expect(cumulative.locator('svg.cumulative-chart circle.cumulative-point')).toHaveCount(3);
+  await expect(cumulative.locator('svg.cumulative-chart polyline, svg.cumulative-chart polygon')).toHaveCount(0);
+  await expect(cumulative.locator('.cumulative-note')).toContainText('Weekly counts are not derived from this series.');
+  await expect(cumulative.locator('.cumulative-gaps')).toHaveText('2025-03-28: DSHS published no county table in this report');
+  const cumulativePoint = cumulative.locator('circle.cumulative-point[data-report-date="2025-03-25"]');
+  await cumulativePoint.focus(); await cumulativePoint.press('Enter');
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByRole('heading')).toContainText('DSHS report of 2025-03-25 · 10 cumulative confirmed cases');
+  await expect(drawer).toContainText(source.sha256);
+  await expect(drawer).toContainText('It is not a weekly count');
+  await close.press('Escape'); await expect(cumulativePoint).toBeFocused();
+  // The weekly series keeps its own heading and says why weeks can be No data.
+  await expect(page.locator('.charts h3').first()).toHaveText('Weekly confirmed cases');
+  await expect(page.locator('.county-weekly-note')).toContainText('Nothing is estimated or interpolated.');
   expect(external).toEqual([]); expect(pageErrors).toEqual([]);
 });

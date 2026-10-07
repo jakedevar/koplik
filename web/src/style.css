@@ -33,11 +33,16 @@ select:disabled { cursor: default; opacity: 0.7; }
 .missing-value { font-size: 32px; color: #67756e; }
 .value-detail { font-size: 12px; color: #557069; line-height: 1.5; min-height: 36px; }
 .chart-controls { display: flex; gap: 12px; align-items: center; margin-top: 20px; border-top: 1px solid #e3ebe6; padding-top: 14px; }
-.charts svg { width: 100%; display: block; overflow: visible; }
+.charts svg, .cumulative-reports svg { width: 100%; display: block; overflow: visible; }
+.cumulative-reports { margin-top: 20px; }
 .axis-label { font: 11px system-ui; fill: #557069; }
 .gridline { stroke: #dce5df; stroke-width: 1; }
 .case-bar { fill: #327868; }
 .case-zero { stroke: #327868; stroke-width: 3; }
+.cumulative-point { fill: #327868; stroke: white; stroke-width: 1; }
+.cumulative-missing { fill: none; stroke: #67756e; stroke-width: 2; stroke-linecap: round; }
+.cumulative-gaps { margin: 6px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.6; color: #3d5750; }
+.cumulative-no-data { color: #67756e; }
 .rt-provisional-band { fill: none; stroke: #a36e14; stroke-width: 1.5; stroke-dasharray: 3 2; }
 .rt-ribbon { fill: #b6d9d0; fill-opacity: 0.65; }
 .rt-mean { fill: none; stroke: #196555; stroke-width: 2; }

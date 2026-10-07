@@ -13,6 +13,7 @@ export function fixtureDataset(): Dataset {
     cases: parseRows('cases', fixtureJson('weekly-cases')),
     coverage: parseRows('coverage', fixtureJson('coverage')),
     rt: parseRows('rt', fixtureJson('rt')),
+    cumulative: parseRows('cumulative', fixtureJson('cumulative-cases')),
     states: parseBoundaries(fixtureJson('us-states'), 'state'),
     counties: parseBoundaries(fixtureJson('texas-counties'), 'county'),
     synthetic: true,

@@ -1,8 +1,12 @@
 import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
-import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
+import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, missingReasonWords, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
+import { cumulativeSection, cumulativeSeries, cumulativeTable } from './cumulative';
 import { attributionSection } from './attribution-view';
 import { caseScales, createMap, type MapView } from './map';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
+
+/** Said above a Texas county's weekly chart: why most weeks are "No data", and that nothing fills them. */
+export const countyWeeklyNote = 'Weekly counts for Texas counties are derived only for a week whose last DSHS report has a county table, when the previous week’s last report has one too: the week’s new cases are the difference between the two printed cumulative counts. Every other week is No data, with its reason: “not reported” means DSHS published no county table that week (or this is the first table, whose cumulative cannot be assigned to one week); “ambiguous” means a report exists but this week’s count cannot be separated from earlier weeks (after a gap, or in a week whose last report had no county table). Nothing is estimated or interpolated. The cumulative chart above shows what each DSHS report printed.';
 
 export const disclaimer = 'Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.';
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, className?: string) {
@@ -97,12 +101,15 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   }
   const chartControls = element('div', undefined, 'chart-controls');
   chartControls.append(yearLabel, yearSelect);
+  // Texas counties only: the cumulative count each DSHS report printed (contracts v7), above the weekly series.
+  const cumulative = element('div', undefined, 'cumulative-reports');
   const charts = element('div', undefined, 'charts');
-  detail.append(summary, chartControls, charts);
+  detail.append(summary, chartControls, cumulative, charts);
   grid.append(mapPanel, detail);
   main.append(grid);
   const reports = element('details', undefined, 'panel reports');
-  reports.append(element('summary', 'Read exact weekly reports and R_t status'));
+  const reportsSummary = element('summary', 'Read exact weekly reports and R_t status');
+  reports.append(reportsSummary);
   const tableContainer = element('div', undefined, 'table-scroll');
   reports.append(tableContainer);
   main.append(reports);
@@ -137,6 +144,10 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       element('p', `Bars show new ${one.label} in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.`, 'chart-note')]);
     if (series.length > 1) caseBlocks.unshift(element('p', `This geography has case counts under ${series.length} different case definitions in MMWR ${year} (${series.map((one) => one.label).join('; ')}). They count different things, so each is charted separately and they are never added together or compared on one axis.`, 'notice case-definitions-notice'));
     if (!series.length) caseBlocks.push(element('h3', 'Weekly cases'));
+    if (level === 'county') caseBlocks.unshift(element('p', countyWeeklyNote, 'notice county-weekly-note'));
+    const cumulativeRows = level === 'county' ? cumulativeSeries(data.cumulative, selected) : [];
+    cumulative.hidden = level !== 'county';
+    cumulative.replaceChildren(...(level === 'county' ? cumulativeSection(data.cumulative, selected, name.textContent || '', data.synthetic) : []));
     charts.replaceChildren(...caseBlocks,
       element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year, data.synthetic),
       element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
@@ -165,7 +176,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       weekCell.scope = 'row';
       const caseCells = caseColumns.map((one) => {
         const c = (one ? one.rows : cases).find((r) => r.week.week === week);
-        const cell = element('td', c?.cases.status === 'reported' ? String(c.cases.count) : `No data${c?.cases.status === 'missing' ? ` · ${c.cases.reason}` : ''}`);
+        const cell = element('td', c?.cases.status === 'reported' ? String(c.cases.count) : `No data${c?.cases.status === 'missing' ? ` · ${missingReasonWords[c.cases.reason]}` : ''}`);
         if (c?.cases.status === 'reported') cell.replaceChildren(provenanceNumber(String(c.cases.count), {
           label: `${name.textContent} · ${year} W${week} · ${c.cases.count} ${caseDefinitionLabels[c.case_definition]}`, records: c.provenance, synthetic: data.synthetic,
         }));
@@ -188,7 +199,9 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       body.append(row);
     }
     table.append(head, body);
-    tableContainer.replaceChildren(weeks.length ? table : element('p', 'No weekly reports available.', 'notice'));
+    reportsSummary.textContent = level === 'county' ? 'Read exact weekly and cumulative reports and R_t status' : 'Read exact weekly reports and R_t status';
+    tableContainer.replaceChildren(weeks.length ? table : element('p', 'No weekly reports available.', 'notice'),
+      ...(cumulativeRows.length ? [cumulativeTable(cumulativeRows.filter((r) => r.case_definition === 'confirmed'), name.textContent || '', data.synthetic)] : []));
   }
   function render() {
     geographySelect.value = selected;

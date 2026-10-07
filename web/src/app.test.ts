@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
+import { countyWeeklyNote, disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 import { caseScales, fillColor, mapFeatures } from './map';
 
@@ -148,5 +148,67 @@ describe('dashboard', () => {
     const features = mapFeatures(fixtureDataset(), 'state', 'cases-2025', '40').features;
     expect(features.find((f) => f.properties.GEOID === '35')?.properties).toMatchObject({ missing: true, value: null });
     expect(features.find((f) => f.properties.GEOID === '40')?.properties).toMatchObject({ missing: false, value: 0, selected: true });
+  });
+});
+
+describe('Texas county drill-down: cumulative confirmed cases as reported by Texas DSHS', () => {
+  const drill = (root: HTMLElement) => root.querySelector<HTMLButtonElement>('.drill-button')!.click();
+  it('charts one point per DSHS report above the weekly series, which keeps its own labels', () => {
+    const { root } = mount();
+    drill(root);
+    expect(root.querySelector('h2')?.textContent).toBe('Gaines County');
+    expect(root.querySelector('.cumulative-reports h3')?.textContent).toBe('Cumulative confirmed cases as reported by Texas DSHS');
+    const svg = root.querySelector('.cumulative-reports svg.cumulative-chart')!;
+    expect([...svg.querySelectorAll('circle.cumulative-point')].map((p) => p.getAttribute('data-report-date'))).toEqual(['2025-03-04', '2025-03-25', '2025-11-24']);
+    expect([...svg.querySelectorAll('path.cumulative-missing')].map((p) => p.getAttribute('data-report-date'))).toEqual(['2025-03-28']);
+    expect(svg.querySelectorAll('polyline, polygon').length).toBe(0);
+    // The plain-words notes: irregular reports, no joining line, no weekly counts, the reason for the report with no count.
+    const note = root.querySelector('.cumulative-note')?.textContent;
+    expect(note).toContain('published these reports irregularly');
+    expect(note).toContain('not joined by a line');
+    expect(note).toContain('Weekly counts are not derived from this series.');
+    expect(root.querySelector('.cumulative-gaps')?.textContent).toBe('2025-03-28: DSHS published no county table in this report');
+    // The weekly series is unchanged, with its reason in words and the explanation of what is derived.
+    expect(root.querySelector('.charts h3')?.textContent).toBe('Weekly confirmed cases');
+    expect(root.querySelector('.county-weekly-note')?.textContent).toBe(countyWeeklyNote);
+    expect(countyWeeklyNote).toContain('Nothing is estimated or interpolated.');
+    select('geography', '48115');
+    expect(root.querySelector('tr[data-week="2025-2"] td')?.textContent).toBe('No data · not reported');
+  });
+  it('lists the exact reports in the report table, each count opening its provenance', () => {
+    const { root } = mount();
+    drill(root);
+    expect(root.querySelector('.reports summary')?.textContent).toBe('Read exact weekly and cumulative reports and R_t status');
+    const rows = [...root.querySelectorAll('.cumulative-table tbody tr')];
+    expect(rows.map((tr) => [tr.getAttribute('data-report-date'), tr.querySelector('td')?.textContent])).toEqual([
+      ['2025-03-04', '4'], ['2025-03-25', '10'], ['2025-03-28', 'No data: DSHS published no county table in this report'], ['2025-11-24', '20'],
+    ]);
+    const button = rows[1].querySelector<HTMLButtonElement>('td button')!;
+    expect(button.getAttribute('aria-label')).toBe('Gaines County · DSHS report of 2025-03-25 · 10 cumulative confirmed cases. Open provenance.');
+  });
+  it('opens the provenance drawer from a point, with the report snapshot and what the number is not', () => {
+    const { root } = mount();
+    drill(root);
+    const point = root.querySelector<SVGElement>('circle.cumulative-point[data-report-date="2025-03-25"]')!;
+    point.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    const drawer = root.querySelector('dialog')!;
+    expect(drawer.textContent).toContain('Gaines County · DSHS report of 2025-03-25 · 10 cumulative confirmed cases');
+    expect(drawer.textContent).toContain('https://example.invalid/synthetic-web-test');
+    expect(drawer.textContent).toContain('It is not a weekly count');
+  });
+  it('shows no cumulative block in the state view and says so for a county no report names', () => {
+    const data = fixtureDataset();
+    const { root } = mount(data);
+    expect(root.querySelector<HTMLElement>('.cumulative-reports')!.hidden).toBe(true);
+    expect(root.querySelector('.cumulative-reports')?.children.length).toBe(0);
+    drill(root);
+    expect(root.querySelector<HTMLElement>('.cumulative-reports')!.hidden).toBe(false);
+    data.cumulative = data.cumulative.filter((r) => r.geography !== '48165');
+    select('geography', '48115');
+    select('geography', '48165');
+    expect(root.querySelector('.cumulative-none')?.textContent).toBe('No cumulative series for this county: no Texas DSHS report this site reads names it. That is not a count of zero.');
+    expect(root.querySelector('.cumulative-table')).toBeNull();
+    drill(root);
+    expect(root.querySelector<HTMLElement>('.cumulative-reports')!.hidden).toBe(true);
   });
 });

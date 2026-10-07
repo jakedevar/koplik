@@ -10,7 +10,7 @@ describe('contracts and artifact loading', () => {
     const data = fixtureDataset();
     const bytes = readFileSync(resolve(fixtureRoot, 'synthetic-source.json'));
     const hash = createHash('sha256').update(bytes).digest('hex');
-    for (const row of [...data.geographies, ...data.cases, ...data.coverage, ...data.rt]) {
+    for (const row of [...data.geographies, ...data.cases, ...data.coverage, ...data.rt, ...data.cumulative]) {
       expect(row.provenance[0].sha256).toBe(hash);
       expect(row.provenance[0].source_id).toBe('synthetic-web-test');
     }
@@ -25,7 +25,7 @@ describe('contracts and artifact loading', () => {
     });
     const data = await loadDataset('/koplik/', true, read);
     expect(data.geographies).toHaveLength(6);
-    expect(read).toHaveBeenCalledTimes(6);
+    expect(read).toHaveBeenCalledTimes(7);
   });
   it('loads paired 50%/95% R_t rows and rejects a duplicate of the same interval level', async () => {
     const paired = pairedRtRows();
@@ -45,6 +45,14 @@ describe('contracts and artifact loading', () => {
       json: async () => fixtureJson(String(url).split('/').at(-1)!.replace('.json', '')),
     }) as Response);
     await expect(loadDataset('/', false, synthetic)).rejects.toThrow('Synthetic artifacts require');
+  });
+  it('refuses a cumulative row for a geography the dataset does not know', async () => {
+    const stray = (fixtureJson('cumulative-cases') as { geography: string }[]).map((r, i) => i === 0 ? { ...r, geography: '48999' } : r);
+    const read = vi.fn(async (url: RequestInfo | URL) => {
+      const name = String(url).split('/').at(-1)!.replace('synthetic-', '').replace('.json', '');
+      return { ok: true, json: async () => name === 'cumulative-cases' ? stray : fixtureJson(name) } as Response;
+    });
+    await expect(loadDataset('/koplik/', true, read)).rejects.toThrow('Unknown geography 48999');
   });
   it('rejects invalid schema rows, duplicate keys and inconsistent R_t status/bounds', () => {
     const data = fixtureDataset();
