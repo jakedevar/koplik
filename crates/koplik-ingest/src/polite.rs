@@ -51,6 +51,136 @@ pub fn contact_from_env() -> Option<String> {
     }
 }
 
+/// [`contact_from_env`] with the reason a refusal happened: a blank value is
+/// [`IngestError::ContactRequired`], a non-UTF-8 value is [`IngestError::ContactNotUtf8`].
+fn general_contact_checked(raw: Option<&std::ffi::OsStr>) -> Result<String> {
+    match raw {
+        None => Ok(DEFAULT_CONTACT.to_owned()),
+        Some(v) => match v.to_str() {
+            Some(v) => resolve_contact(Some(v)).ok_or(IngestError::ContactRequired),
+            None => Err(IngestError::ContactNotUtf8 {
+                variable: CONTACT_ENV.to_owned(),
+            }),
+        },
+    }
+}
+
+/// Environment variable carrying the contact for Census requests. Operator instruction
+/// (2026-10-07, #1427): Census requests identify the operator's own contact. The address is
+/// deliberately NOT in the repository: it comes from this variable or from [`LOCAL_CONFIG_FILE`].
+pub const CENSUS_CONTACT_ENV: &str = "KOPLIK_CENSUS_CONTACT";
+
+/// Gitignored local config at the repository root (`KEY=VALUE` lines; the `.env.*` rule in
+/// `.gitignore` covers it). Holds [`CENSUS_CONTACT_ENV`] when it is not in the environment.
+pub const LOCAL_CONFIG_FILE: &str = ".env.local";
+
+/// Whether `host` (lower-case authority, optional port) is a US Census Bureau host:
+/// `census.gov` or any `*.census.gov`. A lookalike such as `notcensus.gov` or `census.gov.evil`
+/// is not one, and archive.org is not one even when it serves a copy of a Census file.
+pub fn is_census_host(host: &str) -> bool {
+    let name = host.split(':').next().unwrap_or(host);
+    name == "census.gov" || name.ends_with(".census.gov")
+}
+
+/// Value of `key` in simple `KEY=VALUE` config text: `#` comment lines and blank lines are
+/// skipped, an optional `export ` prefix and one pair of surrounding quotes are removed, the
+/// last assignment wins, and there are no inline comments or interpolation.
+pub fn config_value(text: &str, key: &str) -> Option<String> {
+    let mut found = None;
+    for line in text.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let line = line.strip_prefix("export ").map_or(line, str::trim_start);
+        let Some((k, v)) = line.split_once('=') else {
+            continue;
+        };
+        if k.trim() != key {
+            continue;
+        }
+        let v = v.trim();
+        let unquoted = ['"', '\'']
+            .iter()
+            .find_map(|q| v.strip_prefix(*q).and_then(|r| r.strip_suffix(*q)))
+            .unwrap_or(v);
+        found = Some(unquoted.to_owned());
+    }
+    found
+}
+
+/// The repository root above `start`: the nearest ancestor holding `.git` (a directory, or the
+/// file a linked worktree has).
+pub fn repository_root(start: &std::path::Path) -> Option<std::path::PathBuf> {
+    start
+        .ancestors()
+        .find(|dir| dir.join(".git").exists())
+        .map(std::path::Path::to_path_buf)
+}
+
+/// Where the Census contact came from; the stderr notice and the tests name it, the value
+/// itself is never logged.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CensusContact {
+    /// A configured, non-blank contact.
+    Configured(String),
+    /// Nothing configured: Census requests use the general contact.
+    Fallback,
+}
+
+/// Pure Census contact resolution. `env` is the raw `KOPLIK_CENSUS_CONTACT` (`None` = unset);
+/// `local` is the repository's `.env.local` text (`None` = no file). The environment wins over
+/// the file. A configured but blank value refuses, so it is never mistaken for "unset".
+pub fn resolve_census_contact(
+    env: Option<&std::ffi::OsStr>,
+    local: Option<&str>,
+) -> Result<CensusContact> {
+    let (value, source) = match env {
+        Some(raw) => (
+            raw.to_str()
+                .ok_or_else(|| IngestError::ContactNotUtf8 {
+                    variable: CENSUS_CONTACT_ENV.to_owned(),
+                })?
+                .to_owned(),
+            format!("the {CENSUS_CONTACT_ENV} environment variable"),
+        ),
+        None => match local.and_then(|t| config_value(t, CENSUS_CONTACT_ENV)) {
+            Some(v) => (v, format!("{CENSUS_CONTACT_ENV} in {LOCAL_CONFIG_FILE}")),
+            None => return Ok(CensusContact::Fallback),
+        },
+    };
+    match value.trim() {
+        "" => Err(IngestError::CensusContactBlank {
+            source_name: source,
+        }),
+        v => Ok(CensusContact::Configured(v.to_owned())),
+    }
+}
+
+/// Reads the Census contact from the process environment and the repository's local config
+/// (found from the current directory upward).
+fn census_contact_from_env() -> Result<CensusContact> {
+    let env = std::env::var_os(CENSUS_CONTACT_ENV);
+    let local = match std::env::current_dir()
+        .ok()
+        .and_then(|cwd| repository_root(&cwd))
+    {
+        Some(root) => {
+            let path = root.join(LOCAL_CONFIG_FILE);
+            match std::fs::read_to_string(&path) {
+                Ok(text) => Some(text),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                Err(source) => return Err(IngestError::Io { path, source }),
+            }
+        }
+        None => None,
+    };
+    resolve_census_contact(env.as_deref(), local.as_deref())
+}
+
+/// One line on stderr (no contact value in it) when Census requests use the general contact.
+pub const CENSUS_FALLBACK_NOTICE: &str = "koplik-ingest: no Census contact configured (set KOPLIK_CENSUS_CONTACT or add it to .env.local); Census requests use the general contact";
+
 /// Offline User-Agent for tests and diagnostics: [`user_agent_with`] the resolved contact.
 /// Live fetching goes through [`live_user_agent`], which refuses when the contact was blanked.
 pub fn default_user_agent() -> String {
@@ -118,6 +248,12 @@ impl Timekeeper for SystemTimekeeper {
 #[derive(Debug, Clone)]
 pub struct PoliteConfig {
     pub user_agent: String,
+    /// User-Agent for Census hosts ([`is_census_host`]) when a Census contact is configured;
+    /// `None` sends [`PoliteConfig::user_agent`] to every host.
+    pub census_user_agent: Option<String>,
+    /// Set by [`PoliteConfig::live_from_env`] when Census requests fall back to the general
+    /// contact: the fetcher then prints [`CENSUS_FALLBACK_NOTICE`] once, at the first Census request.
+    pub census_fallback_notice: bool,
     /// Gap between requests to one host; clamped up to [`MIN_HOST_INTERVAL`].
     pub min_interval: Duration,
     /// Total tries per URL (first try included) for transport errors, 429 and 5xx.
@@ -139,13 +275,36 @@ impl PoliteConfig {
             ..Self::default()
         })
     }
+
+    /// The User-Agent sent to `host` (lower-case authority): the Census one on Census hosts
+    /// when configured, the general one everywhere else.
+    pub fn user_agent_for(&self, host: &str) -> &str {
+        match &self.census_user_agent {
+            Some(ua) if is_census_host(host) => ua,
+            _ => &self.user_agent,
+        }
+    }
+
+    /// [`PoliteConfig::live`] plus a Census contact resolved by [`resolve_census_contact`].
+    pub fn live_with_census(contact: Option<&str>, census: &CensusContact) -> Result<Self> {
+        let mut cfg = Self::live(contact)?;
+        match census {
+            CensusContact::Configured(c) => cfg.census_user_agent = Some(user_agent_with(Some(c))),
+            CensusContact::Fallback => cfg.census_fallback_notice = true,
+        }
+        Ok(cfg)
+    }
 }
 
 impl PoliteConfig {
-    /// [`PoliteConfig::live`] with the contact from [`contact_from_env`]: the one entry point
-    /// for live fetching. Refuses (before any request) only when `KOPLIK_CONTACT` is set blank.
+    /// [`PoliteConfig::live_with_census`] with the contacts read from the environment and the
+    /// local config: the one entry point for every live path (CLI arms, examples, the pipeline).
+    /// Non-Census hosts get the general contact (`KOPLIK_CONTACT`, else [`DEFAULT_CONTACT`]);
+    /// Census hosts get `KOPLIK_CENSUS_CONTACT`, else [`LOCAL_CONFIG_FILE`], else the general
+    /// contact with a stderr notice. Refuses, before any request, on a blank or non-UTF-8 value.
     pub fn live_from_env() -> Result<Self> {
-        Self::live(contact_from_env().as_deref())
+        let general = general_contact_checked(std::env::var_os(CONTACT_ENV).as_deref())?;
+        Self::live_with_census(Some(&general), &census_contact_from_env()?)
     }
 }
 
@@ -153,6 +312,8 @@ impl Default for PoliteConfig {
     fn default() -> Self {
         Self {
             user_agent: default_user_agent(),
+            census_user_agent: None,
+            census_fallback_notice: false,
             min_interval: MIN_HOST_INTERVAL,
             max_attempts: 3,
             backoff_base: Duration::from_secs(2),
@@ -185,6 +346,7 @@ pub struct PoliteFetcher<C: HttpClient, T: Timekeeper> {
     robots: HashMap<String, Robots>,
     /// Attempts, including failures, for this pipeline-run fetcher. Never retry named files.
     census_attempted: BTreeSet<String>,
+    census_notice_pending: bool,
 }
 
 /// A parsed http(s) URL without credentials.
@@ -235,6 +397,7 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
     pub fn new(client: C, time: T, mut cfg: PoliteConfig) -> Self {
         cfg.min_interval = cfg.min_interval.max(MIN_HOST_INTERVAL);
         cfg.max_attempts = cfg.max_attempts.max(1);
+        let census_notice_pending = cfg.census_fallback_notice;
         Self {
             client,
             time,
@@ -242,6 +405,18 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             last_request: HashMap::new(),
             robots: HashMap::new(),
             census_attempted: BTreeSet::new(),
+            census_notice_pending,
+        }
+    }
+
+    /// The fallback notice, once, the first time a Census host is about to be requested with
+    /// the general contact. Never carries a contact value.
+    fn take_census_notice(&mut self, host: &str) -> Option<&'static str> {
+        if self.census_notice_pending && is_census_host(host) {
+            self.census_notice_pending = false;
+            Some(CENSUS_FALLBACK_NOTICE)
+        } else {
+            None
         }
     }
 
@@ -269,9 +444,14 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
             return Err(IngestError::NamedFileAlreadyRequested(url.to_owned()));
         }
         let interval = self.host_interval(&target.host)?;
+        if let Some(notice) = self.take_census_notice(&target.host) {
+            eprintln!("{notice}");
+        }
         self.throttle(&target.host, interval);
         // No request() retry loop and no redirect following: at most one GET per file/run.
-        let response = self.client.get(url, &self.cfg.user_agent)?;
+        let response = self
+            .client
+            .get(url, self.cfg.user_agent_for(&target.host))?;
         if !(200..=299).contains(&response.status) {
             return Err(IngestError::BadStatus {
                 status: response.status,
@@ -296,8 +476,14 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         })
     }
 
+    /// The general User-Agent (non-Census hosts).
     pub fn user_agent(&self) -> &str {
         &self.cfg.user_agent
+    }
+
+    /// The User-Agent this fetcher sends to `host`.
+    pub fn user_agent_for(&self, host: &str) -> &str {
+        self.cfg.user_agent_for(host)
     }
 
     /// Wait until the host has had its quiet interval, then stamp it.
@@ -351,8 +537,11 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         let mut attempt = 1;
         loop {
             let interval = self.host_interval(host)?;
+            if let Some(notice) = self.take_census_notice(host) {
+                eprintln!("{notice}");
+            }
             self.throttle(host, interval);
-            let outcome = self.client.get(url, &self.cfg.user_agent);
+            let outcome = self.client.get(url, self.cfg.user_agent_for(host));
             let (retryable, retry_after) = match &outcome {
                 Ok(r) if r.status == 429 || r.status >= 500 => (true, r.retry_after_secs),
                 Ok(_) => (false, None),
@@ -373,9 +562,10 @@ impl<C: HttpClient, T: Timekeeper> PoliteFetcher<C, T> {
         }
         let url = format!("{origin}/robots.txt");
         let robots = match self.request(&t.host, &url) {
-            Ok(r) if (200..300).contains(&r.status) => {
-                Robots::parse(&String::from_utf8_lossy(&r.body), &self.cfg.user_agent)
-            }
+            Ok(r) if (200..300).contains(&r.status) => Robots::parse(
+                &String::from_utf8_lossy(&r.body),
+                self.cfg.user_agent_for(&t.host),
+            ),
             // RFC 9309: robots.txt absent (4xx) means no restrictions; forbidden means none allowed.
             Ok(r) if r.status == 401 || r.status == 403 => Robots::disallow_all(),
             Ok(r) if (400..500).contains(&r.status) => Robots::allow_all(),
@@ -673,6 +863,211 @@ mod tests {
                 Err(IngestError::ContactRequired)
             ));
         }
+    }
+
+    const CENSUS_URL: &str = "https://www2.census.gov/geo/tiger/x.zip";
+    const CENSUS_ROBOTS: &str = "https://www2.census.gov/robots.txt";
+    const ARCHIVE_URL: &str = "https://web.archive.org/web/2025/https://www2.census.gov/x.zip";
+    const ARCHIVE_ROBOTS: &str = "https://web.archive.org/robots.txt";
+    // Dummy addresses only: the operator's real Census contact never appears in the repository.
+    const DUMMY_CENSUS: &str = "census-contact@example.invalid";
+
+    fn ua(contact: &str) -> String {
+        format!(
+            "koplik-ingest/{} (measles data demonstration project; {contact})",
+            env!("CARGO_PKG_VERSION")
+        )
+    }
+
+    fn cfg_for(env: Option<&str>, local: Option<&str>) -> Result<PoliteConfig> {
+        let census = resolve_census_contact(env.map(std::ffi::OsStr::new), local)?;
+        PoliteConfig::live_with_census(Some("https://example.org/general"), &census)
+    }
+
+    /// (url, User-Agent) pairs that reached the fake wire when fetching `urls` in order.
+    fn wire_for(cfg: PoliteConfig, urls: &[&str]) -> Vec<(String, String)> {
+        let c = FakeClient::default();
+        for robots in [CENSUS_ROBOTS, ARCHIVE_ROBOTS] {
+            c.on(robots, FakeClient::status(404, b""));
+        }
+        for u in urls {
+            c.on(u, FakeClient::ok(b"x"));
+        }
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        for u in urls {
+            f.fetch(u).unwrap();
+        }
+        let calls = c.calls.borrow().clone();
+        calls
+    }
+
+    #[test]
+    fn census_hosts_are_census_only() {
+        for h in [
+            "www2.census.gov",
+            "census.gov",
+            "geo.census.gov:443",
+            "api.census.gov",
+        ] {
+            assert!(is_census_host(h), "{h}");
+        }
+        for h in [
+            "web.archive.org",
+            "notcensus.gov",
+            "census.gov.evil.example",
+            "data.cdc.gov",
+        ] {
+            assert!(!is_census_host(h), "{h}");
+        }
+    }
+
+    #[test]
+    fn config_value_reads_simple_key_value_lines() {
+        let text =
+            "# comment\n\nOTHER=1\nexport KOPLIK_CENSUS_CONTACT = \"quoted@example.invalid\" \n";
+        assert_eq!(
+            config_value(text, CENSUS_CONTACT_ENV).as_deref(),
+            Some("quoted@example.invalid")
+        );
+        assert_eq!(config_value("A=1\nA=2\n", "A").as_deref(), Some("2"));
+        assert_eq!(config_value("A='x y'\n", "A").as_deref(), Some("x y"));
+        assert_eq!(config_value("A=\n", "A").as_deref(), Some(""));
+        assert_eq!(config_value("AA=1\n", "A"), None);
+        assert_eq!(config_value("# A=1\n", "A"), None);
+    }
+
+    #[test]
+    fn census_contact_resolution_env_then_local_then_fallback_blank_refuses() {
+        let local = format!("{CENSUS_CONTACT_ENV}=local@example.invalid\n");
+        let env = |v: &str| Some(std::ffi::OsStr::new(v).to_owned());
+        let got = |e: Option<std::ffi::OsString>, l: Option<&str>| {
+            resolve_census_contact(e.as_deref(), l).map_err(|e| e.to_string())
+        };
+        assert_eq!(got(None, None), Ok(CensusContact::Fallback));
+        assert_eq!(got(None, Some("OTHER=1\n")), Ok(CensusContact::Fallback));
+        assert_eq!(
+            got(None, Some(&local)),
+            Ok(CensusContact::Configured("local@example.invalid".into()))
+        );
+        // The environment wins over the file.
+        assert_eq!(
+            got(env(" env@example.invalid "), Some(&local)),
+            Ok(CensusContact::Configured("env@example.invalid".into()))
+        );
+        // Blank is a refusal, in the environment and in the file, never "unset".
+        for blank in ["", "  ", "\t"] {
+            let e = got(env(blank), Some(&local)).unwrap_err();
+            assert!(
+                e.contains("is blank") && e.contains("environment variable"),
+                "{e}"
+            );
+        }
+        let e = got(None, Some(&format!("{CENSUS_CONTACT_ENV}=\n"))).unwrap_err();
+        assert!(
+            e.contains("is blank") && e.contains(LOCAL_CONFIG_FILE),
+            "{e}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_contact_values_refuse_without_calling_them_blank() {
+        use std::os::unix::ffi::OsStrExt;
+        let bad = std::ffi::OsStr::from_bytes(b"ops\xff@example.invalid");
+        let general = general_contact_checked(Some(bad)).unwrap_err().to_string();
+        assert!(
+            general.contains("KOPLIK_CONTACT") && general.contains("UTF-8"),
+            "{general}"
+        );
+        assert!(!general.contains("blank"), "{general}");
+        let census = resolve_census_contact(Some(bad), None)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            census.contains("KOPLIK_CENSUS_CONTACT") && census.contains("UTF-8"),
+            "{census}"
+        );
+        assert!(!census.contains("blank"), "{census}");
+        // Blank and unset keep their own meanings on the general contact.
+        assert!(matches!(
+            general_contact_checked(Some(std::ffi::OsStr::new("  "))),
+            Err(IngestError::ContactRequired)
+        ));
+        assert_eq!(general_contact_checked(None).unwrap(), DEFAULT_CONTACT);
+    }
+
+    #[test]
+    fn census_hosts_send_the_census_contact_and_other_hosts_the_general_one() {
+        let cfg = cfg_for(Some(DUMMY_CENSUS), None).unwrap();
+        assert_eq!(cfg.user_agent_for("www2.census.gov"), ua(DUMMY_CENSUS));
+        let wire = wire_for(cfg, &[CENSUS_URL, ARCHIVE_URL]);
+        // robots.txt and the file itself, for both hosts.
+        assert_eq!(wire.len(), 4, "{wire:?}");
+        for (url, agent) in &wire {
+            let want = if url.starts_with("https://www2.census.gov/") {
+                ua(DUMMY_CENSUS)
+            } else {
+                // An archive.org request is not a Census request, even for a Census file.
+                ua("https://example.org/general")
+            };
+            assert_eq!(*agent, want, "{url}");
+        }
+    }
+
+    #[test]
+    fn census_contact_from_the_local_config_reaches_census_requests() {
+        let local = format!("{CENSUS_CONTACT_ENV}={DUMMY_CENSUS}\n");
+        let wire = wire_for(cfg_for(None, Some(&local)).unwrap(), &[CENSUS_URL]);
+        assert!(!wire.is_empty());
+        assert!(wire.iter().all(|(_, a)| *a == ua(DUMMY_CENSUS)), "{wire:?}");
+    }
+
+    #[test]
+    fn unconfigured_census_contact_falls_back_to_the_general_contact_and_says_so_once() {
+        let cfg = cfg_for(None, None).unwrap();
+        assert!(cfg.census_fallback_notice);
+        let c = FakeClient::default();
+        c.on(CENSUS_ROBOTS, FakeClient::status(404, b""));
+        c.on(CENSUS_URL, FakeClient::ok(b"x"));
+        let mut f = PoliteFetcher::new(c.clone(), FakeTime::default(), cfg);
+        // Non-Census hosts never trigger the notice; the first Census host does, once.
+        assert_eq!(f.take_census_notice("data.cdc.gov"), None);
+        assert_eq!(
+            f.take_census_notice("www2.census.gov"),
+            Some(CENSUS_FALLBACK_NOTICE)
+        );
+        assert_eq!(f.take_census_notice("www2.census.gov"), None);
+        assert!(!CENSUS_FALLBACK_NOTICE.contains('@'));
+        f.fetch(CENSUS_URL).unwrap();
+        assert!(
+            c.calls
+                .borrow()
+                .iter()
+                .all(|(_, a)| *a == ua("https://example.org/general"))
+        );
+        // A configured contact needs no notice.
+        assert!(
+            !cfg_for(Some(DUMMY_CENSUS), None)
+                .unwrap()
+                .census_fallback_notice
+        );
+    }
+
+    #[test]
+    fn repository_root_finds_the_nearest_git_ancestor_and_the_local_config_is_gitignored() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        let nested = dir.path().join("a/b");
+        std::fs::create_dir_all(&nested).unwrap();
+        assert_eq!(repository_root(&nested).as_deref(), Some(dir.path()));
+        // The real local config name must stay out of version control: it holds the contact.
+        let repo = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let status = std::process::Command::new("git")
+            .args(["check-ignore", "-q", LOCAL_CONFIG_FILE])
+            .current_dir(repo)
+            .status()
+            .unwrap();
+        assert!(status.success(), "{LOCAL_CONFIG_FILE} is not gitignored");
     }
 
     #[test]

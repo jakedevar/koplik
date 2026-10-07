@@ -9,9 +9,10 @@
 //! ```
 //!
 //! `fetch` is the only command that uses the network. Every live fetch identifies the client in
-//! the User-Agent with a contact resolved by `polite::contact_from_env`: `KOPLIK_CONTACT` when
+//! the User-Agent with a contact resolved by `PoliteConfig::live_from_env`: `KOPLIK_CONTACT` when
 //! set and non-blank, `polite::DEFAULT_CONTACT` when unset, and a refusal (before the store is
-//! opened or any request is sent) when set but blank. `parse` and `list` are offline and need no
+//! opened or any request is sent) when set but blank. Census hosts take `KOPLIK_CENSUS_CONTACT`
+//! (or `.env.local`) instead when configured; see the crate README. `parse` and `list` are offline and need no
 //! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
 //! contracts v3 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
 //! as JSON (stdout, or `--out`). Census parsing writes both GeoJSON files to `--out DIR`.

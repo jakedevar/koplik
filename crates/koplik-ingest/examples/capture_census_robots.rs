@@ -2,6 +2,7 @@ use std::io::Write;
 
 use chrono::Utc;
 use koplik_ingest::http::{HttpClient, UreqClient};
+use koplik_ingest::polite::PoliteConfig;
 use koplik_ingest::store::{RetrievalMeta, SnapshotStore};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Refuse to replace historical fixtures. A newer capture must use new output names.
@@ -21,9 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let url = "https://www2.census.gov/robots.txt";
     let r = c.get(
         url,
-        &koplik_ingest::polite::live_user_agent(
-            koplik_ingest::polite::contact_from_env().as_deref(),
-        )?,
+        // The same entry point as every live fetch: www2.census.gov takes the Census contact.
+        PoliteConfig::live_from_env()?.user_agent_for("www2.census.gov"),
     )?;
     assert_eq!(r.status, 200);
     let store = SnapshotStore::open("data/snapshots")?;

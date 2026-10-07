@@ -51,3 +51,27 @@ fn parse_and_list_work_offline_without_a_contact() {
     assert!(!out.status.success());
     assert!(err.contains("no snapshot"), "{err}");
 }
+
+#[test]
+fn blank_census_contact_refuses_a_census_fetch_before_store_or_request() {
+    for blank in ["", "  "] {
+        let dir = tempfile::tempdir().unwrap();
+        let store = dir.path().join("snapshots");
+        let out = Command::new(env!("CARGO_BIN_EXE_koplik-ingest"))
+            .args(["fetch", "census-population", "--store"])
+            .arg(&store)
+            // A valid general contact and a blank Census contact: the blank value is an
+            // explicit opt-out, never read as "unset".
+            .env("KOPLIK_CONTACT", "https://example.org/koplik")
+            .env("KOPLIK_CENSUS_CONTACT", blank)
+            .output()
+            .unwrap();
+        assert!(!out.status.success(), "{blank:?}");
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            err.contains("KOPLIK_CENSUS_CONTACT") && err.contains("blank"),
+            "{err}"
+        );
+        assert!(!store.exists());
+    }
+}
