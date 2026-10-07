@@ -4,7 +4,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use koplik_contracts::v2::{
+use koplik_contracts::v3::{
     CaseCount, CaseDefinition, GeoId, MissingReason, MmwrWeek, StateFips, WeeklyCaseCount,
 };
 use koplik_ingest::cdc;

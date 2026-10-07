@@ -1,15 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "WeeklyCaseCount",
-  "description": "Newly reported cases in one MMWR week for one geography, under an explicit case definition.\n(Cumulative-only sources are differenced by the connector; the row is always per week.)",
+  "description": "Newly confirmed measles cases in one MMWR week for one geography.\n(Cumulative-only sources are differenced by the connector; the row is always per week.)",
   "type": "object",
   "properties": {
-    "case_definition": {
-      "description": "What `cases` counts.",
-      "$ref": "#/$defs/CaseDefinition"
-    },
-    "cases": {
-      "description": "The count (or its explicit absence). `reported` with `count: 0` is a real zero;\n`missing` is unknown.",
+    "confirmed": {
       "$ref": "#/$defs/CaseCount"
     },
     "geography": {
@@ -26,8 +21,7 @@
   "required": [
     "geography",
     "week",
-    "cases",
-    "case_definition",
+    "confirmed",
     "provenance"
   ],
   "$defs": {
@@ -69,21 +63,6 @@
             "status",
             "reason"
           ]
-        }
-      ]
-    },
-    "CaseDefinition": {
-      "description": "Which cases a weekly count includes. A count is only comparable with counts that share its\ndefinition, so every row states it. Add a variant (in a new contract version) for any other\nsource definition; never reuse `Confirmed` for a count that includes other case statuses.",
-      "oneOf": [
-        {
-          "description": "Only cases whose case status is confirmed under the source's case definition, with no\nother status mixed in.",
-          "type": "string",
-          "const": "confirmed"
-        },
-        {
-          "description": "Confirmed cases plus cases whose case status is unknown, without the two being told\napart. This is what CDC's NNDSS measles publication criteria publish (event code 10140:\ncase status \"confirmed\" and \"unknown\"); the weekly query has no case-status field to\nsplit them, so these counts must not be presented as confirmed cases.",
-          "type": "string",
-          "const": "confirmed_or_unknown_status"
         }
       ]
     },

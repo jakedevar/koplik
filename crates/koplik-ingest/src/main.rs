@@ -10,7 +10,7 @@
 //! `KOPLIK_CONTACT` holds a verified contact (an e-mail address or repository URL) that is
 //! sent in the User-Agent; nothing is ever invented. `parse` and `list` are offline and need no
 //! contact: `parse` reads the latest stored CDC snapshot (re-verifying its SHA-256) and writes
-//! contracts v2 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
+//! contracts v3 weekly-case rows (`cases` + `case_definition`, each with a v1 `Provenance`)
 //! as JSON (stdout, or `--out`).
 
 use std::process::ExitCode;

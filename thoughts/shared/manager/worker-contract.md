@@ -41,6 +41,8 @@ end. The manager merges, tests and pushes to `rolling`.
   background jobs are killed. Give long commands a long timeout and rerun them
   if they time out. Never report a run you did not see finish as green.
 - Name any red you hit that is already red on `rolling`; do not fix it here.
+- Never share a `CARGO_TARGET_DIR` between two source trees (for example your sandbox and a
+  `git archive` export): cargo can reuse a stale artifact and fake a divergence.
 
 ## 4. Commit and report
 

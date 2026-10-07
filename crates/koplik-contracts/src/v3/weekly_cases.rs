@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use super::{CaseCount, GeoId, MmwrWeek, Provenances};
 use crate::v1;
+#[cfg(test)]
+use crate::v2;
 
 /// Which cases a weekly count includes. A count is only comparable with counts that share its
 /// definition, so every row states it. Add a variant (in a new contract version) for any other
@@ -36,6 +38,8 @@ pub struct WeeklyCaseCount {
 }
 
 /// Lossless upgrade: a v1 row counted confirmed cases, so it becomes `case_definition: confirmed`.
+/// v2 re-exports v1's `WeeklyCaseCount` unchanged (it is the same Rust type), so this one impl
+/// is also `From<v2::WeeklyCaseCount>`.
 impl From<v1::WeeklyCaseCount> for WeeklyCaseCount {
     fn from(v: v1::WeeklyCaseCount) -> Self {
         Self {
@@ -66,6 +70,9 @@ mod tests {
         });
         let old: v1::WeeklyCaseCount = serde_json::from_value(json).unwrap();
         let new = WeeklyCaseCount::from(old.clone());
+        // A v2 row is the same type as a v1 row and upgrades identically.
+        let via_v2: v2::WeeklyCaseCount = old.clone();
+        assert_eq!(WeeklyCaseCount::from(via_v2), new);
         assert_eq!(new.cases, old.confirmed);
         assert_eq!(new.case_definition, CaseDefinition::Confirmed);
         assert_eq!((new.geography, new.week), (old.geography, old.week));

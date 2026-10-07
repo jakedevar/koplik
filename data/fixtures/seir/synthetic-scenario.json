@@ -1,0 +1,220 @@
+{
+  "nodes": [
+    {
+      "id": "48003",
+      "population": 20000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 31.8,
+        "longitude": -102.6
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48115",
+      "population": 15000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 32.7,
+        "longitude": -101.8
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48165",
+      "population": 20000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 32.7,
+        "longitude": -102.6
+      },
+      "initial_exposed": 5,
+      "initial_infectious": 5,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48305",
+      "population": 10000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 33.2,
+        "longitude": -101.8
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48317",
+      "population": 10000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 32.0,
+        "longitude": -101.8
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48445",
+      "population": 15000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 33.2,
+        "longitude": -102.3
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    },
+    {
+      "id": "48501",
+      "population": 10000,
+      "baseline_coverage": {
+        "status": "missing",
+        "reason": "not_reported"
+      },
+      "centroid": {
+        "latitude": 33.2,
+        "longitude": -102.9
+      },
+      "initial_exposed": 0,
+      "initial_infectious": 0,
+      "provenance": [
+        {
+          "source_id": "synthetic-seir-fixture-not-observations",
+          "url": "file:data/fixtures/seir/synthetic-source.json",
+          "retrieved_at": "2026-10-07T02:17:12.214991Z",
+          "sha256": "66b9c7aab987e152801aca71135dd0c0673abb4b8792564a68db46edcefd71a8",
+          "licence_id": "synthetic-project-test-input"
+        }
+      ]
+    }
+  ],
+  "start_week": {
+    "year": 2025,
+    "week": 1
+  },
+  "coverage_overrides": [
+    {
+      "geography": "48003",
+      "coverage_pct": 85
+    },
+    {
+      "geography": "48115",
+      "coverage_pct": 85
+    },
+    {
+      "geography": "48165",
+      "coverage_pct": 70
+    },
+    {
+      "geography": "48305",
+      "coverage_pct": 85
+    },
+    {
+      "geography": "48317",
+      "coverage_pct": 85
+    },
+    {
+      "geography": "48445",
+      "coverage_pct": 85
+    },
+    {
+      "geography": "48501",
+      "coverage_pct": 85
+    }
+  ],
+  "parameters": {
+    "r0": {
+      "kind": "uniform_prior",
+      "min": 12.0,
+      "max": 18.0
+    },
+    "latent_period_days": 10.0,
+    "infectious_period_days": 8.0,
+    "mmr_effectiveness_one_dose": 0.93,
+    "mmr_effectiveness_two_doses": 0.97,
+    "time_step_days": 1.0,
+    "horizon_days": 180,
+    "gravity": {
+      "scale": 0.01,
+      "origin_exponent": 1.0,
+      "destination_exponent": 1.0,
+      "distance_exponent": 2.0
+    }
+  },
+  "seed": 1353,
+  "run_count": 1000
+}

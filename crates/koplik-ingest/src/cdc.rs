@@ -1,4 +1,4 @@
-//! CDC weekly measles cases by state (contracts v2 rows, case definition
+//! CDC weekly measles cases by state (contracts v3 rows, case definition
 //! `confirmed_or_unknown_status`), from the NNDSS Weekly Data table on data.cdc.gov
 //! (Socrata dataset `x9gk-5huc`). Why this source and how weekly counts are derived is
 //! documented in `SOURCES.md`; in short:
@@ -19,7 +19,7 @@
 
 use std::collections::BTreeMap;
 
-use koplik_contracts::v2::{
+use koplik_contracts::v3::{
     CaseCount, CaseDefinition, GeoId, MissingReason, MmwrWeek, Provenances, StateFips,
     WeeklyCaseCount,
 };

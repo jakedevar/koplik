@@ -1,6 +1,6 @@
 //! Regenerates the JSON Schema for every top-level v2 type and fails when the committed
 //! files under `schema/v2/` differ. Regenerate with `make schema`
-//! (`KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema_v2`), then commit.
+//! (`KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema`), then commit.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -25,12 +25,13 @@ fn all() -> BTreeMap<String, String> {
         render::<MmwrWeek>(),
         render::<Provenance>(),
         render::<WeeklyCaseCount>(),
-        render::<CaseDefinition>(),
         render::<KindergartenMmrCoverage>(),
         render::<Population>(),
         render::<RtEstimate>(),
         render::<ScenarioInput>(),
         render::<Forecast>(),
+        render::<TrajectoryResult>(),
+        render::<EnsembleResult>(),
     ]
     .into_iter()
     .collect()

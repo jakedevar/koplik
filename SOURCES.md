@@ -77,7 +77,7 @@ number). `m1` ("current week") is not used.
      sheet "Event Codes", cell F98.
 
    The weekly query has no case-status field, so confirmed cases cannot be separated from
-   unknown-status ones. The connector therefore emits **contracts v2** rows
+   unknown-status ones. The connector therefore emits **contracts v3** rows
    (`WeeklyCaseCount.cases` with `case_definition = confirmed_or_unknown_status`) and never
    `confirmed`; v1's `confirmed` field is not used for this source. UI and R_t consumers must say
    "confirmed or unknown-status cases reported to NNDSS".

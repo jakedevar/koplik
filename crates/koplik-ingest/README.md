@@ -2,7 +2,7 @@
 
 The only crate that touches the network: a polite fetcher, a write-once content-addressed
 snapshot store (`data/snapshots/`, gitignored) and the source connectors. The CDC connector
-parses stored bytes into **contracts v2** `WeeklyCaseCount` rows (`cases` +
+parses stored bytes into **contracts v3** `WeeklyCaseCount` rows (`cases` +
 `case_definition = confirmed_or_unknown_status`), each with a v1 `Provenance` (snapshot sha256,
 source URL, retrieval time, licence id). See `SOURCES.md` for sources, terms and derivations.
 
