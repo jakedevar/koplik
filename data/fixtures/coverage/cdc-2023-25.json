@@ -1,0 +1,214 @@
+[{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Alabama","year_season":"2023-24","coverage_estimate":"2.2","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Alabama","year_season":"2023-24","coverage_estimate":"93.8","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Alaska","year_season":"2023-24","coverage_estimate":"9.5","foot_notes":"†. ‡‡","survey_type":"Census (pub.), not conducted (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Alaska","year_season":"2023-24","coverage_estimate":"84.3","foot_notes":"¶","survey_type":"Census (pub.), not conducted (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Arizona","year_season":"2023-24","coverage_estimate":"8.5","foot_notes":"‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Arizona","year_season":"2023-24","coverage_estimate":"89.3","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Arkansas","year_season":"2023-24","coverage_estimate":"3.5","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Arkansas","year_season":"2023-24","coverage_estimate":"92.5","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"California","year_season":"2023-24","coverage_estimate":"0.1","foot_notes":"†. ‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"California","year_season":"2023-24","coverage_estimate":"96.2","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Colorado","year_season":"2023-24","coverage_estimate":"4.2","foot_notes":">=. §. ||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Colorado","year_season":"2023-24","coverage_estimate":"88.3","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Connecticut","year_season":"2023-24","coverage_estimate":"0.5","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Connecticut","year_season":"2023-24","coverage_estimate":"97.7","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Delaware","year_season":"2023-24","coverage_estimate":"2.5","foot_notes":"†","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Delaware","year_season":"2023-24","coverage_estimate":"93.8","foot_notes":">=. ‡","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"District of Columbia","year_season":"2023-24","coverage_estimate":"2.3","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"District of Columbia","year_season":"2023-24","coverage_estimate":"92.0","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Florida","year_season":"2023-24","coverage_estimate":"4.8","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Florida","year_season":"2023-24","coverage_estimate":"88.1","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Georgia","year_season":"2023-24","coverage_estimate":"3.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Georgia","year_season":"2023-24","coverage_estimate":"88.4","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Hawaii","year_season":"2023-24","coverage_estimate":"5.3","foot_notes":"†","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Hawaii","year_season":"2023-24","coverage_estimate":"89.8","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Idaho","year_season":"2023-24","coverage_estimate":"14.3","foot_notes":"||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Idaho","year_season":"2023-24","coverage_estimate":"79.6","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Illinois","year_season":"2023-24","coverage_estimate":"2.5","foot_notes":">=. †. §","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Illinois","year_season":"2023-24","coverage_estimate":"91.6","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Indiana","year_season":"2023-24","coverage_estimate":"2.4","foot_notes":"†","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Indiana","year_season":"2023-24","coverage_estimate":"90.8","foot_notes":"§","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Iowa","year_season":"2023-24","coverage_estimate":"3.4","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Iowa","year_season":"2023-24","coverage_estimate":"89.1","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Kansas","year_season":"2023-24","coverage_estimate":"3.0","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Kansas","year_season":"2023-24","coverage_estimate":"90.4","foot_notes":"†. ‡. §","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Kentucky","year_season":"2023-24","coverage_estimate":"2.3","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Kentucky","year_season":"2023-24","coverage_estimate":"90.0","foot_notes":">=. *. ‡. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Louisiana","year_season":"2023-24","coverage_estimate":"2.8","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Louisiana","year_season":"2023-24","coverage_estimate":"92.4","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Maine","year_season":"2023-24","coverage_estimate":"1.0","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Maine","year_season":"2023-24","coverage_estimate":"97.5","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Maryland","year_season":"2023-24","coverage_estimate":"2.2","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Maryland","year_season":"2023-24","coverage_estimate":"96.6","foot_notes":">=. *. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Massachusetts","year_season":"2023-24","coverage_estimate":"1.4","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Massachusetts","year_season":"2023-24","coverage_estimate":"96.3","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Michigan","year_season":"2023-24","coverage_estimate":"5.6","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Michigan","year_season":"2023-24","coverage_estimate":"92.1","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Minnesota","year_season":"2023-24","coverage_estimate":"5.4","foot_notes":">=. §. ||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Minnesota","year_season":"2023-24","coverage_estimate":"87.0","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Mississippi","year_season":"2023-24","coverage_estimate":"0.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Mississippi","year_season":"2023-24","coverage_estimate":"97.5","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Missouri","year_season":"2023-24","coverage_estimate":"4.7","foot_notes":">=. †. §","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Missouri","year_season":"2023-24","coverage_estimate":"90.4","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Nebraska","year_season":"2023-24","coverage_estimate":"3.5","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Nebraska","year_season":"2023-24","coverage_estimate":"93.9","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Nevada","year_season":"2023-24","coverage_estimate":"7.1","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Nevada","year_season":"2023-24","coverage_estimate":"91.9","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Hampshire","year_season":"2023-24","coverage_estimate":"4.1","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Hampshire","year_season":"2023-24","coverage_estimate":"89.2","foot_notes":">=. §. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Jersey","year_season":"2023-24","coverage_estimate":"3.9","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Jersey","year_season":"2023-24","coverage_estimate":"93.2","foot_notes":">=. §. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Mexico","year_season":"2023-24","coverage_estimate":"1.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Mexico","year_season":"2023-24","coverage_estimate":"95.0","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New York","year_season":"2023-24","coverage_estimate":"0.1","foot_notes":"†. ‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New York","year_season":"2023-24","coverage_estimate":"97.7","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"North Carolina","year_season":"2023-24","coverage_estimate":"2.9","foot_notes":"†","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"North Carolina","year_season":"2023-24","coverage_estimate":"93.8","foot_notes":"§","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"North Dakota","year_season":"2023-24","coverage_estimate":"6.5","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"North Dakota","year_season":"2023-24","coverage_estimate":"90.9","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"NY-City of New York","year_season":"2023-24","coverage_estimate":"0.1","foot_notes":"†. ‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"NY-City of New York","year_season":"2023-24","coverage_estimate":"96.7","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Ohio","year_season":"2023-24","coverage_estimate":"4.2","foot_notes":"||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Ohio","year_season":"2023-24","coverage_estimate":"89.2","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Oklahoma","year_season":"2023-24","coverage_estimate":"5.7","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Oklahoma","year_season":"2023-24","coverage_estimate":"88.3","foot_notes":"‡","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Oregon","year_season":"2023-24","coverage_estimate":"8.9","foot_notes":"||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Oregon","year_season":"2023-24","coverage_estimate":"91.2","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Pennsylvania","year_season":"2023-24","coverage_estimate":"5.0","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Pennsylvania","year_season":"2023-24","coverage_estimate":"93.5","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Rhode Island","year_season":"2023-24","coverage_estimate":"1.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Rhode Island","year_season":"2023-24","coverage_estimate":"97.1","foot_notes":"‡. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"South Carolina","year_season":"2023-24","coverage_estimate":"4.4","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"South Carolina","year_season":"2023-24","coverage_estimate":"92.1","foot_notes":"†","survey_type":"Stratified 1-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"South Dakota","year_season":"2023-24","coverage_estimate":"5.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"South Dakota","year_season":"2023-24","coverage_estimate":"90.8","foot_notes":"§","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Tennessee","year_season":"2023-24","coverage_estimate":"3.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Tennessee","year_season":"2023-24","coverage_estimate":"95.1","foot_notes":"§","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Texas","year_season":"2023-24","coverage_estimate":"3.9","foot_notes":"||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Texas","year_season":"2023-24","coverage_estimate":"94.3","foot_notes":"‡. §","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"TX-City of Houston","year_season":"2023-24","coverage_estimate":"2.7","foot_notes":"||","survey_type":"Vol. response"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"TX-City of Houston","year_season":"2023-24","coverage_estimate":"93.6","foot_notes":"‡. §","survey_type":"Vol. response"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"National","geography":"United States","year_season":"2023-24","coverage_estimate":"3.3"}
+,{"vaccine":"MMR","dose":"","geography_type":"National","geography":"United States","year_season":"2023-24","coverage_estimate":"92.7"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"National","geography":"U.S. Median","year_season":"2023-24","coverage_estimate":"3.7"}
+,{"vaccine":"MMR","dose":"","geography_type":"National","geography":"U.S. Median","year_season":"2023-24","coverage_estimate":"92.0"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Utah","year_season":"2023-24","coverage_estimate":"9.3","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Utah","year_season":"2023-24","coverage_estimate":"88.8","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Vermont","year_season":"2023-24","coverage_estimate":"4.0","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Vermont","year_season":"2023-24","coverage_estimate":"92.9","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Virginia","year_season":"2023-24","coverage_estimate":"2.4","foot_notes":"†","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Virginia","year_season":"2023-24","coverage_estimate":"94.2","foot_notes":"†","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Washington","year_season":"2023-24","coverage_estimate":"4.8","foot_notes":"||||. ¶¶","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Washington","year_season":"2023-24","coverage_estimate":"91.3","foot_notes":"§","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"West Virginia","year_season":"2023-24","coverage_estimate":"0.1","foot_notes":"<. †. ‡","survey_type":"Vol. response"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"West Virginia","year_season":"2023-24","coverage_estimate":"98.3","foot_notes":"‡. §","survey_type":"Vol. response"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Wisconsin","year_season":"2023-24","coverage_estimate":"7.7","foot_notes":"||||. ¶¶","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Wisconsin","year_season":"2023-24","coverage_estimate":"84.8","foot_notes":"‡. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Wyoming","year_season":"2023-24","coverage_estimate":"5.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Wyoming","year_season":"2023-24","coverage_estimate":"93.5","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Alabama","year_season":"2024-25","coverage_estimate":"2.3","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Alabama","year_season":"2024-25","coverage_estimate":"95.2","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Alaska","year_season":"2024-25","coverage_estimate":"9.4","foot_notes":"†. ‡‡","survey_type":"Census (pub.), not conducted (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Alaska","year_season":"2024-25","coverage_estimate":"81.2","foot_notes":"¶","survey_type":"Census (pub.), not conducted (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Arizona","year_season":"2024-25","coverage_estimate":"9.1","foot_notes":"‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Arizona","year_season":"2024-25","coverage_estimate":"88.6","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Arkansas","year_season":"2024-25","coverage_estimate":"3.6","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Arkansas","year_season":"2024-25","coverage_estimate":"89.6","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"California","year_season":"2024-25","coverage_estimate":"0.1","foot_notes":"†. ‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"California","year_season":"2024-25","coverage_estimate":"96.1","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Colorado","year_season":"2024-25","coverage_estimate":"4.2","foot_notes":">=. §. ||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Colorado","year_season":"2024-25","coverage_estimate":"88.0","foot_notes":"*. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Connecticut","year_season":"2024-25","coverage_estimate":"0.4","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Connecticut","year_season":"2024-25","coverage_estimate":"98.2","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Delaware","year_season":"2024-25","coverage_estimate":"2.6","foot_notes":"†","survey_type":"2-stage cluster sample (pub.), nonrandom 2-stage cluster sample (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Delaware","year_season":"2024-25","coverage_estimate":"94.1","foot_notes":"‡","survey_type":"2-stage cluster sample (pub.), nonrandom 2-stage cluster sample (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"District of Columbia","year_season":"2024-25","coverage_estimate":"2.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"District of Columbia","year_season":"2024-25","coverage_estimate":"92.7","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Florida","year_season":"2024-25","coverage_estimate":"5.1","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Florida","year_season":"2024-25","coverage_estimate":"88.8","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Georgia","year_season":"2024-25","coverage_estimate":"4.8","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Georgia","year_season":"2024-25","coverage_estimate":"86.8","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Hawaii","year_season":"2024-25","coverage_estimate":"5.6","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Hawaii","year_season":"2024-25","coverage_estimate":"90.1","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Idaho","year_season":"2024-25","coverage_estimate":"15.4","foot_notes":"||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Idaho","year_season":"2024-25","coverage_estimate":"78.5","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Illinois","year_season":"2024-25","coverage_estimate":"2.8","foot_notes":">=. †. §","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Illinois","year_season":"2024-25","coverage_estimate":"91.8","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Indiana","year_season":"2024-25","coverage_estimate":"2.6","foot_notes":"†. ||||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Indiana","year_season":"2024-25","coverage_estimate":"90.8","foot_notes":"§","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Iowa","year_season":"2024-25","coverage_estimate":"3.9","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Iowa","year_season":"2024-25","coverage_estimate":"88.8","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Kansas","year_season":"2024-25","coverage_estimate":"3.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Kansas","year_season":"2024-25","coverage_estimate":"91.0","foot_notes":"†. ‡. §","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Kentucky","year_season":"2024-25","coverage_estimate":"2.2","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Kentucky","year_season":"2024-25","coverage_estimate":"86.9","foot_notes":"*. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Louisiana","year_season":"2024-25","coverage_estimate":"3.1","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Louisiana","year_season":"2024-25","coverage_estimate":"92.6","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Maine","year_season":"2024-25","coverage_estimate":"0.8","foot_notes":"†. ‡","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Maine","year_season":"2024-25","coverage_estimate":"97.6","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Maryland","year_season":"2024-25","coverage_estimate":"2.2","foot_notes":"†","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Maryland","year_season":"2024-25","coverage_estimate":"96.4","foot_notes":"‡","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Massachusetts","year_season":"2024-25","coverage_estimate":"1.5","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Massachusetts","year_season":"2024-25","coverage_estimate":"96.6","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Michigan","year_season":"2024-25","coverage_estimate":"6.8","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Michigan","year_season":"2024-25","coverage_estimate":"91.6","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Minnesota","year_season":"2024-25","coverage_estimate":"5.9","foot_notes":">=. §. ||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Minnesota","year_season":"2024-25","coverage_estimate":"86.5","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Mississippi","year_season":"2024-25","coverage_estimate":"1.2","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Mississippi","year_season":"2024-25","coverage_estimate":"97.6","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Missouri","year_season":"2024-25","coverage_estimate":"5.2","foot_notes":">=. †. §","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Missouri","year_season":"2024-25","coverage_estimate":"90.0","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Nebraska","year_season":"2024-25","coverage_estimate":"4.0","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Nebraska","year_season":"2024-25","coverage_estimate":"94.2","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Nevada","year_season":"2024-25","coverage_estimate":"7.1","foot_notes":"†","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Nevada","year_season":"2024-25","coverage_estimate":"91.3","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Hampshire","year_season":"2024-25","coverage_estimate":"4.1","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Hampshire","year_season":"2024-25","coverage_estimate":"89.2","foot_notes":">=. *. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Jersey","year_season":"2024-25","coverage_estimate":"4.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Jersey","year_season":"2024-25","coverage_estimate":"92.8","foot_notes":">=. *","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New Mexico","year_season":"2024-25","coverage_estimate":"2.0","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New Mexico","year_season":"2024-25","coverage_estimate":"94.8","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"New York","year_season":"2024-25","coverage_estimate":"0.1","survey_type":"Vol. response"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"New York","year_season":"2024-25","coverage_estimate":"97.8","survey_type":"Vol. response"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"North Carolina","year_season":"2024-25","coverage_estimate":"3.2","foot_notes":"†","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"North Carolina","year_season":"2024-25","coverage_estimate":"94.2","foot_notes":"§","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"North Dakota","year_season":"2024-25","coverage_estimate":"7.0","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"North Dakota","year_season":"2024-25","coverage_estimate":"90.0","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"NY-City of New York","year_season":"2024-25","coverage_estimate":"0.1","foot_notes":"†. ‡","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"NY-City of New York","year_season":"2024-25","coverage_estimate":"97.1","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Ohio","year_season":"2024-25","coverage_estimate":"4.7","foot_notes":"||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Ohio","year_season":"2024-25","coverage_estimate":"88.3","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Oklahoma","year_season":"2024-25","coverage_estimate":"5.7","survey_type":"Vol. response"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Oklahoma","year_season":"2024-25","coverage_estimate":"88.7","foot_notes":"‡","survey_type":"Vol. response"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Oregon","year_season":"2024-25","coverage_estimate":"9.8","foot_notes":"||","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Oregon","year_season":"2024-25","coverage_estimate":"90.5","foot_notes":"*. ‡","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Pennsylvania","year_season":"2024-25","coverage_estimate":"6.0","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Pennsylvania","year_season":"2024-25","coverage_estimate":"92.4","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Rhode Island","year_season":"2024-25","coverage_estimate":"1.9","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Rhode Island","year_season":"2024-25","coverage_estimate":"96.7","foot_notes":"‡. §","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"South Carolina","year_season":"2024-25","coverage_estimate":"4.6","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"South Carolina","year_season":"2024-25","coverage_estimate":"91.2","foot_notes":"†","survey_type":"Stratified 1-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"South Dakota","year_season":"2024-25","coverage_estimate":"6.8","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"South Dakota","year_season":"2024-25","coverage_estimate":"90.0","foot_notes":"§","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Tennessee","year_season":"2024-25","coverage_estimate":"3.8","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Tennessee","year_season":"2024-25","coverage_estimate":"94.4","foot_notes":"§","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Texas","year_season":"2024-25","coverage_estimate":"4.3","foot_notes":"||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Texas","year_season":"2024-25","coverage_estimate":"93.2","foot_notes":"‡. §","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"TX-City of Houston","year_season":"2024-25","coverage_estimate":"2.5","foot_notes":"||","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"TX-City of Houston","year_season":"2024-25","coverage_estimate":"88.7","foot_notes":"‡. §","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"National","geography":"United States","year_season":"2024-25","coverage_estimate":"3.6"}
+,{"vaccine":"MMR","dose":"","geography_type":"National","geography":"United States","year_season":"2024-25","coverage_estimate":"92.5"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"National","geography":"U.S. Median","year_season":"2024-25","coverage_estimate":"4.1"}
+,{"vaccine":"MMR","dose":"","geography_type":"National","geography":"U.S. Median","year_season":"2024-25","coverage_estimate":"91.3"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Utah","year_season":"2024-25","coverage_estimate":"10.3","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Utah","year_season":"2024-25","coverage_estimate":"88.6","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Vermont","year_season":"2024-25","coverage_estimate":"3.9","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Vermont","year_season":"2024-25","coverage_estimate":"93.5","foot_notes":"*","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Virginia","year_season":"2024-25","coverage_estimate":"2.7","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Virginia","year_season":"2024-25","coverage_estimate":"95.6","foot_notes":"†","survey_type":"Stratified 2-stage cluster sample"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Washington","year_season":"2024-25","coverage_estimate":"4.8","foot_notes":"||||. ¶¶","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Washington","year_season":"2024-25","coverage_estimate":"90.9","survey_type":"Census"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Wisconsin","year_season":"2024-25","coverage_estimate":"7.6","foot_notes":"||||. ¶¶","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Wisconsin","year_season":"2024-25","coverage_estimate":"84.8","foot_notes":"‡. §","survey_type":"Census (pub.), vol. response (prv.)"}
+,{"vaccine":"Exemption","dose":"Any Exemption","geography_type":"States","geography":"Wyoming","year_season":"2024-25","coverage_estimate":"5.9","foot_notes":"†","survey_type":"Census"}
+,{"vaccine":"MMR","dose":"","geography_type":"States","geography":"Wyoming","year_season":"2024-25","coverage_estimate":"93.6","foot_notes":"*","survey_type":"Census"}]

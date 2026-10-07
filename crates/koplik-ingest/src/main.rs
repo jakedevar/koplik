@@ -18,6 +18,7 @@ use std::time::Duration;
 
 use chrono::{Datelike, Utc};
 use koplik_ingest::cdc;
+use koplik_ingest::coverage;
 use koplik_ingest::error::{IngestError, Result};
 use koplik_ingest::http::UreqClient;
 use koplik_ingest::polite::{PoliteConfig, PoliteFetcher, SystemTimekeeper, contact_from_env};
@@ -27,6 +28,10 @@ use koplik_ingest::store::{DEFAULT_ROOT, PutOutcome, SnapshotStore};
 const USAGE: &str = "usage:
   koplik-ingest fetch cdc-cases [--store DIR] [--first-year Y] [--last-year Y]
   koplik-ingest parse cdc-cases [--store DIR] [--out FILE]
+  koplik-ingest fetch cdc-coverage [--store DIR] [--first-year Y] [--last-year Y]
+  koplik-ingest parse cdc-coverage [--store DIR] [--first-year Y] [--last-year Y] [--out FILE] [--gaps FILE]
+  koplik-ingest fetch texas-coverage [--store DIR] [--year Y]
+  koplik-ingest parse texas-coverage [--store DIR] [--year Y] [--out FILE] [--gaps FILE]
   koplik-ingest list [--store DIR] [--source ID]";
 
 /// Largest response body accepted (the CDC measles query is about 1 MB).
@@ -82,6 +87,86 @@ fn run(args: Vec<String>) -> Result<()> {
         .take("--store")?
         .unwrap_or_else(|| DEFAULT_ROOT.to_owned());
     match (cmd.as_str(), source.as_deref()) {
+        ("fetch" | "parse", Some(src @ ("cdc-coverage" | "texas-coverage"))) => {
+            let (first, last) = if src == "cdc-coverage" {
+                (
+                    year(flags.take("--first-year")?, coverage::FIRST_YEAR)?,
+                    year(flags.take("--last-year")?, coverage::LAST_YEAR)?,
+                )
+            } else {
+                let y = year(flags.take("--year")?, coverage::TEXAS_BASELINE_YEAR)?;
+                (y, y)
+            };
+            let spec = if src == "cdc-coverage" {
+                coverage::cdc_source_spec(first, last)?
+            } else {
+                coverage::texas_source_spec(first)?
+            };
+            if cmd == "fetch" {
+                flags.done()?;
+                // Match the reviewed CDC fetch path: no contact, no request or store.
+                let cfg = PoliteConfig::live(contact_from_env().as_deref())?;
+                let store = SnapshotStore::open(&store_dir)?;
+                let mut fetcher = PoliteFetcher::new(
+                    UreqClient::new(Duration::from_secs(60), MAX_BODY_BYTES),
+                    SystemTimekeeper::new(),
+                    cfg,
+                );
+                let specs = if src == "texas-coverage" {
+                    vec![coverage::county_source_spec(), spec]
+                } else {
+                    vec![spec]
+                };
+                for spec in specs {
+                    let (r, _) = fetch_to_store(&mut fetcher, &store, &spec)?;
+                    eprintln!(
+                        "stored {}: sha256 {} ({} bytes)",
+                        r.source_id, r.sha256, r.bytes
+                    );
+                    println!(
+                        "{}",
+                        serde_json::to_string(&r).expect("retrieval serialises")
+                    );
+                }
+                Ok(())
+            } else {
+                let out = flags.take("--out")?;
+                let gaps = flags.take("--gaps")?;
+                flags.done()?;
+                if out.is_some() && out == gaps {
+                    return Err(IngestError::Invalid(
+                        "--out and --gaps need different paths".into(),
+                    ));
+                }
+                let store = SnapshotStore::open(&store_dir)?;
+                let rows = if src == "cdc-coverage" {
+                    coverage::parse_latest_cdc(&store, first, last)?
+                } else {
+                    coverage::parse_latest_texas(&store, first)?
+                };
+                let missing = coverage::gaps(&rows);
+                eprintln!(
+                    "parsed {} coverage rows; {} missing",
+                    rows.len(),
+                    missing.len()
+                );
+                if let Some(path) = gaps {
+                    std::fs::write(
+                        &path,
+                        serde_json::to_string(&missing).expect("gaps serialise"),
+                    )
+                    .map_err(|e| IngestError::io(path, e))?;
+                }
+                let json = serde_json::to_string(&rows).expect("rows serialise");
+                match out {
+                    Some(path) => std::fs::write(&path, json).map_err(|e| IngestError::io(path, e)),
+                    None => {
+                        println!("{json}");
+                        Ok(())
+                    }
+                }
+            }
+        }
         ("fetch", Some("cdc-cases")) => {
             let first = year(flags.take("--first-year")?, cdc::FIRST_YEAR)?;
             let last = year(

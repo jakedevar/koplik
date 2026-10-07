@@ -8,6 +8,7 @@
 //! v1 type: snapshot hash, source URL, retrieval time, licence id).
 
 pub mod cdc;
+pub mod coverage;
 pub mod error;
 pub mod http;
 pub mod jurisdictions;
