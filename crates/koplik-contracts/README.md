@@ -12,10 +12,25 @@ with generated JSON Schema; the web app reads the schema.
 - Every top-level type's JSON Schema is committed under `schema/<version>/` (one file per
   type). `tests/schema.rs` regenerates the schema and fails if the committed files differ.
 
+## Versions
+
+- **v1** (released, frozen): the original vocabulary. `schema/v1/` is checked byte-for-byte by
+  `tests/v1_frozen.rs`.
+- **v2** (`CONTRACT_VERSION` 2): one shape change. `WeeklyCaseCount` replaces `confirmed` with
+  `cases` plus a required `case_definition` (`confirmed` | `confirmed_or_unknown_status`).
+  Why: CDC's NNDSS publication criteria for measles (event code 10140) print cases with
+  *confirmed and unknown* case status, and the weekly data carries no case-status field, so
+  those totals must not be typed as confirmed cases (see `SOURCES.md`). Every other type is
+  re-exported from v1 unchanged (same Rust type and JSON), including `CaseCount`, whose v1
+  doc comment still says "confirmed-case count": read it as "case count". Schema:
+  `schema/v2/`. `impl From<v1::WeeklyCaseCount> for v2::WeeklyCaseCount` upgrades a v1 row
+  losslessly (`case_definition: confirmed`). Consumers still on v1 (R_t, web loader, Texas
+  DSHS connector) migrate in follow-ups.
+
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema
+make schema        # KOPLIK_REGEN_SCHEMA=1 cargo test -p koplik-contracts --test schema_v2   (current version only)
 git add crates/koplik-contracts/schema
 ```
 

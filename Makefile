@@ -9,9 +9,10 @@ check:
 test:
 	$(CARGO) test --workspace
 
-# Regenerate the committed JSON Schema for koplik-contracts (then commit the result).
+# Regenerate the committed JSON Schema of the current contract version, v2 (then commit the
+# result). v1 is released and frozen: its schema is never regenerated (tests/v1_frozen.rs).
 schema:
-	KOPLIK_REGEN_SCHEMA=1 $(CARGO) test -p koplik-contracts --test schema
+	KOPLIK_REGEN_SCHEMA=1 $(CARGO) test -p koplik-contracts --test schema_v2
 
 wasm:
 	@echo "make wasm: not implemented yet" >&2; exit 1

@@ -1,4 +1,5 @@
-//! CDC weekly measles cases by state, from the NNDSS Weekly Data table on data.cdc.gov
+//! CDC weekly measles cases by state (contracts v2 rows, case definition
+//! `confirmed_or_unknown_status`), from the NNDSS Weekly Data table on data.cdc.gov
 //! (Socrata dataset `x9gk-5huc`). Why this source and how weekly counts are derived is
 //! documented in `SOURCES.md`; in short:
 //!
@@ -18,8 +19,9 @@
 
 use std::collections::BTreeMap;
 
-use koplik_contracts::v1::{
-    CaseCount, GeoId, MissingReason, MmwrWeek, Provenances, StateFips, WeeklyCaseCount,
+use koplik_contracts::v2::{
+    CaseCount, CaseDefinition, GeoId, MissingReason, MmwrWeek, Provenances, StateFips,
+    WeeklyCaseCount,
 };
 use serde::{Deserialize, Deserializer};
 
@@ -259,12 +261,15 @@ pub fn parse_weekly_cases(bytes: &[u8], retrieval: &Retrieval) -> Result<Vec<Wee
             let mut prev: Option<Cum> = None;
             for week in 1..=last {
                 let cur = total_cumulative(&cells, &names, year, week);
-                let confirmed = weekly(prev, cur);
+                let cases = weekly(prev, cur);
                 prev = Some(cur);
                 out.push(WeeklyCaseCount {
                     geography: GeoId::State(fips),
                     week: MmwrWeek::new(year, week).expect("validated while reading rows"),
-                    confirmed,
+                    cases,
+                    // NNDSS publishes confirmed AND unknown-status measles cases and the query has
+                    // no case-status field to tell them apart (SOURCES.md), so never `Confirmed`.
+                    case_definition: CaseDefinition::ConfirmedOrUnknownStatus,
                     provenance: provenance.clone(),
                 });
             }

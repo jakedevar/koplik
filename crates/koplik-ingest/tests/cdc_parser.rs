@@ -4,7 +4,9 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use koplik_contracts::v1::{CaseCount, GeoId, MissingReason, MmwrWeek, StateFips, WeeklyCaseCount};
+use koplik_contracts::v2::{
+    CaseCount, CaseDefinition, GeoId, MissingReason, MmwrWeek, StateFips, WeeklyCaseCount,
+};
 use koplik_ingest::cdc;
 use koplik_ingest::store::{PutOutcome, Retrieval, RetrievalMeta, SnapshotStore};
 
@@ -30,7 +32,7 @@ fn rows_for(rows: &[WeeklyCaseCount], fips: u8) -> Vec<&WeeklyCaseCount> {
 }
 
 fn count(r: &WeeklyCaseCount) -> Option<u32> {
-    r.confirmed.count()
+    r.cases.count()
 }
 
 #[test]
@@ -64,6 +66,21 @@ fn parses_every_geography_and_week_with_provenance() {
         assert_eq!(p[0].retrieved_at, retrieval.retrieved_at);
         assert_eq!(p[0].source_id, cdc::SOURCE_ID);
     }
+}
+
+#[test]
+fn every_row_declares_the_unknown_status_inclusive_definition() {
+    // NNDSS publishes confirmed AND unknown case status for measles, so the connector must
+    // never type its totals as confirmed.
+    let rows = cdc::parse_weekly_cases(&fixture_bytes(), &fixture_retrieval()).unwrap();
+    assert!(
+        rows.iter()
+            .all(|r| r.case_definition == CaseDefinition::ConfirmedOrUnknownStatus)
+    );
+    let json = serde_json::to_value(&rows[0]).unwrap();
+    assert_eq!(json["case_definition"], "confirmed_or_unknown_status");
+    assert!(json.get("confirmed").is_none());
+    assert!(json.get("cases").is_some());
 }
 
 #[test]
@@ -102,7 +119,7 @@ fn a_falling_cumulative_is_missing_not_negative_or_zero() {
     let rows = cdc::parse_weekly_cases(&fixture_bytes(), &fixture_retrieval()).unwrap();
     let missing: Vec<(&WeeklyCaseCount, MissingReason)> = rows
         .iter()
-        .filter_map(|r| match r.confirmed {
+        .filter_map(|r| match r.cases {
             CaseCount::Missing { reason } => Some((r, reason)),
             CaseCount::Reported { .. } => None,
         })
@@ -118,7 +135,7 @@ fn a_falling_cumulative_is_missing_not_negative_or_zero() {
             .into_iter()
             .find(|r| r.week == MmwrWeek::new(2025, week).unwrap())
             .unwrap()
-            .confirmed
+            .cases
     };
     // California 2025 week 34: total cumulative 20 -> 19 (Indigenous 17 -> 16).
     assert_eq!(
@@ -216,7 +233,7 @@ fn weekly(rows: &[WeeklyCaseCount], fips: u8, year: u16) -> BTreeMap<u8, CaseCou
     rows_for(rows, fips)
         .into_iter()
         .filter(|r| r.week.year == year)
-        .map(|r| (r.week.week, r.confirmed))
+        .map(|r| (r.week.week, r.cases))
         .collect()
 }
 

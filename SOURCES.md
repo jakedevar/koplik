@@ -64,17 +64,20 @@ number). `m1` ("current week") is not used.
    jurisdiction reports and has none, so a cumulative of `-` is a real zero.
 5. Geographies are the 50 states, DC and 5 territories keyed by state FIPS (56). Regional and national
    totals and `Non-U.S. Residents` are skipped; an unrecognised jurisdiction name is an error.
-6. Case classification (inference, not a direct statement for measles). CDC's guide to the weekly
-   tables says each table publishes the case classifications (confirmed, probable, suspected) set per
-   condition in the "Publication Criteria" column of its Event (disease/condition) Code List, and that
-   the counts are provisional cases "that meet the publication criteria". The review of this connector
-   cites that criteria table as listing measles as confirmed only. I verified the general rule in the
-   guide (<https://ndc.services.cdc.gov/wp-content/uploads/guide_to_interpreting_provisional_and_finalized_nndss_data_tables.pdf>)
-   and that the measles footnote of a weekly table defines only imported versus indigenous, not the
-   classification; I did not read the measles row of the criteria table myself. So treating
-   `WeeklyCaseCount.confirmed` as confirmed cases is an inference from CDC's publication criteria,
-   not something the dataset states. The UI should say "cases as reported to NNDSS" until the
-   criteria row has been checked for the year in question.
+6. **Case definition: confirmed OR unknown status, not "confirmed".** CDC's NNDSS Event Code List
+   lists the publication criteria for measles (rubeola), event code 10140, in column F: **"Cases with
+   confirmed and unknown case status are printed."** Both the 2025 and the 2026 editions say this
+   (read directly from the workbooks, 2026-10-07):
+   - 2025 v2: <https://ndc.services.cdc.gov/wp-content/uploads/National_Notifiable_Diseases_Surveillance_System_Event_Code_List_2025_v2_2025Nov21-508.xlsx>
+     (row for event code 10140, same text on each of its event-code tabs).
+   - 2026 v1: <https://ndc.services.cdc.gov/wp-content/uploads/National_Notifiable_Diseases_Surveillance_System_Event_Code_List_2026_v1_2026Jan12.xlsx>,
+     sheet "Event Codes", cell F98.
+
+   The weekly query has no case-status field, so confirmed cases cannot be separated from
+   unknown-status ones. The connector therefore emits **contracts v2** rows
+   (`WeeklyCaseCount.cases` with `case_definition = confirmed_or_unknown_status`) and never
+   `confirmed`; v1's `confirmed` field is not used for this source. UI and R_t consumers must say
+   "confirmed or unknown-status cases reported to NNDSS".
 
 **Fixture.** `data/fixtures/cdc/nndss-measles-weekly.json` is the unmodified response retrieved
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`

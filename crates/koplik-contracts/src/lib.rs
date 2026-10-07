@@ -5,6 +5,7 @@
 //! module (`v2`, ...) with regenerated JSON Schema under `schema/`.
 
 pub mod v1;
+pub mod v2;
 
-/// The newest contract version published by this crate.
-pub const CONTRACT_VERSION: u32 = 1;
+/// The newest contract version published by this crate (the `v2` module).
+pub const CONTRACT_VERSION: u32 = 2;
