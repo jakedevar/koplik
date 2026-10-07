@@ -1,7 +1,7 @@
 //! Released contract versions are immutable: the committed JSON Schema files of v1, v2, v3, v4,
-//! v5 and v6 and the Rust sources that define them must stay byte-for-byte what they released with.
-//! A shape change is a new version (`v8`, ...), never an edit here. (v7 is the newest version and
-//! is covered by `schema_v7.rs`; freeze it here when v8 is added.)
+//! v5, v6 and v7 and the Rust sources that define them must stay byte-for-byte what they released
+//! with. A shape change is a new version (`v9`, ...), never an edit here. (v8 is the newest version
+//! and is covered by `schema_v8.rs`; freeze it here when v9 is added.)
 
 use std::fs;
 use std::path::PathBuf;
@@ -343,7 +343,7 @@ const V6_SCHEMA: &[(&str, &str)] = &[
     ),
 ];
 
-/// `src/` files that define v1 to v6 (v2's `mod.rs` is the whole of v2).
+/// `src/` files that define v1 to v7 (v2's `mod.rs` is the whole of v2).
 const V4_SCHEMA: &[(&str, &str)] = &[
     (
         "CaseDefinition.schema.json",
@@ -408,6 +408,97 @@ const V4_SCHEMA: &[(&str, &str)] = &[
     (
         "WeeklyCaseCount.schema.json",
         "327e8f2f91982516a1dc551264969658c1b4887deb1aac0d32755661dc6a23d8",
+    ),
+];
+
+const V7_SCHEMA: &[(&str, &str)] = &[
+    (
+        "CaseDefinition.schema.json",
+        "d3cbd4f83bdfd132295598fbfe86ce1b1fcc221c2ccb18c62fcb6b9fe772dc83",
+    ),
+    (
+        "CountyFips.schema.json",
+        "7484018f3820cd01365ae3f14ed24c0da733ca8e1bc43cab513942c88ecbbf35",
+    ),
+    (
+        "EnsembleResult.schema.json",
+        "bcb421a23e9f79c93d9bc56cdf0027fda2e4e547131737d166b114066e0ac106",
+    ),
+    (
+        "Forecast.schema.json",
+        "60215be6b1be3e726eda94a98be940905955aeb843b6a20706e8256d4d8f78bf",
+    ),
+    (
+        "ForecastArtifact.schema.json",
+        "f1082e230d4ed852537aeb5fbb98b5a3d67545ea7042f4fef003563ec7e335ba",
+    ),
+    (
+        "ForecastProvenance.schema.json",
+        "926fe45e4c15734e7b7bd55b59f81ca0b43d5fce0b28cb0d2dd435d0b233a076",
+    ),
+    (
+        "GeoId.schema.json",
+        "521c0b0c4f81015c8324b1f00ad858a65b6ec35cb68d54acef21de774856db1b",
+    ),
+    (
+        "Geography.schema.json",
+        "9f180fef1a4eb7accc447b17597f6f0ed9bc574933aa1510678092cb9c4ce93a",
+    ),
+    (
+        "GeographyArtifact.schema.json",
+        "b349e0fc875ac19d251ed565d6683729c585cab1aea73b91a79b65fbc3525af5",
+    ),
+    (
+        "KindergartenMmrCoverage.schema.json",
+        "4fcbcae30667a5b7f2659b20602a89a155ec38a0d371c8f10e1edea4c858fdb5",
+    ),
+    (
+        "KindergartenMmrCoverageArtifact.schema.json",
+        "7edc7c48f7cb4d621cabdf70a83ec5fc777800a17ea1600a80a2ea1f1938f0e0",
+    ),
+    (
+        "MmwrWeek.schema.json",
+        "35334d124ebe07b5024aa5fa1dbae6b8bedf3b3deac10965c6b5c0fea011173f",
+    ),
+    (
+        "Population.schema.json",
+        "a718f87b3765291fe1d9dabe3f6a9d8071da9629f033389018820b847fa1d844",
+    ),
+    (
+        "Provenance.schema.json",
+        "421c05ca2518bd14966933dbd02cf374a52c3f6e464436fe568268469c80c0b6",
+    ),
+    (
+        "RtEstimate.schema.json",
+        "17d8e380c7c1e5b61ab9f3c7d9d25480b5ba411dbb30cba2462bd66c2cd5b45b",
+    ),
+    (
+        "RtEstimateArtifact.schema.json",
+        "3b18cbf6e51b17c5a0d68d51db064670d9e8489b3df770831d0df32982fe9372",
+    ),
+    (
+        "ScenarioInput.schema.json",
+        "1f7181c420c18a93b4240b07ebbb0437e689d143406e7e69c88d8420490d8006",
+    ),
+    (
+        "ScenarioProvenance.schema.json",
+        "35443f951071239d0c5ea38c332cb44520ec0b83873e513e9734e527a5c1f00c",
+    ),
+    (
+        "StateFips.schema.json",
+        "8ace44167c1dcaa6a0b1c3443db05f27535c29e9151e298e86ecac1ac3e25703",
+    ),
+    (
+        "TrajectoryResult.schema.json",
+        "31af8e5252b663c01e54ce9764e2f80b1412c9fe9201efae297473600d9006d6",
+    ),
+    (
+        "WeeklyCaseCount.schema.json",
+        "327e8f2f91982516a1dc551264969658c1b4887deb1aac0d32755661dc6a23d8",
+    ),
+    (
+        "WeeklyCaseCountArtifact.schema.json",
+        "4ae6f7938ad892ae7755bb0b798ca4e5d9dc38aca8cf69bdbf2b039d16e3b60a",
     ),
 ];
 
@@ -488,6 +579,14 @@ const SOURCES: &[(&str, &str)] = &[
         "v6/mod.rs",
         "16702a4a19aca4fb7bc68a1abb2588cf3db6f2ea2b82780973bcbbeb01604525",
     ),
+    (
+        "v7/forecast_provenance.rs",
+        "467f24bbf2d27c26710ef98cfcc5b68d36292e32b2fb28029ba9d9f9a74def6e",
+    ),
+    (
+        "v7/mod.rs",
+        "c1abd7e621672a56e9af0af7270e5ab24bfecdd27c07a2b4ce5036da4556ce6f",
+    ),
 ];
 
 fn root() -> PathBuf {
@@ -550,7 +649,12 @@ fn v6_schema_files_are_unchanged() {
 }
 
 #[test]
-fn v1_to_v6_sources_are_unchanged() {
+fn v7_schema_files_are_unchanged() {
+    check_schema_dir("v7", V7_SCHEMA);
+}
+
+#[test]
+fn v1_to_v7_sources_are_unchanged() {
     for (name, want) in SOURCES {
         assert_eq!(
             &digest(root().join("src").join(name)),

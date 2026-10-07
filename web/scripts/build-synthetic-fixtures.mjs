@@ -27,6 +27,16 @@ const rt = all.flatMap((g) => g.rt.map((estimate, i) => ({ geography: g.id, week
   status: estimate === null ? 'insufficient_data' : 'ok', provisional: i === g.rt.length - 1,
   mean: estimate?.[0] ?? null, lower: estimate?.[1] ?? null, upper: estimate?.[2] ?? null, interval_level: 0.9, provenance,
 })));
+// Synthetic cumulative-by-report-date rows (contracts v8 shape) for the Texas counties only, so the county
+// drill-down has a series to draw in the dev server and the tests: invented counts at invented report dates, one of
+// them a report with no county table. Real rows come from the pipeline (koplik-ingest dshs_series).
+const cumulativeDates = ['2025-03-04', '2025-03-25', '2025-03-28', '2025-11-24'];
+const cumulative = source.counties.flatMap((g) => {
+  const total = g.cases2025.reduce((sum, count) => sum + (count ?? 0), 0);
+  return cumulativeDates.map((report_date, i) => ({ geography: g.id, report_date,
+    cases: i === 2 ? { status: 'missing', reason: 'no_county_table' } : { status: 'reported', count: [Math.round(total * 0.2), Math.round(total * 0.5), 0, total][i] },
+    case_definition: 'confirmed', provenance }));
+});
 function boundaries(rows) {
   return { type: 'FeatureCollection', features: rows.map((g) => {
     const [west, south, east, north] = g.rectangle;
@@ -98,7 +108,7 @@ const forecastProvenance = {
   },
   scope_note: 'SYNTHETIC FIXTURE: the scores describe invented series, not the forecast beside them.',
 };
-const artifacts = { geographies, 'weekly-cases': cases, coverage, rt, 'us-states': boundaries(source.states), 'texas-counties': boundaries(source.counties) };
+const artifacts = { geographies, 'weekly-cases': cases, coverage, rt, 'us-states': boundaries(source.states), 'texas-counties': boundaries(source.counties), 'cumulative-cases': cumulative };
 for (const root of [new URL('../../data/fixtures/web/synthetic-v1/', import.meta.url)]) {
   await mkdir(root, { recursive: true });
   for (const [name, value] of Object.entries(artifacts)) await writeFile(new URL(`synthetic-${name}.json`, root), `${JSON.stringify(value, null, 2)}\n`);

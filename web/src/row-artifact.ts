@@ -5,13 +5,15 @@ import cases from '../../crates/koplik-contracts/schema/v6/WeeklyCaseCountArtifa
 import coverage from '../../crates/koplik-contracts/schema/v6/KindergartenMmrCoverageArtifact.schema.json';
 import rt from '../../crates/koplik-contracts/schema/v6/RtEstimateArtifact.schema.json';
 import forecast from '../../crates/koplik-contracts/schema/v6/ForecastArtifact.schema.json';
+import cumulative from '../../crates/koplik-contracts/schema/v8/CumulativeCaseReportArtifact.schema.json';
 import type { GeographyArtifact } from './generated/v6/GeographyArtifact';
 import type { WeeklyCaseCountArtifact } from './generated/v6/WeeklyCaseCountArtifact';
 import type { KindergartenMmrCoverageArtifact } from './generated/v6/KindergartenMmrCoverageArtifact';
 import type { RtEstimateArtifact } from './generated/v6/RtEstimateArtifact';
 import type { ForecastArtifact } from './generated/v6/ForecastArtifact';
+import type { CumulativeCaseReportArtifact } from './generated/v8/CumulativeCaseReportArtifact';
 
-type Artifact = GeographyArtifact | WeeklyCaseCountArtifact | KindergartenMmrCoverageArtifact | RtEstimateArtifact | ForecastArtifact;
+type Artifact = GeographyArtifact | WeeklyCaseCountArtifact | KindergartenMmrCoverageArtifact | RtEstimateArtifact | ForecastArtifact | CumulativeCaseReportArtifact;
 const ajv = new Ajv({ strict: false, allErrors: true });
 addFormats(ajv);
 for (const [format, maximum] of [['uint8', 255], ['uint16', 65535], ['uint32', 4294967295], ['uint64', 18446744073709551615]] as const) {
@@ -20,11 +22,12 @@ for (const [format, maximum] of [['uint8', 255], ['uint16', 65535], ['uint32', 4
 ajv.addFormat('double', { type: 'number', validate: Number.isFinite });
 const validators = {
   geographies: ajv.compile(geography), cases: ajv.compile(cases), coverage: ajv.compile(coverage),
-  rt: ajv.compile(rt), forecast: ajv.compile(forecast),
+  rt: ajv.compile(rt), forecast: ajv.compile(forecast), cumulative: ajv.compile(cumulative),
 };
 
-/** Expand v6 before the released row validators and UI consume it. Legacy arrays
- * remain accepted for development fixtures and explicit lossless upgrades. */
+/** Expand the per-file provenance table (v6 envelopes, and the v8 cumulative-case envelope with
+ * the same layout) before the row validators and UI consume it. Legacy arrays remain accepted
+ * for development fixtures and explicit lossless upgrades. */
 export function expandRowArtifact(kind: keyof typeof validators, input: unknown): unknown {
   if (Array.isArray(input)) return input;
   const validate = validators[kind];

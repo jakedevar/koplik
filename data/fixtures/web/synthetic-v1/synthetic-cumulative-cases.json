@@ -1,0 +1,146 @@
+[
+  {
+    "geography": "48165",
+    "report_date": "2025-03-04",
+    "cases": {
+      "status": "reported",
+      "count": 4
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "report_date": "2025-03-25",
+    "cases": {
+      "status": "reported",
+      "count": 10
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "report_date": "2025-03-28",
+    "cases": {
+      "status": "missing",
+      "reason": "no_county_table"
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "report_date": "2025-11-24",
+    "cases": {
+      "status": "reported",
+      "count": 20
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "report_date": "2025-03-04",
+    "cases": {
+      "status": "reported",
+      "count": 0
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "report_date": "2025-03-25",
+    "cases": {
+      "status": "reported",
+      "count": 1
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "report_date": "2025-03-28",
+    "cases": {
+      "status": "missing",
+      "reason": "no_county_table"
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "report_date": "2025-11-24",
+    "cases": {
+      "status": "reported",
+      "count": 2
+    },
+    "case_definition": "confirmed",
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  }
+]

@@ -52,7 +52,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   `ForecastProvenance::check_against(&[Forecast])` is the rule that forecast rows are only
   published beside a companion that describes them. The forecast rows keep their v1 shape. Every
   other type is re-exported from v4 unchanged. Schema: `schema/v5/`.
-- **v6** (`CONTRACT_VERSION` 6): v5 plus `RowArtifact<T>` (geography, weekly cases,
+- **v6** (released, frozen by `tests/frozen.rs`): v5 plus `RowArtifact<T>` (geography, weekly cases,
   coverage, R_t and forecast aliases). The wire envelope has `contract_version: 6`,
   a per-file `provenance` table, and `rows` whose `provenance` arrays hold zero-based
   u32 indices. The complete record is deduplicated, preserving row order and the
@@ -62,8 +62,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   so decimal parsing cannot change published numbers. Empty rows
   have an empty table. Companions, GeoJSON and stage outputs retain their current
   contracts; released v1–v5 sources and schemas are unchanged. Schema: `schema/v6/`.
-
-- **v7** (`CONTRACT_VERSION` 7): v6 with a changed forecast companion (#1503). `ForecastProvenance`
+- **v7** (released, frozen by `tests/frozen.rs`): v6 with a changed forecast companion (#1503). `ForecastProvenance`
   gains `series_backtest`: a second evaluation, `SeriesBacktest`, that scores the forecast over a
   family of series (the CDC NNDSS state series) and states its `InformationBasis` (`real-time by
   report vintage`, or `pseudo-real-time (revised counts truncated at each forecast date)`, which a
@@ -82,11 +81,27 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   `insufficient_data` gains the reason `projection_overflow` (the method refused a projection past
   its limit; the rest of the run goes on). Every other type is re-exported from v6 unchanged. Schema:
   `schema/v7/`.
+- **v8** (`CONTRACT_VERSION` 8): v7 plus `CumulativeCaseReport` and its artifact
+  `CumulativeCaseReportArtifact` (#1439): a *cumulative* case count as one source printed it on
+  one report date (`ReportDate`, `YYYY-MM-DD`), for one geography, with an explicit
+  `case_definition`. It is not a `WeeklyCaseCount` and is never differenced into weeks,
+  interpolated between reports or carried forward. The count is `reported` (a number the
+  report's county table prints for the county, a printed `0` included; never inferred) or
+  `missing` with a reason that is never zero and never estimated: `no_county_table` (a report
+  with no readable county breakdown), `not_labelled_confirmed` (a county table whose own
+  labelling does not establish confirmed cases), `not_listed_in_county_table` (the county is
+  absent from the report's county table: no count is printed, and absence is not read as zero
+  even where the table's rows add up to its total) or `ambiguous` (an unreadable or duplicated
+  county cell). The artifact keeps the v6 envelope (a per-file `provenance` table that each
+  row indexes; the whole record is deduplicated; row and provenance order are preserved) with
+  `contract_version: 8`, and rejects a second row for the same geography and report date. Every
+  other type is re-exported from v7 unchanged. Schema: `schema/v8/`. Freeze it in
+  `tests/frozen.rs` when v9 is added.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6 --test schema_v7
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6 --test schema_v7 --test schema_v8
 git add crates/koplik-contracts/schema
 ```
 

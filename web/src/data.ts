@@ -7,12 +7,14 @@ import casesSchema from '../../crates/koplik-contracts/schema/v3/WeeklyCaseCount
 import coverageSchema from '../../crates/koplik-contracts/schema/v1/KindergartenMmrCoverage.schema.json';
 import rtSchema from '../../crates/koplik-contracts/schema/v1/RtEstimate.schema.json';
 import provenanceSchema from '../../crates/koplik-contracts/schema/v1/Provenance.schema.json';
+import cumulativeSchema from '../../crates/koplik-contracts/schema/v8/CumulativeCaseReport.schema.json';
 import type { Provenance } from './generated/Provenance';
 import type { Geography } from './generated/Geography';
 import type { WeeklyCaseCount as WeeklyCaseCountV1 } from './generated/WeeklyCaseCount';
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { KindergartenMmrCoverage } from './generated/KindergartenMmrCoverage';
 import type { RtEstimate } from './generated/RtEstimate';
+import type { CumulativeCaseReport } from './generated/v8/CumulativeCaseReport';
 import type { FeatureCollection, Polygon, MultiPolygon } from 'geojson';
 
 export type Boundaries = FeatureCollection<Polygon | MultiPolygon, { GEOID: string; provenance?: Provenance[] }>;
@@ -21,6 +23,8 @@ export interface Dataset {
   cases: WeeklyCaseCount[];
   coverage: KindergartenMmrCoverage[];
   rt: RtEstimate[];
+  /** Texas DSHS cumulative counts by report date (contracts v8); never converted to weekly counts. */
+  cumulative: CumulativeCaseReport[];
   states: Boundaries;
   counties: Boundaries;
   synthetic: boolean;
@@ -44,6 +48,7 @@ const validators = {
   cases: ajv.compile(casesSchema),
   coverage: ajv.compile(coverageSchema),
   rt: ajv.compile(rtSchema),
+  cumulative: ajv.compile(cumulativeSchema),
 };
 const validateProvenance = ajv.compile(provenanceSchema);
 
@@ -52,6 +57,13 @@ export type CaseDefinition = WeeklyCaseCount['case_definition'];
 export const caseDefinitionLabels: Record<CaseDefinition, string> = {
   confirmed: 'confirmed cases',
   confirmed_or_unknown_status: 'confirmed or unknown-status cases',
+};
+
+/** Why a weekly count is missing, in plain words (the row keeps the contract's reason). */
+export const missingReasonWords: Record<Extract<WeeklyCaseCount['cases'], { status: 'missing' }>['reason'], string> = {
+  not_reported: 'not reported',
+  suppressed: 'suppressed by the source',
+  ambiguous: 'ambiguous: cannot be assigned to this week alone',
 };
 
 /** Lossless upgrade, mirroring koplik-contracts `From<v1::WeeklyCaseCount>`: a v1 row counted confirmed cases. */
@@ -84,7 +96,7 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
       if (!validateCasesV1(inputRow)) throw new Error(`${kind}: invalid v1 row: ${ajv.errorsText(validateCasesV1.errors)}`);
       inputRow = upgradeV1Case(inputRow as unknown as WeeklyCaseCountV1);
     }
-    if (!validate(inputRow)) throw new Error(`${kind}: invalid ${kind === 'cases' ? 'v3' : 'v1'} row: ${ajv.errorsText(validate.errors)}`);
+    if (!validate(inputRow)) throw new Error(`${kind}: invalid ${kind === 'cases' ? 'v3' : kind === 'cumulative' ? 'v8' : 'v1'} row: ${ajv.errorsText(validate.errors)}`);
     rows.push(inputRow);
     if (kind === 'geographies') {
       const row = inputRow as unknown as Geography;
@@ -109,7 +121,9 @@ export function parseRows<T extends keyof typeof validators>(kind: T, input: unk
       }
     }
     const weekly = inputRow as unknown as WeeklyCaseCount;
-    const observationKey = kind === 'geographies' ? (inputRow as unknown as Geography).id : `${weekly.geography}:${kind === 'coverage' ? (inputRow as unknown as KindergartenMmrCoverage).school_year : `${weekly.week.year}:${weekly.week.week}`}`;
+    const observationKey = kind === 'geographies' ? (inputRow as unknown as Geography).id :
+      kind === 'cumulative' ? `${(inputRow as unknown as CumulativeCaseReport).geography}:${(inputRow as unknown as CumulativeCaseReport).report_date}` :
+      `${weekly.geography}:${kind === 'coverage' ? (inputRow as unknown as KindergartenMmrCoverage).school_year : `${weekly.week.year}:${weekly.week.week}`}`;
     const key = kind === 'rt' ? `${observationKey}:${(inputRow as unknown as RtEstimate).interval_level}` : observationKey;
     if (keys.has(key)) throw new Error(`${kind}: duplicate row ${key}`);
     keys.add(key);
@@ -147,29 +161,31 @@ export function parseBoundaries(input: unknown, level: 'state' | 'county'): Boun
 
 /** Read only static, same-origin artifacts; no external source or tile requests. */
 export async function loadDataset(base: string, synthetic = false, read: typeof fetch = fetch): Promise<Dataset> {
-  const root = `${base.replace(/\/$/, '')}/data/${synthetic ? 'synthetic-v1' : 'v6'}/`;
-  async function json(name: string): Promise<unknown> {
-    const response = await read(`${root}${synthetic ? 'synthetic-' : ''}${name}.json`);
+  const dataRoot = `${base.replace(/\/$/, '')}/data/`;
+  // Row artifacts live under the contract version of their envelope: v6 for the original files, v8 for the cumulative series.
+  async function json(name: string, version: 'v6' | 'v8' = 'v6'): Promise<unknown> {
+    const response = await read(`${dataRoot}${synthetic ? 'synthetic-v1/synthetic-' : `${version}/`}${name}.json`);
     if (!response.ok) throw new Error(`${name}: artifact unavailable (${response.status})`);
     return response.json();
   }
-  const [geographies, cases, coverage, rt, states, counties] = await Promise.all([
+  const [geographies, cases, coverage, rt, states, counties, cumulative] = await Promise.all([
     json('geographies'), json('weekly-cases'), json('coverage'), json('rt'), json('us-states'), json('texas-counties'),
+    json('cumulative-cases', 'v8'),
   ]);
   const result: Dataset = {
     geographies: parseRows('geographies', geographies), cases: parseRows('cases', cases),
-    coverage: parseRows('coverage', coverage), rt: parseRows('rt', rt),
+    coverage: parseRows('coverage', coverage), rt: parseRows('rt', rt), cumulative: parseRows('cumulative', cumulative),
     states: parseBoundaries(states, 'state'), counties: parseBoundaries(counties, 'county'), synthetic,
   };
   const ids = new Set(result.geographies.map((g) => g.id));
   for (const feature of [...result.states.features, ...result.counties.features]) {
     if (!ids.has(feature.properties.GEOID)) throw new Error(`Boundary has unknown geography ${feature.properties.GEOID}`);
   }
-  for (const row of [...result.cases, ...result.coverage, ...result.rt]) {
+  for (const row of [...result.cases, ...result.coverage, ...result.rt, ...result.cumulative]) {
     if (!ids.has(row.geography)) throw new Error(`Unknown geography ${row.geography}`);
   }
   // A production build cannot accidentally present development fixtures as observations.
-  if (!synthetic && ([...result.geographies, ...result.cases, ...result.coverage, ...result.rt]
+  if (!synthetic && ([...result.geographies, ...result.cases, ...result.coverage, ...result.rt, ...result.cumulative]
     .some((row) => row.provenance.some((p) => p.source_id.startsWith('synthetic'))) ||
     [...result.states.features, ...result.counties.features].some((feature) => feature.properties.provenance?.some((p) => p.source_id.startsWith('synthetic'))))) {
     throw new Error('Synthetic artifacts require explicit development fixture mode');

@@ -15,6 +15,9 @@ use koplik_contracts::v4::ScenarioProvenance;
 use koplik_contracts::v7::{
     ForecastProvenance, ForecastStatus, InformationBasis, InsufficientReason, SeriesSkill,
 };
+use koplik_contracts::v8::{
+    CumulativeCaseReport, CumulativeCaseReportArtifact, CumulativeCount, CumulativeMissingReason,
+};
 use koplik_ingest::store::sha256_of;
 use koplik_pipeline::{Config, FileHash, ItemStatus, Manifest, Mode, Stage, run_stage};
 
@@ -227,6 +230,106 @@ fn fixture_pipeline_is_byte_identical_on_rerun_and_manifest_hashes_match_the_fil
             && r["cases"]["status"] == "reported"
             && r["cases"]["count"].as_u64().unwrap() > 0
     }));
+    // The cumulative-by-report-date series (#1439): contracts v8 rows in the per-file provenance
+    // envelope, one row per county and report date held (9 reports x 38 counties), expanding to
+    // exactly the validated stage output.
+    let published_cumulative: CumulativeCaseReportArtifact =
+        read(&config.out.join("v8/cumulative-cases.json"));
+    let staged_cumulative: Vec<CumulativeCaseReport> =
+        read(&config.work.join("validate/cumulative-cases.json"));
+    assert_eq!(published_cumulative.rows, staged_cumulative);
+    assert_eq!(staged_cumulative.len(), 9 * 38);
+    assert!(
+        staged_cumulative
+            .iter()
+            .all(|r| r.case_definition == CaseDefinition::Confirmed
+                && r.geography.to_string().starts_with("48"))
+    );
+    assert!(
+        staged_cumulative
+            .windows(2)
+            .all(|w| (w[0].geography, w[0].report_date) < (w[1].geography, w[1].report_date))
+    );
+    let gaines: Vec<_> = staged_cumulative
+        .iter()
+        .filter(|r| r.geography.to_string() == "48165")
+        .map(|r| (r.report_date.to_string(), r.cases))
+        .collect();
+    let no_table = CumulativeCount::Missing {
+        reason: CumulativeMissingReason::NoCountyTable,
+    };
+    assert_eq!(
+        gaines,
+        [
+            ("2025-03-04", CumulativeCount::Reported { count: 107 }),
+            ("2025-03-25", CumulativeCount::Reported { count: 226 }),
+            ("2025-03-28", no_table),
+            ("2025-04-22", no_table),
+            ("2025-05-30", no_table),
+            ("2025-08-12", no_table),
+            ("2025-11-24", CumulativeCount::Reported { count: 414 }),
+            ("2025-12-23", CumulativeCount::Reported { count: 414 }),
+            ("2026-01-12", CumulativeCount::Reported { count: 414 }),
+        ]
+        .map(|(d, c)| (d.to_owned(), c))
+    );
+    // Every cited snapshot is one the ingest stage stored (and so one the validate manifest
+    // hashed as an input), and the stage's own and the build's manifests record the file.
+    for p in staged_cumulative
+        .iter()
+        .flat_map(|r| r.provenance.as_slice())
+    {
+        assert!(snapshots.contains(p.sha256.as_str()), "{}", p.url);
+    }
+    let validated = &first[&Stage::Validate];
+    for p in staged_cumulative
+        .iter()
+        .flat_map(|r| r.provenance.as_slice())
+    {
+        assert!(
+            validated
+                .inputs
+                .iter()
+                .any(|f| f.sha256 == p.sha256 && f.path.ends_with(p.sha256.as_str())),
+            "{} is cited but not hashed as a validate input",
+            p.url
+        );
+    }
+    assert!(
+        validated
+            .outputs
+            .iter()
+            .any(|f| f.path == "validate/cumulative-cases.json")
+    );
+    assert!(matches!(
+        validated.items["cumulative-cases"],
+        ItemStatus::Present {
+            rows: Some(342),
+            gaps: Some(204),
+            ..
+        }
+    ));
+    let built = &first[&Stage::Build];
+    assert!(
+        built
+            .inputs
+            .iter()
+            .any(|f| f.path == "validate/cumulative-cases.json")
+    );
+    assert!(
+        built
+            .outputs
+            .iter()
+            .any(|f| f.path == "v8/cumulative-cases.json")
+    );
+    assert!(matches!(
+        built.items["cumulative-cases"],
+        ItemStatus::Present {
+            rows: Some(342),
+            gaps: Some(204),
+            ..
+        }
+    ));
     assert_eq!(coverage.len(), 51 * 2 + 254 * 2);
     assert_eq!(geographies.len(), 56 + 254);
     // One estimate row per (geography, grid week, level); the grid fills omitted weeks.
@@ -483,6 +586,7 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
         "texas-counties",
         "dshs-vintages",
         "dshs-cumulative",
+        "cumulative-cases",
     ] {
         assert!(
             !empty.work.join(format!("validate/{name}.json")).exists(),
@@ -502,12 +606,16 @@ fn a_source_that_disappears_between_runs_leaves_no_stale_output_and_is_reported_
         );
     }
     let build: Manifest = read(&empty.out.join("manifest.json"));
-    for name in ["us-states", "texas-counties"] {
+    for name in ["us-states", "texas-counties", "cumulative-cases"] {
         assert!(
             matches!(build.items[name], ItemStatus::Missing { .. }),
             "{name}"
         );
     }
+    // The cumulative series is never filled from anything else: an explicitly empty artifact.
+    let cumulative: CumulativeCaseReportArtifact =
+        read(&empty.out.join("v8/cumulative-cases.json"));
+    assert!(cumulative.rows.is_empty());
     // No source, no scenario: nothing stale in the work or web tree, and both stages say why.
     assert!(matches!(
         validate.items["gaines-2025"],
@@ -615,6 +723,36 @@ fn fixture_bytes_that_do_not_match_their_record_are_refused() {
     config.store = Config::default_store(Mode::Fixtures, &config.work);
     let err = run_stage(Stage::Ingest, &config).unwrap_err().to_string();
     assert!(err.contains("do not match the retrieval record"), "{err}");
+}
+
+#[test]
+fn build_refuses_cumulative_rows_that_are_not_valid_contract_rows() {
+    let dir = tempfile::tempdir().unwrap();
+    let config = fixture_config(dir.path());
+    run_all(&config);
+    let path = config.work.join("validate/cumulative-cases.json");
+    let original = fs::read(&path).unwrap();
+    let rows: Vec<serde_json::Value> = serde_json::from_slice(&original).unwrap();
+    // A second row for one geography and report date: ambiguous, so never published.
+    let mut duplicated = rows.clone();
+    duplicated.push(rows[0].clone());
+    fs::write(&path, serde_json::to_vec(&duplicated).unwrap()).unwrap();
+    assert!(run_stage(Stage::Build, &config).is_err());
+    // A row that states no provenance, or an invented missing reason, is not a contract row.
+    let mut bad = rows.clone();
+    bad[0]["provenance"] = serde_json::json!([]);
+    fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+    assert!(run_stage(Stage::Build, &config).is_err());
+    let mut bad = rows;
+    bad[0]["cases"] = serde_json::json!({"status": "missing", "reason": "estimated"});
+    fs::write(&path, serde_json::to_vec(&bad).unwrap()).unwrap();
+    assert!(run_stage(Stage::Build, &config).is_err());
+    // The valid output builds again, byte-identical to the first build.
+    fs::write(&path, &original).unwrap();
+    run_stage(Stage::Build, &config).unwrap();
+    let published: CumulativeCaseReportArtifact =
+        read(&config.out.join("v8/cumulative-cases.json"));
+    assert_eq!(published.rows.len(), 342);
 }
 
 #[test]

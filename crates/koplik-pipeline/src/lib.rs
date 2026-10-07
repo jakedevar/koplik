@@ -6,19 +6,21 @@
 //!
 //! ```text
 //! ingest    network (live) or data/fixtures (--from-fixtures)  -> <store>  + <work>/ingest.manifest.json
-//! validate  <store> latest snapshots                           -> <work>/validate/{weekly-cases,coverage,geographies,
-//!                                                                 us-states,texas-counties,dshs-*,gaps}.json
+//! validate  <store> latest snapshots                           -> <work>/validate/{weekly-cases,cumulative-cases,coverage,
+//!                                                                 geographies,us-states,texas-counties,dshs-*,gaps}.json
 //!                                                                 <work>/scenarios/gaines-2025{,.provenance}.json
 //! infer     <work>/validate/weekly-cases.json                  -> <work>/infer/rt.json
 //! forecast  <work>/validate/weekly-cases.json                  -> <work>/forecast/forecast{,.provenance}.json
 //!                                                                 <work>/forecast/withheld.json (audit only, never published)
 //!           + the committed backtest reports in <reports>         <work>/forecast/backtest-{west-texas-2025,cdc-states}.json
-//! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v6/*.json, <out>/scenarios/*.json,
-//!                                                                 <out>/forecasts/*.json, <out>/manifest.json
+//! build     <work>/validate + <work>/infer + <work>/forecast   -> <out>/v6/*.json, <out>/v8/cumulative-cases.json,
+//!                                                                 <out>/scenarios/*.json, <out>/forecasts/*.json,
+//!                                                                 <out>/manifest.json
 //! ```
 //!
 //! Sources: CDC NNDSS weekly cases by state (v3 rows, `confirmed_or_unknown_status`), Texas
-//! DSHS 2025 outbreak cases by county (v3 rows, `confirmed`, from report vintages), CDC
+//! DSHS 2025 outbreak cases by county (v3 weekly rows, `confirmed`, from report vintages; and the
+//! printed cumulative counts by report date as v8 `CumulativeCaseReport` rows, #1439), CDC
 //! SchoolVaxView and Texas DSHS kindergarten MMR coverage, the DSHS county/FIPS crosswalk,
 //! the Census county reference file and the Census 2024 cartographic boundaries. A source
 //! that is not in the store is reported as `missing` in the manifests; the build writes
@@ -48,7 +50,7 @@ use koplik_contracts::v1::{
     GeoId, Geography, KindergartenMmrCoverage, Provenances, RtEstimate, Sha256Hex, StateFips,
 };
 use koplik_contracts::v3::WeeklyCaseCount;
-use koplik_contracts::{v1, v3, v6, v7};
+use koplik_contracts::{v1, v3, v6, v7, v8};
 use koplik_epi::rt::{RtConfig, RtError, case_definitions, estimate_weekly};
 use koplik_ingest::census_boundaries::BoundaryKind;
 use koplik_ingest::dshs_sources::FetchOutcome;
@@ -93,6 +95,11 @@ const DSHS_REPORT_SOURCES: [&str; 4] = [
 /// Names of the artifacts the web app loads from `<out>/v6/` (see `web/README.md`).
 pub const WEB_ROW_ARTIFACTS: [&str; 4] = ["geographies", "weekly-cases", "coverage", "rt"];
 pub const WEB_BOUNDARY_ARTIFACTS: [&str; 2] = ["us-states", "texas-counties"];
+/// The Texas DSHS cumulative-by-report-date series (#1439), a contracts v8 row artifact the web
+/// app loads from `<out>/v8/`. Cumulative counts are charted by report date and never turned
+/// into weekly counts.
+pub const CUMULATIVE_ARTIFACT: &str = "cumulative-cases";
+const CUMULATIVE_ROWS_REL: &str = "validate/cumulative-cases.json";
 /// The what-if scenario the web app loads from `<out>/scenarios/` (see `web/src/scenario.ts`).
 pub const SCENARIO_ARTIFACT: &str = "gaines-2025";
 /// The forecast the web app loads from `<out>/forecasts/` (see `web/src/forecast.ts`): v1
@@ -903,6 +910,35 @@ fn validate(config: &Config) -> Result<Manifest> {
                     },
                 );
                 report.gaps.insert(DSHS_CASES_ITEM.to_owned(), gaps);
+                // The printed cumulative counts by report date (contracts v8 rows), with the
+                // reason wherever a report gives no usable count for a county.
+                let cumulative_gaps: Vec<String> = built
+                    .series
+                    .cumulative_reports
+                    .iter()
+                    .filter_map(|r| match r.cases {
+                        v8::CumulativeCount::Missing { reason } => {
+                            Some(format!("{} {}: {reason:?}", r.geography, r.report_date))
+                        }
+                        v8::CumulativeCount::Reported { .. } => None,
+                    })
+                    .collect();
+                m.outputs.push(write_file(
+                    &config.work,
+                    CUMULATIVE_ROWS_REL,
+                    &json_bytes(&built.series.cumulative_reports),
+                )?);
+                m.items.insert(
+                    CUMULATIVE_ARTIFACT.to_owned(),
+                    ItemStatus::Present {
+                        retrieval: None,
+                        rows: Some(built.series.cumulative_reports.len() as u64),
+                        gaps: Some(cumulative_gaps.len() as u64),
+                    },
+                );
+                report
+                    .gaps
+                    .insert(CUMULATIVE_ARTIFACT.to_owned(), cumulative_gaps);
                 for (name, bytes) in [
                     ("dshs-vintages", json_bytes(&built.manifest)),
                     ("dshs-cumulative", json_bytes(&built.series.cumulative)),
@@ -1552,7 +1588,7 @@ fn build(config: &Config) -> Result<Manifest> {
         }
     }
     // The output tree is a function of the inputs: clear what a previous build wrote.
-    for rel in ["v1", "v6", "scenarios", "forecasts", "manifest.json"] {
+    for rel in ["v1", "v6", "v8", "scenarios", "forecasts", "manifest.json"] {
         let path = config.out.join(rel);
         let removed = if path.is_dir() {
             fs::remove_dir_all(&path)
@@ -1608,6 +1644,58 @@ fn build(config: &Config) -> Result<Manifest> {
                 )));
             }
         }
+    }
+
+    // The Texas DSHS cumulative-by-report-date series (#1439): contracts v8 rows in the v8
+    // envelope. Without a DSHS source in the store an explicitly empty artifact is written so the
+    // site loads, and the manifest says why; the series is never filled from anything else.
+    let cumulative_path = config.work.join(CUMULATIVE_ROWS_REL);
+    let cumulative_out = format!("v8/{CUMULATIVE_ARTIFACT}.json");
+    if cumulative_path.is_file() {
+        let rows: Vec<v8::CumulativeCaseReport> = read_json(&cumulative_path)?;
+        let artifact = v8::CumulativeCaseReportArtifact { rows };
+        let bytes = json_bytes(&artifact);
+        // Re-read the published bytes as the contract type (envelope, indices, one row per
+        // geography and report date) and require them to expand to exactly the stage output.
+        let published: v8::CumulativeCaseReportArtifact =
+            serde_json::from_slice(&bytes).map_err(|source| PipelineError::Json {
+                path: config.out.join(&cumulative_out),
+                source,
+            })?;
+        if published != artifact {
+            return Err(PipelineError::Data(format!(
+                "{cumulative_out} does not expand to the rows of {CUMULATIVE_ROWS_REL}"
+            )));
+        }
+        m.inputs.push(hash_file(&config.work, CUMULATIVE_ROWS_REL)?);
+        m.outputs
+            .push(write_file(&config.out, &cumulative_out, &bytes)?);
+        m.items.insert(
+            CUMULATIVE_ARTIFACT.to_owned(),
+            ItemStatus::Present {
+                retrieval: None,
+                rows: Some(artifact.rows.len() as u64),
+                gaps: Some(
+                    artifact
+                        .rows
+                        .iter()
+                        .filter(|r| r.cases.count().is_none())
+                        .count() as u64,
+                ),
+            },
+        );
+    } else {
+        m.outputs.push(write_file(
+            &config.out,
+            &cumulative_out,
+            &json_bytes(&v8::CumulativeCaseReportArtifact { rows: Vec::new() }),
+        )?);
+        m.items.insert(
+            CUMULATIVE_ARTIFACT.to_owned(),
+            ItemStatus::Missing {
+                reason: "validate wrote no cumulative DSHS series (no DSHS report snapshots or no county FIPS lookup in the store, see its manifest); an empty artifact is written so the site loads".into(),
+            },
+        );
     }
 
     // Boundaries: validate writes them when the Census snapshots are in the store; otherwise
