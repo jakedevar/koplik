@@ -8,12 +8,15 @@
 //!   first seen by a cutoff time (the information cutoff on *revisions*).
 //! - [`run`]: forecast from every forecast date, score against the final series, summarise
 //!   exactly as measured.
+//! - [`truncated`]: the pseudo-real-time backtest for a source with no revision history:
+//!   revised counts truncated at each forecast date, scored per series and pooled (#1503).
 //! - [`manifest`]: read the ingest crate's vintage manifest (parsing bytes only; no I/O).
 //!
 //! Scores are reported as measured. No parameter in `crate::forecast` is chosen from them.
 
 pub mod manifest;
 pub mod run;
+pub mod truncated;
 pub mod vintages;
 
 use koplik_contracts::v1::ForecastQuantile;

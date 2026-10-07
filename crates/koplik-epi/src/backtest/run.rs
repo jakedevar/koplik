@@ -21,7 +21,9 @@ use serde::Serialize;
 
 use super::crps_counts;
 use super::vintages::{ReportVintage, VintageError, weekly_from_vintages};
-use crate::forecast::{ForecastConfig, ForecastError, ProjectionStatus, forecast_weekly};
+use crate::forecast::{
+    ForecastConfig, ForecastError, ProjectionStatus, WeeklyForecast, forecast_weekly,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BacktestError {
@@ -47,7 +49,7 @@ const LEVEL_TOLERANCE: f64 = 1e-9;
 /// Positions of the scored levels in `ForecastConfig::levels` (and so in every forecast
 /// row's `quantiles`, which `forecast_weekly` emits in configuration order).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ScoredQuantiles {
+pub(super) struct ScoredQuantiles {
     lower_90: usize,
     lower_50: usize,
     median: usize,
@@ -57,7 +59,7 @@ struct ScoredQuantiles {
 
 impl ScoredQuantiles {
     /// Resolve every scored level once; a missing one is a configuration error.
-    fn resolve(levels: &[f64]) -> Result<Self, BacktestError> {
+    pub(super) fn resolve(levels: &[f64]) -> Result<Self, BacktestError> {
         let find = |level: f64| {
             levels
                 .iter()
@@ -200,7 +202,55 @@ pub struct BacktestReport {
     pub pooled: Summary,
 }
 
-fn summarise(horizon: u32, scores: &[&HorizonScore]) -> Summary {
+/// Score every horizon of one forecast against the truth `observed_at` reads (`None`: the
+/// target has no usable truth and is not scored), with the persistence forecast
+/// `origin_count`. One definition of the scoring, shared by the report-vintage backtest and
+/// the pseudo-real-time one ([`super::truncated`]): CRPS of the members, inclusive 50% and
+/// 90% interval coverage of the published quantiles, absolute error of persistence.
+pub(super) fn score_rows(
+    forecast: &WeeklyForecast,
+    scored: ScoredQuantiles,
+    origin_count: Option<u32>,
+    observed_at: &dyn Fn(MmwrWeek) -> Option<u32>,
+) -> Result<Vec<HorizonScore>, BacktestError> {
+    let projection = &forecast.projection;
+    let mut out = Vec::with_capacity(forecast.rows.len());
+    for (idx, row) in forecast.rows.iter().enumerate() {
+        let horizon = idx as u32 + 1;
+        let q = |at: usize| scored.value(&row.quantiles, at);
+        let (median, lower_50, upper_50, lower_90, upper_90) = (
+            q(scored.median)?,
+            q(scored.lower_50)?,
+            q(scored.upper_50)?,
+            q(scored.lower_90)?,
+            q(scored.upper_90)?,
+        );
+        let observed = observed_at(row.target_week);
+        let members = projection.at_horizon(horizon);
+        // Coverage from the same resolved bounds, inclusive.
+        let covers = |lower: f64, upper: f64| {
+            observed.map(|y| lower <= f64::from(y) && f64::from(y) <= upper)
+        };
+        out.push(HorizonScore {
+            horizon,
+            target_week: row.target_week,
+            observed,
+            median,
+            lower_50,
+            upper_50,
+            lower_90,
+            upper_90,
+            crps: observed.map(|y| crps_counts(&members, y)),
+            in_50: covers(lower_50, upper_50),
+            in_90: covers(lower_90, upper_90),
+            persistence_abs_error: observed
+                .and_then(|y| origin_count.map(|last| (f64::from(y) - f64::from(last)).abs())),
+        });
+    }
+    Ok(out)
+}
+
+pub(super) fn summarise(horizon: u32, scores: &[&HorizonScore]) -> Summary {
     let scored: Vec<&HorizonScore> = scores
         .iter()
         .copied()
@@ -296,41 +346,7 @@ pub fn run_backtest(
         result.r_mean = Some(posterior.mean());
         result.r_lower_90 = Some(posterior.quantile(0.05).map_err(ForecastError::from)?);
         result.r_upper_90 = Some(posterior.quantile(0.95).map_err(ForecastError::from)?);
-        for (idx, row) in forecast.rows.iter().enumerate() {
-            let horizon = idx as u32 + 1;
-            let q = |at: usize| scored.value(&row.quantiles, at);
-            let (median, lower_50, upper_50, lower_90, upper_90) = (
-                q(scored.median)?,
-                q(scored.lower_50)?,
-                q(scored.upper_50)?,
-                q(scored.lower_90)?,
-                q(scored.upper_90)?,
-            );
-            let observed = observed_at(row.target_week);
-            let members = projection.at_horizon(horizon);
-            // Coverage from the same resolved bounds, inclusive.
-            let covers = |lower: f64, upper: f64| {
-                observed.map(|y| lower <= f64::from(y) && f64::from(y) <= upper)
-            };
-            result.scores.push(HorizonScore {
-                horizon,
-                target_week: row.target_week,
-                observed,
-                median,
-                lower_50,
-                upper_50,
-                lower_90,
-                upper_90,
-                crps: observed.map(|y| crps_counts(&members, y)),
-                in_50: covers(lower_50, upper_50),
-                in_90: covers(lower_90, upper_90),
-                persistence_abs_error: observed.and_then(|y| {
-                    result
-                        .origin_count
-                        .map(|last| (f64::from(y) - f64::from(last)).abs())
-                }),
-            });
-        }
+        result.scores = score_rows(&forecast, scored, result.origin_count, &observed_at)?;
         origins.push(result);
     }
 
