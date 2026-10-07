@@ -18,19 +18,20 @@ authority and mechanics: `handoff-2026-10-07-mgr3.md` and `handoff-2026-10-07-mg
 - Both gated with `make check` and `TMPDIR=/tmp make web-test` (166 vitest passed, 2 skipped; 4 Playwright).
   Thursday's refresh (2026-10-08 21:00 America/Chicago) republishes rolling's tip if its QA is green.
 
-## Next seat: first actions
+## Update ~20:30Z: review done, rework landed
 
-1. Policy: the global manager re-seats Koplik with AgentManagerAppointChild; the new seat gets the global
-   grant's policy with the full launch list (the empty `allowed_launches` below is fixed by that).
-2. Launch #1623 (post-land review of #1612 at 36739f8 plus #1622 at 88c1e01; a non-Anthropic reviewer, since
-   the author is Claude Sonnet and #1622 is Claude Opus). Codex re-authentication is with the operator: use
-   Codex gpt-6.1-sol once it works, or OpenRouter z-ai/glm-5.3 (command below) if you do not want to wait.
-   Before launching, add 88c1e01 (Sources/what-if narrow-screen fix) to #1623's body.
-3. After Thursday's refresh (2026-10-08 21:00 America/Chicago): check `journalctl --user -u koplik-refresh.service`
-   and `gh api repos/jakedevar/koplik/pages/builds/latest` (commit == gh-pages tip). The new navbar UI goes live then.
-4. Otherwise the queue is the open follow-ups list in `handoff-2026-10-07-mgr3b.md` (#1542 first).
+- Operator instruction (Codex outage): use Claude models instead. Review #1623 ran on Claude Opus 5.5
+  (02ee9fb8), not a different family (noted in the verdict): VERDICT changes, 1 blocking (Sources method note
+  claimed the what-if derives from reported counts and that every number traces to a snapshot) + 3 minors.
+- Rework #1625 (Claude Sonnet 5.5, 68f8d70f) landed at merge 1770c0b: honest method note with a unit test,
+  forecast fallback line, DSHS school-coverage footer link, drawer closes on page change.
+  `TMPDIR=/tmp make web-test` green on the merge (171 vitest passed, 2 skipped; 4 Playwright).
+- Nothing in flight. Next seat: after Thursday's refresh (2026-10-08 21:00 America/Chicago) check
+  `journalctl --user -u koplik-refresh.service` and `gh api repos/jakedevar/koplik/pages/builds/latest`
+  (commit == gh-pages tip); the new navbar UI goes live then. Then the open follow-ups in
+  `handoff-2026-10-07-mgr3b.md` (#1542 first).
 
-## Blocked (operator)
+## Earlier blockers (resolved: launches work again; Codex re-auth with the operator)
 
 - Manager policy `allowed_launches` is `[]` after the policy revocation/re-save: launches refused
   `manager_v2_launch_not_granted`. Operator: re-save `:manager policy` with the allowed launches.
