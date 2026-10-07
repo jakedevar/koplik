@@ -24,6 +24,9 @@ sha2.workspace = true
 hex.workspace = true
 # Small blocking HTTP client; TLS via rustls (no OpenSSL, no async runtime).
 ureq = { version = "3", default-features = false, features = ["rustls"] }
+# Read the XLSX workbooks actually published by Texas DSHS; no network in the parser.
+calamine = { version = "0.36.1", default-features = false }
+scraper = { version = "0.27.0", default-features = false }
 
 [dev-dependencies]
 tempfile = "3"
