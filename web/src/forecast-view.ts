@@ -142,8 +142,12 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
   label.htmlFor = select.id;
   controls.append(label, select);
   controls.hidden = true;
+  // Said when the geography chosen on the Explorer has no forecast series, so the page never silently shows another one.
+  const fallback = element('p', undefined, 'notice forecast-fallback');
+  fallback.setAttribute('role', 'status');
+  fallback.hidden = true;
   const result = element('div', undefined, 'forecast-result');
-  panel.append(withheldBox, status, notices, controls, result);
+  panel.append(withheldBox, status, notices, controls, fallback, result);
   // The backtest has its own section, after the forecasts and not beside any chart; it fills in once the forecast loads.
   const evaluation = element('section', undefined, 'panel forecast-evaluation');
   evaluation.setAttribute('aria-label', 'How we evaluate forecasts');
@@ -152,6 +156,8 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
 
   let disposed = false;
   let published: PublishedForecast | undefined;
+  /** The geography last chosen on the Explorer, remembered even before the forecast has loaded. */
+  let wanted = options.geography;
   const names = new Map<string, string>((options.data?.geographies ?? []).map((g) => [g.id, g.name]));
   const nameOf = (id: string) => names.get(id) ?? id;
 
@@ -419,10 +425,17 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     evaluation.hidden = false;
   }
 
+  /** `wanted` is the Explorer's geography; if it has no series, say so and name what is shown instead. */
+  function noteFallback() {
+    const missing = published && wanted && !published.provenance.series.some((s) => s.geography === wanted) ? wanted : undefined;
+    fallback.textContent = missing ? `No forecast series for ${nameOf(missing)}; showing ${nameOf(select.value)}.` : '';
+    fallback.hidden = !missing;
+  }
   function choose(id: string) {
     if (!published) return;
     select.value = id;
     renderSeries(id);
+    noteFallback();
   }
   function fill(preferred?: string) {
     const { provenance } = published!;
@@ -444,14 +457,15 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     const initial = [preferred, forecast[0]?.geography, withheld[0]?.geography, insufficient[0]?.geography].find((id) => id && provenance.series.some((s) => s.geography === id));
     if (initial) choose(initial);
   }
-  select.addEventListener('change', () => choose(select.value));
+  // Picking a series on this page is a deliberate choice: the Explorer's geography no longer applies.
+  select.addEventListener('change', () => { wanted = undefined; choose(select.value); });
   const events = options.events ?? main.parentElement ?? main;
-  let wanted = options.geography;
   const onSelection = (event: Event) => {
     const geography = (event as CustomEvent<{ geography?: string }>).detail?.geography;
     // Remembered even before the forecast has loaded, so the first view follows the latest choice on the Explorer.
     wanted = geography ?? wanted;
-    if (published && geography && published.provenance.series.some((s) => s.geography === geography)) choose(geography);
+    if (!published || !geography) return;
+    if (published.provenance.series.some((s) => s.geography === geography)) choose(geography); else noteFallback();
   };
   events.addEventListener('koplik:selection', onSelection);
 
