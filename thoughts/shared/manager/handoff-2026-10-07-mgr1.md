@@ -46,48 +46,46 @@ E5 `b5f6c80e-9da3-49f5-bfe9-4a33a8d11f37`, E6 `bbe1ff42-d466-4f74-9c35-5e356b430
 E7 `51b52ab3-a41d-499d-87e9-95049e7726a0`. Every Must Issue has a daemon work row `issue-<n>` (tier, weight,
 dependencies).
 
-## Landed on rolling (tip 866faec + this handoff)
+## Landed on rolling (tip 53b1dfb, plus this handoff)
 
 | Merge | Issue | Author | Review |
 |---|---|---|---|
-| e4f9239fcb57f7c75772711aff467198e7113337 | #1347 E1 contracts v1 (+ rework #1363) | Claude claude-sonnet-5-5 (83e594e5) | tier2 gpt-6.1-sol: changes, delta accepted |
-| db8b73eeab1cd8e3a63011304ef4c18ceaa9ee5d | #1356 E6 web app | Codex gpt-6.1-sol (cffb8127) | post-land claude-sonnet-5-5: changes -> #1372 |
-| ba54f6de1d80b5009a2c226c01fb78d9c1abd5c0 | Makefile: npm ci stamp for web-test/serve | manager | — |
-| c5900ed252ec4c97d2fe2ddd234615b3af042734 | #1372 web follow-up | Codex gpt-6.1-sol (cffb8127) | — |
-| 2726a42 | #1380 web items 1-2 (R_t paired levels) | Codex gpt-6.1-sol (cffb8127) | covered by #1355 delta review |
+| e4f9239 | #1347 E1 contracts v1 (+ rework #1363) | Claude claude-sonnet-5-5 (83e594e5) | tier2 gpt-6.1-sol: changes, delta accepted |
+| db8b73e | #1356 E6 web app | Codex gpt-6.1-sol (cffb8127) | post-land claude-sonnet-5-5: changes -> #1372 |
+| ba54f6d | Makefile: npm ci stamp for web-test/serve | manager | — |
+| c5900ed | #1372 web follow-up | Codex gpt-6.1-sol (cffb8127) | — |
+| 2726a42 | #1380 web items (R_t paired levels) | Codex gpt-6.1-sol (cffb8127) | covered by #1355 delta |
+| 6e24629 | #1353 SEIR engine (+ rework #1379 BTPE) | Codex gpt-6-astra checkpoint 4450a62 (92e416f3) + Claude claude-fable-5-1 (6828158e) | tier2 gpt-6.1-sol: changes (26528fd3), delta accepted (f9bba36b) |
+| d669ac7 | #1355 R_t Cori (+ rework #1380) | Claude claude-fable-5-1 (75ab1fe3) | tier2 gpt-6.1-sol: changes (aaafe6eb), delta accepted (c401d1aa) |
+| 2cb9b72 | #1354 WASM facade + make determinism (contracts **v2** = v1 + simulation result types) | Codex gpt-6.1-sol (ea567f9d) | tier2 claude-sonnet-5-5: accepted (a35749f4) |
+| 53b1dfb | Makefile exports CARGO_TARGET_DIR (machine-wide cargo target-dir broke `make wasm` outside sandboxes) | manager | — |
 
-Closed: #1347, #1363, #1356, #1372.
+Closed: #1347, #1363, #1356, #1372, #1353, #1379, #1355, #1380, #1354. `make determinism` is live: native == wasm32
+`7a7471b1...5c25fb` (fixture) and `522a6dbb...f49c` (fractional step, u64::MAX seed).
 
-## In flight (sessions, exact SHAs, next action), as of ~02:50Z
+## In flight (as of ~03:05Z)
 
-The predecessor cancelled all of its wakes before succession. On start, read each session below with
+The predecessor cancels all of its wakes before succession. On start, read each session below with
 `AgentGetProgress {"session_ids": [...]}`: read the RESULT of any that already finished, and arm an `on_terminal`
-watch on every one still running. Then verify `watch_state: enabled` (kaizen #1384: a re-arm can dedupe onto a
-consumed job).
+watch on every one still running; verify `watch_state: enabled` (kaizen #1384).
 
 | Issue | Session (model) | State | Next action |
 |---|---|---|---|
-| #1348 store + CDC (+ #1370, #1381 contracts v2 case definition, #1385) | worker a12a8837 (claude-sonnet-5-5); last reviewed SHA 27fa26b2cef6a8b31e9126a0920a91432dd0044d | rounds: c5515750 changes, b60941b9 changes, 22c802e2 (gpt-6-astra) changes with one blocker `user_agent_contact_required`; the worker is now fixing #1385 (live fetch requires KOPLIK_CONTACT) | Budget for spec revision 1 is spent. On RESULT: re-submit work row issue-1348 (any `work` update bumps spec_revision to 2), `author.py` at the new SHA, then a fresh (non-delta) `request_review` from Codex (gpt-6.1-sol or gpt-6-astra). On accept: merge, close #1348, #1370, #1381, #1385. |
-| #1351 coverage | worker b0b31e2c (gpt-6.1-sol) at ba2f389e6b729ac6c569d9e9947d234d855a1a13 | review ACCEPTED (claude-sonnet-5-5, fd6c07b8) | land only AFTER #1348 (its branch contains the pre-review store fed92ae). |
-| #1349 Texas DSHS cases | worker 804eb510 (claude-sonnet-5-5), branched from fed92ae | running | RESULT -> tier2 review by Codex; lands after #1348; should emit v2 `confirmed` rows (#1382). |
-| #1353 engine (rework #1379 BTPE) | worker 6828158e (claude-fable-5-1) done at 34710b44a1e05a5f6e66132c622c5fac6f0a7b7b | delta review round 2: reviewer de230847 (Codex gpt-6.1-sol), assignment f9bba36b-e3a8-4538-abd8-713acec70d45 | accepted -> merge together with #1355 (union resolution below); close #1353, #1379. Member-0 golden unchanged (7a7471b1...), ensemble digest now 8cd5953a... |
-| #1355 R_t (rework #1380) | worker 75ab1fe3 (claude-fable-5-1) done at cb1d96daaf3f8a7f8e2d12c2bc14207ac1b708d5 | delta review round 2: reviewer e7cd4af3 (Codex gpt-6.1-sol), assignment c401d1aa-5c70-4c11-abb0-218fea3bdf72 | accepted -> merge with #1353; close #1355, #1380. |
-| #1354 WASM + make determinism | worker ea567f9d (gpt-6.1-sol) done at 013f86299dd34b6f97a45b8bd271e69cef18fad9 | review ACCEPTED (claude-sonnet-5-5, a35749f4); warnings u64-seed-input-caveat, bench-scope-synthetic | after #1353 lands: continue ea567f9d to merge rolling (compare against ensemble digest 8cd5953a... and member-0 7a7471b1...), run make determinism + make check test, then land. Contract ordering: whichever of #1354's simulation types and #1381's WeeklyCaseCount lands first takes v2; the other must move to v3 (= v2 + its types) before landing. |
-| #1350 Census boundaries | worker 8b8b85d9 (gpt-6.1-sol), wip f497f1786675a7a9cde74d1ef7613e0a8fe9ae6e | partial: Census robots | blocked on operator decision `census-access`; relaunch (`launch.py ... --commit=f497f17...`) after it. |
-| #1352 population + centroids | worker 40826974 (gpt-6-luna), wip 872d5428ca6f66b8e1cf9cceea97b75e507e5278 | partial: Census robots | blocked on `census-access`; relaunch from wip after it (consider a stronger model). |
+| #1348 store + CDC (+ #1370, #1381 contracts **v3** case definition, #1385 contact required) | worker a12a8837 (claude-sonnet-5-5) done at 46e00729158ac82a6680bd315565968ae6be861b | spec revision 2, fresh review round 1: reviewer c2b59443 (Codex gpt-6.1-sol), assignment 3dfe50d7-0317-4b9b-bf2d-51bc095fc827 | accepted -> merge (verdict chain: rev 1 c5515750, b60941b9, 22c802e2 changes; rev 2 3dfe50d7), close #1348 #1370 #1381 #1385. Changes -> AgentContinueChild a12a8837 + delta review (rounds 2-3 of rev 2; round 3 needs a model not used before). |
+| #1351 coverage | worker b0b31e2c (gpt-6.1-sol) at ba2f389e6b729ac6c569d9e9947d234d855a1a13 | review ACCEPTED (claude-sonnet-5-5, fd6c07b8) | after #1348 lands: continue b0b31e2c to merge rolling (its branch holds pre-review store fed92ae; switch live fetch to `PoliteConfig::live(contact_from_env())` from #1385; additive merges in ingest lib.rs/CLI/SOURCES.md), then land. |
+| #1349 Texas DSHS cases | worker 804eb510 (claude-sonnet-5-5), branched from fed92ae | running | RESULT -> tier2 review by Codex; after #1348 lands it merges rolling, emits v3 `confirmed` rows and uses `PoliteConfig::live`. |
+| #1357 what-if panel | worker 60c41e7a (gpt-6.1-sol) | running | tier1: lands first, post-land review by Claude. Loads a pipeline scenario artifact; synthetic fixture only in dev/tests. |
+| #1350 Census boundaries | worker 8b8b85d9 (gpt-6.1-sol), wip f497f1786675a7a9cde74d1ef7613e0a8fe9ae6e | partial: Census robots | blocked on `census-access`; relaunch from the wip after the decision. |
+| #1352 population + centroids | worker 40826974 (gpt-6-luna), wip 872d5428ca6f66b8e1cf9cceea97b75e507e5278 | partial: Census robots | blocked on `census-access`; relaunch from the wip (consider a stronger model). |
 
-Not started (dependencies on the work rows): #1357 what-if (needs #1354, #1351), #1358 drawer + Playwright smoke
-(Chromium in RSI sandboxes needs `TMPDIR=/tmp`, #1367), #1359 pipeline (needs sources + R_t; must convert case rows to
-v2), #1360 make publish, #1361 forecast + backtest (Should). Follow-ups: #1382 (v2 case counts end to end: web, R_t,
-DSHS; Must), #1383 coverage caveats (Should), #1366 MMWR extreme dates (minor), #1369 R_t imported cases, #1371 Xia 2004
-gravity source; #1354's warnings (seed above 2^53 through JSON.stringify; re-run the benchmark on the real Gaines
-neighbourhood scenario) belong with #1357.
+Not started (dependencies on the work rows): #1358 drawer + Playwright smoke (Chromium in RSI sandboxes needs
+`TMPDIR=/tmp`, #1367), #1359 pipeline (sources + R_t; must emit case rows as contracts v3 and build the Gaines scenario
+artifact #1357 loads), #1360 make publish, #1361 forecast + backtest (Should). Follow-ups: #1382 (case counts on v3 end to
+end: web, R_t, DSHS; Must), #1383 coverage caveats (Should), #1366 MMWR extreme dates (minor), #1369 R_t imported cases,
+#1371 Xia 2004 gravity source. QA: run a QA worker once `make pipeline` exists (it is still a placeholder, so QA would be
+red on it).
 
-`koplik-epi` merge of #1353 and #1355: both create the crate. Resolve by union: `lib.rs` declares
-`defaults, ensemble, fingerprint, gravity (private), rt, sampling (private), seir` plus #1353's re-exports;
-`Cargo.toml` takes #1355's description and the union of dependencies (sha2, hex, thiserror, libm, rand_chacha 0.9,
-rand_core 0.9; dev serde, serde_json; the `seir_ensemble` bench); `Cargo.lock`: take ours, let cargo re-resolve.
-A trial merge of the pre-rework branches was green (57 tests).
+Budget: created sessions 15 of 32 before this succession (the three blocked succession attempts each charged one).
 
 ## Operator decisions
 
@@ -116,6 +114,10 @@ A trial merge of the pre-rework branches was green (57 tests).
 - Codex's safety filter stopped gpt-6-astra while it was writing the SEIR engine ("possible biological risk"); Codex
   gpt-6.1-sol reviews of the epidemiology code passed. Prefer Claude to author epidemiology code (#1368).
 - `rsi-rpc` prints a socket line on stderr: use `2>/dev/null` before `jq`.
+- Succession: an UNTITLED manager session cannot hand over. After every turn the daemon runs a background
+  `session.title` job on Local gemma4:e4b (it fails here, ~3.5 s) and the settlement check counts it as live
+  (`manager_succession_predecessor_ledger_live`, kaizen #1386). The operator titled this session "Manager" (F2 in the
+  TUI). Ask the operator early to title your session too, and check `sessions.title` is set before you try.
 - Succession: before `succeed_manager`, cancel EVERY wake you own (resume and on_terminal, including
   `agent-child-*` and "Manager action results"); any watch firing after the request re-invokes you and blocks the
   succession `manager_succession_predecessor_ledger_live` (first attempt 2d979009 was blocked this way).
