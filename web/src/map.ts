@@ -5,6 +5,8 @@ import { mapMetricValue } from './data';
 export interface MapView {
   update(level: 'state' | 'county', metric: Metric, selected: string, definition?: CaseDefinition): void;
   destroy(): void;
+  /** Re-measure the container, e.g. when the page it sits on becomes visible again. */
+  resize?(): void;
 }
 
 /** Boundary attribution uses its own v1 provenance, never a guessed data provider. */
@@ -116,5 +118,5 @@ export function createMap(container: HTMLElement, data: Dataset, onSelect: (id: 
     }
     previousLevel = level;
   }
-  return { update, destroy: () => map.remove() };
+  return { update, destroy: () => map.remove(), resize: () => map.resize() };
 }

@@ -120,6 +120,8 @@ export interface ForecastOptions {
   data?: Dataset;
   /** The geography selected on the dashboard when the panel opens. */
   geography?: string;
+  /** Where the dashboard announces `koplik:selection`. Defaults to the parent of `main` (the app root when `main` is the page). */
+  events?: EventTarget;
   load?: typeof loadForecast;
 }
 
@@ -443,9 +445,12 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
     if (initial) choose(initial);
   }
   select.addEventListener('change', () => choose(select.value));
-  const events = main.parentElement ?? main;
+  const events = options.events ?? main.parentElement ?? main;
+  let wanted = options.geography;
   const onSelection = (event: Event) => {
     const geography = (event as CustomEvent<{ geography?: string }>).detail?.geography;
+    // Remembered even before the forecast has loaded, so the first view follows the latest choice on the Explorer.
+    wanted = geography ?? wanted;
     if (published && geography && published.provenance.series.some((s) => s.geography === geography)) choose(geography);
   };
   events.addEventListener('koplik:selection', onSelection);
@@ -469,7 +474,7 @@ export function mountForecast(main: HTMLElement, options: ForecastOptions): () =
       ...(options.synthetic ? [element('p', 'SYNTHETIC FORECAST · Invented values for development only; not a model projection of any observed series.', 'synthetic notice')] : []),
       element('p', 'Model projection from reported counts, not a prediction of what will happen.', 'notice'));
     controls.hidden = false;
-    fill(options.geography);
+    fill(wanted);
     renderEvaluation();
   }).catch((error: unknown) => {
     if (!disposed) { status.textContent = `Forecast unavailable. ${error instanceof Error ? error.message : String(error)}`; status.setAttribute('role', 'alert'); }

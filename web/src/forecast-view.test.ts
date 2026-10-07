@@ -274,6 +274,19 @@ describe('forecast panel', () => {
     expect(document.querySelector('.forecast')).toBeNull();
   });
 
+  it('follows a selection made on the dashboard before the forecast has loaded, and listens on the given events target', async () => {
+    const root = document.createElement('div'); document.body.append(root);
+    const page = document.createElement('div'); const main = document.createElement('main'); main.append(page); root.append(main);
+    const cleanup = mountForecast(page, { base: '/', synthetic: true, data: fixtureDataset(), geography: '48', load: vi.fn().mockResolvedValue(published()), events: root });
+    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '20' } }));
+    await flush();
+    const select = page.querySelector<HTMLSelectElement>('#forecast-geography')!;
+    expect(select.value).toBe('20');
+    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '35' } }));
+    expect(select.value).toBe('35');
+    cleanup();
+  });
+
   it('says plainly when no forecast has been published or it cannot be shown', async () => {
     const none = mount(vi.fn().mockResolvedValue(null));
     await flush();
