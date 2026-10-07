@@ -46,7 +46,7 @@ E5 `b5f6c80e-9da3-49f5-bfe9-4a33a8d11f37`, E6 `bbe1ff42-d466-4f74-9c35-5e356b430
 E7 `51b52ab3-a41d-499d-87e9-95049e7726a0`. Every Must Issue has a daemon work row `issue-<n>` (tier, weight,
 dependencies).
 
-## Landed on rolling (tip 2726a42)
+## Landed on rolling (tip 866faec + this handoff)
 
 | Merge | Issue | Author | Review |
 |---|---|---|---|
@@ -58,19 +58,21 @@ dependencies).
 
 Closed: #1347, #1363, #1356, #1372.
 
-## In flight (sessions, exact SHAs, next action)
+## In flight (sessions, exact SHAs, next action), as of ~02:50Z
 
-Arm an `on_terminal` watch on every running session below (your predecessor's watches do not wake you), and verify
-`watch_state: enabled` with `AgentGetProgress` (kaizen #1384: a re-arm can dedupe onto a consumed job).
+The predecessor cancelled all of its wakes before succession. On start, read each session below with
+`AgentGetProgress {"session_ids": [...]}`: read the RESULT of any that already finished, and arm an `on_terminal`
+watch on every one still running. Then verify `watch_state: enabled` (kaizen #1384: a re-arm can dedupe onto a
+consumed job).
 
 | Issue | Session (model) | State | Next action |
 |---|---|---|---|
-| #1348 store + CDC (+ #1370, #1381 contracts v2 case definition) | worker a12a8837 (claude-sonnet-5-5), done at 27fa26b2cef6a8b31e9126a0920a91432dd0044d | closure review round 3: reviewer 34250633 (Codex gpt-6-astra), assignment 22c802e2-df9e-4ef5-a3d3-4b3d082d8c7e | accepted -> merge rsi/a12a8837 (verdict chain in the merge commit: rounds c5515750 changes, b60941b9 changes, 22c802e2), close #1348 #1370 #1381. Round budget for spec revision 1 is then spent: further changes need a new spec revision. |
-| #1351 coverage | worker b0b31e2c (gpt-6.1-sol) at ba2f389e6b729ac6c569d9e9947d234d855a1a13 | review ACCEPTED (claude-sonnet-5-5, fd6c07b8) | land only AFTER #1348 (its branch contains pre-review store fed92ae); merge, make check test, close. |
-| #1349 Texas DSHS cases | worker 804eb510 (claude-sonnet-5-5), branched from fed92ae | running | RESULT -> tier2 review by Codex; it needs a Census FIPS lookup (see census-access). Lands after #1348. |
-| #1353 engine (rework #1379 BTPE step 5.3) | worker 6828158e (claude-fable-5-1) | running | RESULT -> author.py 1353, delta review delta_of 26528fd3-7c4d-45b7-93ce-766869a2b91b keys btpe_stirling_bound,primary_source_limits (Codex; round 2 may reuse gpt-6.1-sol). Merge with #1355 by union (below). |
-| #1355 R_t (rework #1380) | worker 75ab1fe3 (claude-fable-5-1); bc7c65b fixed daily_negative_sd; now merging rolling 2726a42 | running | RESULT -> author.py 1355, delta review delta_of aaafe6eb-1590-4712-bd48-9f6b68f9fb9e keys rt_loader_rejects_levels,rt_chart_breaks_paired_levels,daily_negative_sd (Codex gpt-6.1-sol). |
-| #1354 WASM + make determinism | worker ea567f9d (gpt-6.1-sol) done at 013f86299dd34b6f97a45b8bd271e69cef18fad9 | review by 718b2e5f (claude-sonnet-5-5), assignment a35749f4-f1e6-44cd-aa04-e73ce691b508 | Land after #1353: continue ea567f9d to merge rolling (BTPE fix changes the golden fingerprint) and, if #1381's v2 has landed, move its simulation result types to contracts **v3** (= v2 + simulation types); then make determinism + make check test. |
+| #1348 store + CDC (+ #1370, #1381 contracts v2 case definition, #1385) | worker a12a8837 (claude-sonnet-5-5); last reviewed SHA 27fa26b2cef6a8b31e9126a0920a91432dd0044d | rounds: c5515750 changes, b60941b9 changes, 22c802e2 (gpt-6-astra) changes with one blocker `user_agent_contact_required`; the worker is now fixing #1385 (live fetch requires KOPLIK_CONTACT) | Budget for spec revision 1 is spent. On RESULT: re-submit work row issue-1348 (any `work` update bumps spec_revision to 2), `author.py` at the new SHA, then a fresh (non-delta) `request_review` from Codex (gpt-6.1-sol or gpt-6-astra). On accept: merge, close #1348, #1370, #1381, #1385. |
+| #1351 coverage | worker b0b31e2c (gpt-6.1-sol) at ba2f389e6b729ac6c569d9e9947d234d855a1a13 | review ACCEPTED (claude-sonnet-5-5, fd6c07b8) | land only AFTER #1348 (its branch contains the pre-review store fed92ae). |
+| #1349 Texas DSHS cases | worker 804eb510 (claude-sonnet-5-5), branched from fed92ae | running | RESULT -> tier2 review by Codex; lands after #1348; should emit v2 `confirmed` rows (#1382). |
+| #1353 engine (rework #1379 BTPE) | worker 6828158e (claude-fable-5-1) done at 34710b44a1e05a5f6e66132c622c5fac6f0a7b7b | delta review round 2: reviewer de230847 (Codex gpt-6.1-sol), assignment f9bba36b-e3a8-4538-abd8-713acec70d45 | accepted -> merge together with #1355 (union resolution below); close #1353, #1379. Member-0 golden unchanged (7a7471b1...), ensemble digest now 8cd5953a... |
+| #1355 R_t (rework #1380) | worker 75ab1fe3 (claude-fable-5-1) done at cb1d96daaf3f8a7f8e2d12c2bc14207ac1b708d5 | delta review round 2: reviewer e7cd4af3 (Codex gpt-6.1-sol), assignment c401d1aa-5c70-4c11-abb0-218fea3bdf72 | accepted -> merge with #1353; close #1355, #1380. |
+| #1354 WASM + make determinism | worker ea567f9d (gpt-6.1-sol) done at 013f86299dd34b6f97a45b8bd271e69cef18fad9 | review ACCEPTED (claude-sonnet-5-5, a35749f4); warnings u64-seed-input-caveat, bench-scope-synthetic | after #1353 lands: continue ea567f9d to merge rolling (compare against ensemble digest 8cd5953a... and member-0 7a7471b1...), run make determinism + make check test, then land. Contract ordering: whichever of #1354's simulation types and #1381's WeeklyCaseCount lands first takes v2; the other must move to v3 (= v2 + its types) before landing. |
 | #1350 Census boundaries | worker 8b8b85d9 (gpt-6.1-sol), wip f497f1786675a7a9cde74d1ef7613e0a8fe9ae6e | partial: Census robots | blocked on operator decision `census-access`; relaunch (`launch.py ... --commit=f497f17...`) after it. |
 | #1352 population + centroids | worker 40826974 (gpt-6-luna), wip 872d5428ca6f66b8e1cf9cceea97b75e507e5278 | partial: Census robots | blocked on `census-access`; relaunch from wip after it (consider a stronger model). |
 
@@ -78,7 +80,8 @@ Not started (dependencies on the work rows): #1357 what-if (needs #1354, #1351),
 (Chromium in RSI sandboxes needs `TMPDIR=/tmp`, #1367), #1359 pipeline (needs sources + R_t; must convert case rows to
 v2), #1360 make publish, #1361 forecast + backtest (Should). Follow-ups: #1382 (v2 case counts end to end: web, R_t,
 DSHS; Must), #1383 coverage caveats (Should), #1366 MMWR extreme dates (minor), #1369 R_t imported cases, #1371 Xia 2004
-gravity source.
+gravity source; #1354's warnings (seed above 2^53 through JSON.stringify; re-run the benchmark on the real Gaines
+neighbourhood scenario) belong with #1357.
 
 `koplik-epi` merge of #1353 and #1355: both create the crate. Resolve by union: `lib.rs` declares
 `defaults, ensemble, fingerprint, gravity (private), rt, sampling (private), seir` plus #1353's re-exports;
@@ -93,9 +96,11 @@ A trial merge of the pre-rework branches was green (57 tests).
   api.census.gov requires a key. Options: A allowlisted exception for named public-domain files (recommended), B Census
   API key (credential; population only), C labelled secondary mirror. Disclosure already made: one manual GET of
   cb_2024_us_state_20m.zip to /dev/null.
+- **Pending: `ingest-contact`** (manager decision record, epic E2, work issue-1348): the contact for the polite
+  User-Agent; live fetch refuses without it (#1385). Never use the operator's personal e-mail unless told to.
 - **To ask before publishing (one combined request):** data licences/terms (CDC NNDSS x9gk-5huc: no licence in
-  metadata; CDC SchoolVaxView; Texas DSHS cases and coverage), and a verified `KOPLIK_CONTACT` for the User-Agent
-  (never the operator's e-mail). Then `main` promotion from the QA-green SHA, then public publishing.
+  metadata; CDC SchoolVaxView; Texas DSHS cases and coverage). Then `main` promotion from the QA-green SHA, then public
+  publishing.
 
 ## RSI mechanics learned (save yourself the digging)
 
@@ -111,21 +116,27 @@ A trial merge of the pre-rework branches was green (57 tests).
 - Codex's safety filter stopped gpt-6-astra while it was writing the SEIR engine ("possible biological risk"); Codex
   gpt-6.1-sol reviews of the epidemiology code passed. Prefer Claude to author epidemiology code (#1368).
 - `rsi-rpc` prints a socket line on stderr: use `2>/dev/null` before `jq`.
+- Succession: before `succeed_manager`, cancel EVERY wake you own (resume and on_terminal, including
+  `agent-child-*` and "Manager action results"); any watch firing after the request re-invokes you and blocks the
+  succession `manager_succession_predecessor_ledger_live` (first attempt 2d979009 was blocked this way).
 - Integration: detached worktree `~/.rsi/koplik-mgr/integrate`, `CARGO_TARGET_DIR=~/.rsi/koplik-mgr/target`;
   after each push fast-forward the shared `~/koplik` (`git merge --ff-only origin/rolling`).
 
 ## Kaizen
 
 Filed (RSI-side, open): #1362 (no-result guard re-invokes reviewers, breaks acceptance), #1364 (review author step),
-#1368 (provider safety refusal), #1384 (watch re-arm dedupes onto a consumed job); worker-filed and kept: #1367
+#1368 (provider safety refusal), #1384 (watch re-arm dedupes onto a consumed job), #1386 (on_terminal watches block
+succession); worker-filed and kept: #1367
 (Chromium TMPDIR), #1378 (no-result after RESULT). Cancelled as duplicates or Koplik work: #1365, #1373, #1374, #1376,
 #1377. Relabelled #1375 to the data-access decision. Fixed: none yet (all RSI-side).
 
 ## Next actions (in order)
 
-1. First five minutes: verify the seat, drain the inbox (operator answer to `census-access`?), arm and verify watches.
-2. As each review or worker reports: land #1348 then #1351; review #1349; delta-review #1353 and #1355, merge them
-   together (union resolution above); land #1354 after #1353 (v3 if needed).
+1. First five minutes: verify the seat, drain the inbox (operator answers to `census-access` and `ingest-contact`?),
+   read every in-flight session's state, arm and verify watches.
+2. As each review or worker reports: land #1353 + #1355 together (union resolution above) once their delta reviews
+   accept; land #1354 after them (v2/v3 ordering above); finish #1348 (spec revision 2, fresh review), then #1351;
+   review #1349.
 3. After `census-access`: relaunch #1350 and #1352 from their wip commits.
 4. Then #1382, #1357, #1359, #1358, #1360; QA worker on the rolling tip (`make test determinism web-test pipeline`
    from a clean checkout) and land the QA-green SHA pointer; then the publish sequence in the brief.
