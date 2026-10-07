@@ -72,6 +72,7 @@ describe('cumulative chart', () => {
     expect(Number(/M[\d.]+ ([\d.]+)l/.exec(cross.getAttribute('d')!)![1])).toBeGreaterThan(170);
     // Month starts inside the span, thinned to a readable few; the exact dates are in the table and each mark's title.
     expect([...svg.querySelectorAll('text.axis-label')].map((t) => t.textContent).slice(0, 6)).toEqual(['0', '414', 'Apr 2025', 'Jun 2025', 'Aug 2025', 'Oct 2025']);
+    expect([...svg.querySelectorAll('text.axis-label')].map((t) => t.textContent)).toContain('no count');
   });
   it('opens provenance from every mark, with the report it was read from and what the mark is not', () => {
     const svg = cumulativeChart(rows, 'Gaines County', true);

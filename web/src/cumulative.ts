@@ -17,7 +17,7 @@ export const cumulativeMissingWords: Record<CumulativeMissingReason, string> = {
   ambiguous: 'the county’s count in this report could not be read as one number',
 };
 
-export const cumulativeExplanation = 'Each point is one DSHS report: the cumulative number of confirmed cases it printed for this county, on its report date. DSHS published these reports irregularly, so the points are unevenly spaced, they are not joined by a line, and no value is estimated between reports. Weekly counts are not derived from this series.';
+export const cumulativeExplanation = 'Each point is one DSHS report: the cumulative number of confirmed cases it printed for this county, on its report date. DSHS published these reports irregularly, so the points are unevenly spaced, they are not joined by a line, and no value is estimated between reports. A later report can print a lower count when DSHS removed or reclassified a case; each point is what that report printed. Weekly counts are not derived from this series.';
 export const cumulativeMissingExplanation = '× marks a report date where DSHS gave no usable count for this county. The count is unknown, not zero, and none is estimated; the reason is listed under the chart.';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -26,7 +26,7 @@ const left = 50;
 const right = 610;
 const top = 28;
 const base = 170;
-const missingY = 192;
+const missingY = 206;
 
 function svgElement(tag: string, attributes: Record<string, string | number>) {
   const node = document.createElementNS(NS, tag);
@@ -104,7 +104,7 @@ export function cumulativeChart(rows: readonly CumulativeCaseReport[], name: str
   const x = (date: string) => last === first ? (left + right) / 2 : left + (day(date) - first) / (last - first) * (right - left);
   const y = (value: number) => base - value / max * (base - top);
   const title = `${cumulativeHeading} · ${name}. One point per report date; points are not joined, and weekly counts are not derived. × marks a report with no usable count.`;
-  const svg = svgElement('svg', { viewBox: '0 0 640 214', role: 'group', 'aria-label': title, class: 'cumulative-chart' }) as SVGSVGElement;
+  const svg = svgElement('svg', { viewBox: '0 0 640 222', role: 'group', 'aria-label': title, class: 'cumulative-chart' }) as SVGSVGElement;
   svg.dataset.geography = rows[0]?.geography ?? '';
   const titleNode = svgElement('title', {});
   titleNode.textContent = title;
@@ -122,6 +122,10 @@ export function cumulativeChart(rows: readonly CumulativeCaseReport[], name: str
     text.textContent = tick.label;
     svg.append(text);
   }
+  // The strip under the month labels where a report with no usable count is marked; its height is not a count.
+  const strip = svgElement('text', { x: 5, y: missingY + 4, class: 'axis-label' });
+  strip.textContent = 'no count';
+  svg.append(strip);
   const legend = svgElement('text', { x: left, y: 14, class: 'axis-label series-legend' });
   legend.textContent = 'Cumulative confirmed cases · ● printed in the report · × no usable count';
   svg.append(legend);
