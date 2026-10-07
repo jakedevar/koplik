@@ -42,7 +42,7 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   scenario is only published beside a companion that describes it (same seed, run count, start
   week, nodes, seeding and parameter values). The scenario input keeps its v1 shape. Every
   other type is re-exported from v3 unchanged. Schema: `schema/v4/`.
-- **v5** (`CONTRACT_VERSION` 5): v4 plus `ForecastProvenance` and the types it is made of (#1465):
+- **v5** (released, frozen): v4 plus `ForecastProvenance` and the types it is made of (#1465):
   the companion of a published set of v1 `Forecast` rows. It lists every series considered and
   whether it was forecast or `insufficient_data` (with the estimator's reason), fixes the
   method, every configuration value with its citation, the seed, run count, quantile levels and
@@ -52,7 +52,18 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   `ForecastProvenance::check_against(&[Forecast])` is the rule that forecast rows are only
   published beside a companion that describes them. The forecast rows keep their v1 shape. Every
   other type is re-exported from v4 unchanged. Schema: `schema/v5/`.
-- **v7** (`CONTRACT_VERSION` 6): v5 with a changed forecast companion (#1503). `ForecastProvenance`
+- **v6** (`CONTRACT_VERSION` 6): v5 plus `RowArtifact<T>` (geography, weekly cases,
+  coverage, R_t and forecast aliases). The wire envelope has `contract_version: 6`,
+  a per-file `provenance` table, and `rows` whose `provenance` arrays hold zero-based
+  u32 indices. The complete record is deduplicated, preserving row order and the
+  ordered provenance of every number, including repeated references. Deserialization
+  checks indices and runs the released row validators after expansion. `pack_json`
+  validates existing row JSON and preserves every non-provenance field as raw JSON
+  so decimal parsing cannot change published numbers. Empty rows
+  have an empty table. Companions, GeoJSON and stage outputs retain their current
+  contracts; released v1–v5 sources and schemas are unchanged. Schema: `schema/v6/`.
+
+- **v7** (`CONTRACT_VERSION` 7): v6 with a changed forecast companion (#1503). `ForecastProvenance`
   gains `series_backtest`: a second evaluation, `SeriesBacktest`, that scores the forecast over a
   family of series (the CDC NNDSS state series) and states its `InformationBasis` (`real-time by
   report vintage`, or `pseudo-real-time (revised counts truncated at each forecast date)`, which a
@@ -62,13 +73,13 @@ The ensemble's display fingerprint is explicitly member 0, not a median hash.
   forecast series' `skill` gains `measured` and `insufficient data for a measured skill` (beside
   v5's `backtested` and `not backtested; no measured skill`); the deserializer checks each against
   the backtest's entry for the series. Forecast rows keep their v1 shape and the report-vintage
-  `backtest` keeps its v5 type. Every other type is re-exported from v5 unchanged. Schema:
+  `backtest` keeps its v5 type. Every other type is re-exported from v6 unchanged. Schema:
   `schema/v7/`.
 
 ## Regenerate the schema
 
 ```bash
-make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v7
+make schema        # KOPLIK_REGEN_SCHEMA=1 tools/cargo-test.sh -p koplik-contracts --test schema --test schema_v2 --test schema_v3 --test schema_v4 --test schema_v5 --test schema_v6 --test schema_v7
 git add crates/koplik-contracts/schema
 ```
 

@@ -32,7 +32,7 @@ scratch work directory and blank `KOPLIK_CONTACT`. It writes `web/public/data` i
 the archive, preserving each fixture's recorded retrieval time and provenance.
 The pipeline uses the caller's `CARGO_TARGET_DIR` when set, otherwise the scratch
 target directory. Pipeline failure or a missing manifest stops publication; the
-built site must contain `data/manifest.json` and `data/v1/*.json` before any push.
+built site must contain `data/manifest.json` and `data/v6/*.json` before any push.
 It creates a commit recording that exact source SHA in an isolated Git repository whose parent
 is the fetched `gh-pages` tip (or a root commit on first publication), then pushes
 only `HEAD:refs/heads/gh-pages`. A rejected push refetches and retries up to three
@@ -50,22 +50,31 @@ origin's hooks: once enabled, publishing to origin also publishes publicly.
 Workers must test against temporary bare repositories, never the real origin.
 `make web-test` includes the offline publishing test after the web tests.
 
-## Pipeline artifact layout (contracts v1)
+## Pipeline artifact layout (contracts v6)
 
 `koplik-pipeline build` (`make pipeline`, or `make pipeline-fixtures` offline from the
-committed real-byte fixtures) writes the following files under `web/public/data/v1/`,
+committed real-byte fixtures) writes the following files under `web/public/data/v6/`,
 plus `web/public/data/manifest.json`: the build manifest with the sha256 of every input
 and output, each source's snapshot and retrieval, and what is missing or skipped. Each
-row array contains unwrapped contract objects, not a new shared contract shape:
+observation file contains a versioned envelope:
 
-| File | Row schema in `crates/koplik-contracts/schema/v1/` |
+| File | Published schema |
 | --- | --- |
-| `geographies.json` | `Geography.schema.json` |
-| `weekly-cases.json` | `WeeklyCaseCount.schema.json` in `schema/v3/` (rows with `cases` and `case_definition`); v1 rows are also accepted, see below |
-| `coverage.json` | `KindergartenMmrCoverage.schema.json` |
-| `rt.json` | `RtEstimate.schema.json` |
+| `geographies.json` | `schema/v6/GeographyArtifact.schema.json` |
+| `weekly-cases.json` | `schema/v6/WeeklyCaseCountArtifact.schema.json` (expanded v3 rows with `cases` and `case_definition`) |
+| `coverage.json` | `schema/v6/KindergartenMmrCoverageArtifact.schema.json` |
+| `rt.json` | `schema/v6/RtEstimateArtifact.schema.json` |
 | `us-states.json` | GeoJSON FeatureCollection, Polygon/MultiPolygon, `properties.GEOID` = state FIPS |
 | `texas-counties.json` | GeoJSON FeatureCollection, Polygon/MultiPolygon, `properties.GEOID` = Texas county FIPS |
+
+The four observation files now use v6 `*Artifact` envelopes (schemas in
+`koplik-contracts/schema/v6/`): `{ contract_version: 6, provenance: [...], rows: [...] }`.
+Each row's non-empty `provenance` is an array of indices into that file's table.
+The loader validates the envelope, checks reference bounds, then expands records
+before applying the released row validators. Every provenance drawer receives the
+same source URL, retrieval time, snapshot hash and licence as before. GeoJSON
+boundaries retain their existing shapes. Forecast rows use the same v6 envelope
+at `data/forecasts/weekly-cases.json`; their v5 companion is unchanged.
 
 Include geography metadata for every boundary and observation. Boundaries use
 WGS84 longitude/latitude; FIPS remain zero-padded strings. Additional GeoJSON
@@ -74,7 +83,7 @@ v1 `Provenance` records for its geometry. Attribution displays those source and
 licence ids and updates on drill-down; absent provenance is explicitly labelled
 unavailable, with no inferred Census/public-domain claim. Observation keys are
 unique: geography + week for cases, geography + week + interval_level for R_t,
-and geography + school year for coverage. Empty arrays mean unavailable data; missing counts/coverage use the
+and geography + school year for coverage. Empty row arrays in the envelope mean unavailable data; missing counts/coverage use the
 contract's explicit `missing` variant. Do not insert zeros for missing weeks.
 All six files are required so a failed or incomplete build fails visibly instead
 of silently rendering stale partial data. Production never falls back to fixtures.
@@ -142,7 +151,7 @@ hash identifies that source file's exact bytes. The fixture URL is deliberately
 `example.invalid`, and the timestamp records fixture creation, not real retrieval.
 All numeric values and rectangular boundaries are invented. The UI displays a
 persistent synthetic-data banner and map attribution. Fixture mode is enabled
-only in Vite development; production reads only `data/v1/` and rejects rows with
+only in Vite development; production reads only `data/v6/` and rejects rows with
 synthetic source ids. Production build checks reject synthetic filenames,
 directories or provenance in both `public/` before copying and `dist/` afterward;
 Vitest also checks these trees and exercises rejection with contaminated outputs.
