@@ -92,7 +92,7 @@ async function main() {
   const session = process.env.RSI_SESSION_ID || (branch.startsWith('rsi/') ? branch.slice(4) : '');
   const identity = (await run('git', ['var', 'GIT_AUTHOR_IDENT'], root)).match(/^(.*) <([^>]+)> \d+ [+-]\d+$/);
   if (!identity) throw new Error('Configure a Git author before publishing');
-  const scratch = await mkdtemp(join(tmpdir(), 'koplik-publish-'));
+  let scratch;
   const interrupt = (signal) => {
     interrupted = signal;
     for (const child of children) {
@@ -106,6 +106,7 @@ async function main() {
   process.on('SIGINT', onInterrupt);
   process.on('SIGTERM', onTerminate);
   try {
+    scratch = await mkdtemp(join(tmpdir(), 'koplik-publish-'));
     const build = join(scratch, 'build');
     await mkdir(build);
     // Pin the archive to the recorded SHA, even if HEAD/worktree changes later.
@@ -133,7 +134,7 @@ async function main() {
     await writeFile(join(dist, '.nojekyll'), '');
     await publishSite({ scratch, dist, target, source, identity, session, dryRun });
   } finally {
-    await rm(scratch, { recursive: true, force: true });
+    if (scratch) await rm(scratch, { recursive: true, force: true });
     process.off('SIGINT', onInterrupt);
     process.off('SIGTERM', onTerminate);
   }
