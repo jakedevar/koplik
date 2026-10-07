@@ -16,6 +16,11 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   });
   await page.goto('./');
   await expect(page.getByRole('heading', { name: 'Measles across the United States' })).toBeVisible();
+  const attribution = page.getByRole('region', { name: 'Data sources and attribution' });
+  await expect(attribution).toBeVisible();
+  await expect(attribution).toContainText('Source: Centers for Disease Control and Prevention (CDC), NNDSS Weekly Data');
+  await expect(attribution).toContainText('Source: Texas Department of State Health Services (DSHS)');
+  await expect(attribution.getByRole('link', { name: /Texas DSHS 2025 measles outbreak page/ })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
   await expect(page.locator('.synthetic').first()).toContainText('SYNTHETIC TEST DATA');
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   await expect(page.locator('.map')).toHaveAttribute('data-map-state', 'ready');
@@ -35,6 +40,8 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   await expect(drawer).toContainText(source.retrieved_at);
   await expect(drawer).toContainText(source.licence_id);
   await expect(drawer).toContainText('not a published source');
+  await expect(drawer.locator('.provenance-terms')).toBeVisible();
+  await expect(drawer.locator('.provenance-attribution')).toBeVisible();
   await close.press('Shift+Tab'); await expect(drawer.getByRole('link')).toBeFocused();
   await drawer.getByRole('link').press('Tab'); await expect(close).toBeFocused();
   await close.press('Escape'); await expect(drawer).toBeHidden(); await expect(total).toBeFocused();
