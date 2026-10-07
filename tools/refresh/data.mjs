@@ -25,22 +25,28 @@ export async function command(program, args, cwd, env = process.env) {
   return new Promise((accept, reject) => {
     const child = spawn(program, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
-    let tail = '';
-    const capture = (bytes) => {
-      tail = (tail + bytes).split('\n').slice(-201).join('\n');
-    };
-    const stdout = new StringDecoder('utf8');
-    const stderr = new StringDecoder('utf8');
-    child.stdout.on('data', (bytes) => { const text = stdout.write(bytes); out += text; capture(text); });
-    child.stderr.on('data', (bytes) => capture(stderr.write(bytes)));
-    child.stdout.on('end', () => { const text = stdout.end(); out += text; capture(text); });
-    child.stderr.on('end', () => capture(stderr.end()));
+    const lines = [];
+    const append = (line) => { lines.push(line); if (lines.length > 200) lines.shift(); };
+    // Keep partial lines per stream: interleaved stdout must not split a
+    // credential being emitted across multiple stderr chunks (or vice versa).
+    for (const [stream, isStdout] of [[child.stdout, true], [child.stderr, false]]) {
+      const decoder = new StringDecoder('utf8');
+      let pending = '';
+      const capture = (text) => {
+        if (isStdout) out += text;
+        const parts = (pending + text).split('\n');
+        pending = parts.pop();
+        for (const line of parts) append(line);
+      };
+      stream.on('data', (bytes) => capture(decoder.write(bytes)));
+      stream.on('end', () => { capture(decoder.end()); if (pending) append(pending); });
+    }
     child.on('error', () => reject(new Error(`Command unavailable: ${program}`)));
     child.on('close', (code) => {
       if (code === 0) return accept(out.trim());
       const error = new Error(`Command failed (exit ${code})`);
       // Private until the refresh boundary redacts it; never log this property.
-      error.commandTail = tail.replace(/\n$/, '').split('\n').slice(-200).join('\n');
+      error.commandTail = lines.join('\n');
       reject(error);
     });
   });

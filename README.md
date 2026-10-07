@@ -123,11 +123,12 @@ The refresh creates a fresh detached clone at `origin/rolling` under
 agent sandbox. Existing release blobs are immutable and the retrieval log is
 append-only. The candidate commit may change only `data/release/**`; staged,
 unstaged, untracked and committed paths are guarded. Tests still use
-`data/fixtures/`. After verified release, the run's compiler `target/` is deleted. Each run first
+`data/fixtures/`. After verified release, the run's compiler `target/` is deleted.
+Each run first
 prunes green run directories older than the last two. Failed source trees and
 reports remain for diagnosis; compiler targets for failed, interrupted or dry
-runs are removed after 14 days. A directory lock prevents overlapping runs; after a killed
-run, inspect the journal before removing `~/.rsi/koplik-refresh/lock`.
+runs are removed after 14 days. A directory lock prevents overlapping runs;
+after a killed run, inspect the journal before removing `~/.rsi/koplik-refresh/lock`.
 
 Before installation, configure the Census contact in the shared checkout's
 **gitignored** `.env.local` (`KOPLIK_CENSUS_CONTACT`), and put literal private

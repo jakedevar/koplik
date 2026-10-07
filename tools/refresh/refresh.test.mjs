@@ -8,7 +8,7 @@ import { publishSite } from '../publish.mjs';
 import { command, digest } from './data.mjs';
 import { seedFixtureStore } from './fixture-store.mjs';
 import { failure, ingestGreen, pathGuard, refresh } from './refresh.mjs';
-import { loadPatterns, scanHistory, scanText } from './scans.mjs';
+import { loadPatterns, redact, scanHistory, scanText } from './scans.mjs';
 import { preflight, pruneRuns } from './safety.mjs';
 import { bootstrap } from './bootstrap.mjs';
 
@@ -230,6 +230,7 @@ exit 0
 test('scans refuse private patterns, secrets, tracked environment files and secrets removed from current tree', async () => {
   assert.throws(() => scanText('private-contact-sentinel', ['private-contact-sentinel']), /Personal-data/);
   assert.throws(() => scanText('ghp_' + 'a'.repeat(36), []), /Secrets/);
+  assert.equal(redact('ghp_' + 'a'.repeat(36), ['ghp_']), '[REDACTED]');
   const context = await repository();
   try {
     await writeFile(join(context.shared, 'secret.txt'), 'sk-' + 'a'.repeat(48));
@@ -253,7 +254,7 @@ test('preflight trims CRLF patterns and resolves private contact without accepti
     assert.deepEqual(await loadPatterns(context.patterns), ['private-contact-sentinel']);
     assert.equal((await preflight(context.patterns, contact)).contact, 'refresh-test@example.invalid');
     const original = git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)');
-    for (const bad of ['blank-patterns', 'comment-patterns', 'missing-patterns', 'missing-contact', 'blank-contact', 'unset-contact', 'invalid-utf8']) {
+    for (const bad of ['blank-patterns', 'comment-patterns', 'missing-patterns', 'missing-contact', 'blank-contact', 'unset-contact', 'invalid-utf8', 'invalid-pattern-utf8', 'unrecognized-bom-key']) {
       await writeFile(context.patterns, 'private-contact-sentinel\n');
       await writeFile(contact, 'KOPLIK_CENSUS_CONTACT=refresh-test@example.invalid\n');
       if (bad === 'blank-patterns') await writeFile(context.patterns, ' \t\r\n\r\n');
@@ -263,6 +264,8 @@ test('preflight trims CRLF patterns and resolves private contact without accepti
       if (bad === 'blank-contact') await writeFile(contact, 'KOPLIK_CENSUS_CONTACT="  "\n');
       if (bad === 'unset-contact') await writeFile(contact, 'OTHER=value\n');
       if (bad === 'invalid-utf8') await writeFile(contact, Buffer.from([0xff]));
+      if (bad === 'invalid-pattern-utf8') await writeFile(context.patterns, Buffer.from([0xff]));
+      if (bad === 'unrecognized-bom-key') await writeFile(contact, '\uFEFFKOPLIK_CENSUS_CONTACT=refresh-test@example.invalid\n');
       let ingests = 0;
       await assert.rejects(refresh({ ...context, ingest: async () => { ingests++; },
         run: (program, args, cwd, env) => program === 'notify-send' ? '' : command(program, args, cwd, env) }), /failed at preflight/);
@@ -331,4 +334,16 @@ test('bootstrap executes landed rolling code and removes its clone despite dirty
     assert.equal((await readdir(context.state)).filter((name) => name.startsWith('FAILED-bootstrap-')).length, 1);
     assert.deepEqual((await readdir(context.state)).filter((name) => name.startsWith('bootstrap-')), []);
   } finally { await rm(context.root, { recursive: true, force: true }); }
+});
+
+test('redacted command diagnostics preserve complete credentials across interleaved pipe chunks', async () => {
+  const state = await mkdtemp('/tmp/koplik-command-tail-');
+  try {
+    await assert.rejects(command(process.execPath, ['-e',
+      "process.stderr.write('ghp_');setTimeout(()=>{console.log('interleaved output');setTimeout(()=>{process.stderr.write('a'.repeat(36)+'\\n');process.exitCode=1},20)},20)"], state, dummyEnv),
+    (error) => {
+      assert.equal(redact(error.commandTail, ['ghp_']), 'interleaved output\n[REDACTED]');
+      return true;
+    });
+  } finally { await rm(state, { recursive: true, force: true }); }
 });

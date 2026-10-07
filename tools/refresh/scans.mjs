@@ -24,10 +24,12 @@ export async function loadPatterns(patternsFile) {
   return patterns;
 }
 export function redact(text, personalPatterns = [], contact) {
+  // Mask complete credentials first: a shorter personal pattern must not hide
+  // a token prefix from the secrets matcher and expose the remaining token.
+  for (const pattern of secretPatterns) text = text.replace(new RegExp(pattern.source, 'g'), '[REDACTED]');
   for (const value of [...personalPatterns, contact].filter(Boolean).sort((a, b) => b.length - a.length)) {
     text = text.split(value).join('[REDACTED]');
   }
-  for (const pattern of secretPatterns) text = text.replace(new RegExp(pattern.source, 'g'), '[REDACTED]');
   return text;
 }
 export async function scanTree(root, sha, patternsFile, run = command) {
