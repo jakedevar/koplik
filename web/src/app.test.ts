@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { countyWeeklyNote, disclaimer, mountDashboard, showStatus, type MapFactory } from './app';
+import { countyWeeklyNote, disclaimer, methodNote, mountDashboard, showStatus, type MapFactory } from './app';
 import { cumulativeNone } from './cumulative';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 import { caseScales, fillColor, mapFeatures } from './map';
@@ -58,6 +58,21 @@ describe('map colour scales never mix case definitions', () => {
     expect(root.querySelector('.legend-scale')?.getAttribute('data-case-definition')).toBe('confirmed');
     expect(root.querySelector('.legend-note')?.textContent).toContain('on this confirmed cases scale');
     expect(map.update).toHaveBeenLastCalledWith('state', 'cases-2025', '48', 'confirmed');
+  });
+});
+
+describe('Sources method note', () => {
+  it('says what the code backs: reported numbers trace to snapshots, R_t and the forecast derive from reported counts, the what-if does not', () => {
+    const [tracing, method] = methodNote;
+    expect(tracing).toContain('Every reported number traces back to a snapshot of a source');
+    expect(tracing).toContain('Click or press a number to open its record.');
+    expect(method).toContain('R_t and the forecast are derived from the reported counts by the code in this project');
+    expect(method).toContain('The what-if is a hypothetical introduction of one infectious person, driven by population and coverage data, cited parameters and stated assumptions, not by reported counts.');
+  });
+  it('is shown on the Sources page', () => {
+    const { root } = mount();
+    const shown = [...root.querySelectorAll('[data-page-view="sources"] .method-note')].map((p) => p.textContent);
+    expect(shown).toEqual(methodNote);
   });
 });
 

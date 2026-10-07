@@ -22,6 +22,19 @@ function drawer() {
 }
 
 describe('provenance drawer', () => {
+  it('does not return focus to a trigger on a hidden page, and closes when the page changes', () => {
+    const { root, dialog, number, cleanup } = drawer();
+    const page = document.createElement('div'); root.append(page); page.append(number);
+    const focus = vi.spyOn(number, 'focus');
+    number.click();
+    expect(dialog.open).toBe(true);
+    page.hidden = true;
+    root.dispatchEvent(new CustomEvent('koplik:page', { detail: { page: 'forecast' } }));
+    expect(dialog.open).toBe(false);
+    expect(focus).not.toHaveBeenCalled();
+    cleanup();
+  });
+
   it('opens on the number, displays only the linked fields, and moves focus into the drawer', () => {
     const { dialog, number, cleanup } = drawer();
     number.focus(); number.click();

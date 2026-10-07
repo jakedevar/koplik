@@ -102,9 +102,15 @@ export function attributionFor(sourceId: string | undefined, licenceId: string |
   return ids.map((id) => licenceTerms(id)?.attribution).filter((text): text is string => !!text);
 }
 
-/** The three data providers the compact footer on every page names, each with its link (DSHS terms require both). */
-export const footerSources: { label: string; url: string }[] = [
+/**
+ * The three data providers the compact footer on every page names, each with its link (DSHS terms require both).
+ * A provider with `links` is shown as its name followed by each page in brackets; `url` is its first page.
+ */
+export const footerSources: { label: string; url: string; links?: { label: string; url: string }[] }[] = [
   { label: 'CDC', url: 'https://data.cdc.gov/resource/x9gk-5huc' },
   { label: 'US Census Bureau', url: 'https://www.census.gov/' },
-  { label: 'Texas DSHS', url: 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025' },
+  { label: 'Texas DSHS', url: 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025', links: [
+    { label: 'outbreak data', url: 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025' },
+    { label: 'school coverage', url: 'https://www.dshs.texas.gov/immunizations/data/school/coverage' },
+  ] },
 ];

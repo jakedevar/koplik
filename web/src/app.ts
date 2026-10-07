@@ -19,8 +19,8 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, c
 }
 /** What the Sources page says about how every number got here (the rules in AGENTS.md and the spec). */
 export const methodNote = [
-  'Every number in Koplik traces back to a snapshot of a source: the snapshot’s SHA-256 hash, the source URL and the time it was retrieved. Click or press any number to open that record. Raw source snapshots are never edited.',
-  'Missing or ambiguous data is shown as missing, never guessed or filled in. Estimates (R_t, the forecast, the what-if) are derived from the reported counts by the code in this project, with every model parameter cited; below the minimum-count threshold we publish “insufficient data” rather than an estimate. A forecast is a model projection, not a prediction, and the what-if is a hypothetical scenario.',
+  'Every reported number traces back to a snapshot of a source: the snapshot’s SHA-256 hash, the source URL and the time it was retrieved. Click or press a number to open its record. Raw source snapshots are never edited.',
+  'Missing or ambiguous data is shown as missing, never guessed or filled in. R_t and the forecast are derived from the reported counts by the code in this project, with every model parameter cited; below the minimum-count threshold we publish “insufficient data” rather than an estimate. A forecast is a model projection, not a prediction. The what-if is a hypothetical introduction of one infectious person, driven by population and coverage data, cited parameters and stated assumptions, not by reported counts.',
 ];
 
 export interface Shell {
@@ -29,7 +29,7 @@ export interface Shell {
   pages: Record<PageId, HTMLElement>;
 }
 const pageIntros: Record<Exclude<PageId, 'explorer'>, [string, string, string]> = {
-  forecast: ['FORECAST', 'Where is measles going next?', 'A model projection from reported counts, with its measured backtest skill beside it. It follows the geography chosen on the Explorer.'],
+  forecast: ['FORECAST', 'Where is measles going next?', 'A model projection from reported counts, with its measured backtest skill beside it. It follows the geography chosen on the Explorer when a forecast series exists for it.'],
   'what-if': ['WHAT-IF SIMULATION', 'What if vaccination coverage were different?', 'Move the slider and the in-browser ensemble re-runs a stated hypothetical outbreak. An illustrative scenario, not a prediction.'],
   sources: ['SOURCES', 'Data sources and method', 'Where every number comes from, under what terms, and how it is handled.'],
 };
@@ -37,9 +37,19 @@ function sourceFooter(): HTMLElement {
   const line = element('p', undefined, 'source-footer');
   line.append('Data: ');
   footerSources.forEach((source, i) => {
-    const link = element('a', source.label);
-    link.href = source.url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-    line.append(link, i < footerSources.length - 1 ? ', ' : ' · ');
+    const link = (label: string, url: string, name?: string) => {
+      const a = element('a', label);
+      a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      if (name) a.setAttribute('aria-label', name);
+      return a;
+    };
+    if (source.links) {
+      // One provider, several pages: the name, then each page it is linked to.
+      line.append(`${source.label} (`);
+      source.links.forEach((l, j) => line.append(link(l.label, l.url, `${source.label} ${l.label}`), j < source.links!.length - 1 ? ', ' : ''));
+      line.append(')');
+    } else line.append(link(source.label, source.url));
+    line.append(i < footerSources.length - 1 ? ', ' : ' · ');
   });
   const all = element('a', 'Sources and attribution');
   all.href = pageHash('sources');

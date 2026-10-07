@@ -89,6 +89,18 @@ describe('router', () => {
     go('#/explorer'); expect(resizes).toBe(1);
     expect(seen).toEqual(['forecast', 'explorer']);
   });
+  it('closes an open provenance drawer when the page changes (Back or Forward) and focuses the new page h1', () => {
+    history.replaceState(null, '', '#/explorer');
+    const { root } = mount();
+    const dialog = root.querySelector<HTMLDialogElement>('dialog.provenance-drawer')!;
+    const trigger = root.querySelector<HTMLElement>('[data-page-view="explorer"] .provenance-number')!;
+    trigger.focus(); trigger.click();
+    expect(dialog.open).toBe(true);
+    go('#/forecast');
+    expect(dialog.open).toBe(false);
+    expect(current(root)).toEqual(['forecast']);
+    expect(document.activeElement).toBe(root.querySelector('[data-page-view="forecast"] h1'));
+  });
   it('stops listening after cleanup', () => {
     const root = document.createElement('div'); document.body.append(root);
     root.innerHTML = '<nav aria-label="Primary"><a data-page="explorer"></a><a data-page="forecast"></a></nav><div data-page-view="explorer"></div><div data-page-view="forecast" hidden></div>';
@@ -101,16 +113,19 @@ describe('router', () => {
 });
 
 describe('every page', () => {
-  it('carries the verbatim disclaimer and the source footer with the three provider links and a Sources link', () => {
+  it('carries the verbatim disclaimer and the source footer with the provider links (DSHS twice) and a Sources link', () => {
     const { root } = mount();
     const footer = root.querySelector('footer')!;
     expect(footer.querySelector('.disclaimer')?.textContent).toBe('Demonstration project; not medical or public-health advice; not affiliated with CDC or WHO.');
     const links = [...footer.querySelectorAll<HTMLAnchorElement>('.source-footer a')];
-    expect(links.map((a) => a.textContent)).toEqual(['CDC', 'US Census Bureau', 'Texas DSHS', 'Sources and attribution']);
-    expect(links.slice(0, 3).map((a) => a.href)).toEqual(footerSources.map((s) => s.url));
+    expect(footer.querySelector('.source-footer')?.textContent).toBe('Data: CDC, US Census Bureau, Texas DSHS (outbreak data, school coverage) · Sources and attribution');
+    expect(links.map((a) => a.textContent)).toEqual(['CDC', 'US Census Bureau', 'outbreak data', 'school coverage', 'Sources and attribution']);
+    expect(links[0].href).toBe(footerSources[0].url);
     expect(links[1].href).toBe('https://www.census.gov/');
     expect(links[2].href).toBe('https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
-    expect(links[3].getAttribute('href')).toBe('#/sources');
+    expect(links[3].href).toBe('https://www.dshs.texas.gov/immunizations/data/school/coverage');
+    expect(links[2].getAttribute('aria-label')).toBe('Texas DSHS outbreak data');
+    expect(links[4].getAttribute('href')).toBe('#/sources');
     // The footer sits outside the page views, so it is visible whichever page is open.
     for (const link of links) expect(root.querySelector('main')!.contains(link)).toBe(false);
   });

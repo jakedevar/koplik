@@ -267,11 +267,32 @@ describe('forecast panel', () => {
     root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '35' } }));
     expect(select.value).toBe('35');
     expect(main.querySelector('.forecast-insufficient')?.textContent).toContain('missing or not reported');
+    const fallback = main.querySelector<HTMLElement>('.forecast-fallback')!;
+    expect(fallback.hidden).toBe(true);
     root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '99' } }));
     expect(select.value).toBe('35');
+    expect(fallback.hidden).toBe(false);
+    expect(fallback.textContent).toBe('No forecast series for 99; showing New Mexico.');
+    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '20' } }));
+    expect(select.value).toBe('20');
+    expect(fallback.hidden).toBe(true);
+    root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '99' } }));
+    expect(fallback.textContent).toBe('No forecast series for 99; showing Kansas.');
+    // Choosing a series on this page is deliberate: the Explorer's geography no longer applies.
+    select.value = '35'; select.dispatchEvent(new Event('change'));
+    expect(fallback.hidden).toBe(true);
     cleanup();
     root.dispatchEvent(new CustomEvent('koplik:selection', { detail: { geography: '48' } }));
     expect(document.querySelector('.forecast')).toBeNull();
+  });
+
+  it('names both geographies when the Explorer geography has no series on first load', async () => {
+    const { main, cleanup } = mount(undefined, '99');
+    await flush();
+    const fallback = main.querySelector<HTMLElement>('.forecast-fallback')!;
+    expect(fallback.hidden).toBe(false);
+    expect(fallback.textContent).toMatch(/^No forecast series for 99; showing .+\.$/);
+    cleanup();
   });
 
   it('follows a selection made on the dashboard before the forecast has loaded, and listens on the given events target', async () => {

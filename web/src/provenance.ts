@@ -1,5 +1,6 @@
 import type { Provenance } from './generated/Provenance';
 import { attributionFor, licenceTerms } from './attribution';
+import { pageEvent } from './router';
 
 // Local display metadata, not a new published artifact shape. Partial records stay partial.
 export interface PublishedCitation { source: string; url?: string | null; note?: string }
@@ -75,7 +76,8 @@ export function mountProvenanceDrawer(root: HTMLElement): () => void {
   dialog.append(close, heading, content); root.append(dialog);
   let trigger: FocusTarget | undefined;
   function returnFocus() {
-    if (trigger?.isConnected) trigger.focus?.();
+    // A trigger on a page that is now hidden cannot take focus; the router moves focus to the visible page's h1.
+    if (trigger?.isConnected && !trigger.closest('[hidden]')) trigger.focus?.();
     trigger = undefined;
   }
   function dismiss() {
@@ -151,8 +153,11 @@ export function mountProvenanceDrawer(root: HTMLElement): () => void {
     close.focus();
   };
   root.addEventListener('koplik:provenance', onOpen);
+  // Back, Forward or a link changes the page behind the modal: close the drawer rather than leave it over the wrong page.
+  const onPage = () => { if (dialog.open) dismiss(); };
+  root.addEventListener(pageEvent, onPage);
   const cleanup = () => {
-    root.removeEventListener('koplik:provenance', onOpen); dialog.remove();
+    root.removeEventListener('koplik:provenance', onOpen); root.removeEventListener(pageEvent, onPage); dialog.remove();
     if (drawers.get(root) === cleanup) drawers.delete(root);
   };
   drawers.set(root, cleanup);

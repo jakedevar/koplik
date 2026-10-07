@@ -24,7 +24,9 @@ async function expectPageChrome(page: Page, name: string, emptyHash = false) {
   const footer = page.locator('footer .source-footer');
   await expect(footer.getByRole('link', { name: 'CDC' })).toHaveAttribute('href', 'https://data.cdc.gov/resource/x9gk-5huc');
   await expect(footer.getByRole('link', { name: 'US Census Bureau' })).toHaveAttribute('href', 'https://www.census.gov/');
-  await expect(footer.getByRole('link', { name: 'Texas DSHS' })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
+  await expect(footer).toContainText('Texas DSHS (outbreak data, school coverage)');
+  await expect(footer.getByRole('link', { name: 'Texas DSHS outbreak data' })).toHaveAttribute('href', 'https://www.dshs.texas.gov/news-alerts/measles-outbreak-2025');
+  await expect(footer.getByRole('link', { name: 'Texas DSHS school coverage' })).toHaveAttribute('href', 'https://www.dshs.texas.gov/immunizations/data/school/coverage');
   await expect(footer.getByRole('link', { name: 'Sources and attribution' })).toHaveAttribute('href', '#/sources');
 }
 const nav = (page: Page) => page.getByRole('navigation', { name: 'Primary' });
@@ -235,6 +237,14 @@ test('pages are reachable by keyboard and direct hash, survive a reload, and fol
   await expect(page.locator('.maplibregl-canvas')).toBeVisible();
   const [map, canvas] = await Promise.all([page.locator('.map').boundingBox(), page.locator('.maplibregl-canvas').boundingBox()]);
   expect(canvas!.width).toBeGreaterThan(map!.width - 2);
+  // Back with the provenance drawer open closes the drawer and lands focus on the page that shows.
+  await page.locator('[data-page-view="explorer"] .provenance-number').first().click();
+  const drawer = page.getByRole('dialog', { name: 'Number provenance' });
+  await expect(drawer).toBeVisible();
+  await page.goBack();
+  await expectPageChrome(page, 'Forecast');
+  await expect(drawer).toBeHidden();
+  await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeFocused();
   expect(pageErrors).toEqual([]);
 });
 
