@@ -1,0 +1,602 @@
+[
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 2
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 8
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 4
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 12
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 5
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 7
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2025,
+      "week": 6
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 3
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2026,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2026,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 1
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48",
+    "week": {
+      "year": 2026,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 2
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 4
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 5
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2025,
+      "week": 6
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2026,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2026,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "week": {
+      "year": 2026,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "35",
+    "week": {
+      "year": 2025,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 1
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "35",
+    "week": {
+      "year": 2025,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "missing",
+      "reason": "not_reported"
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "35",
+    "week": {
+      "year": 2025,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 3
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 1
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 5
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 4
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 8
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 5
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 4
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "week": {
+      "year": 2025,
+      "week": 6
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 2
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "week": {
+      "year": 2025,
+      "week": 1
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 0
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "week": {
+      "year": 2025,
+      "week": 2
+    },
+    "confirmed": {
+      "status": "missing",
+      "reason": "not_reported"
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "week": {
+      "year": 2025,
+      "week": 3
+    },
+    "confirmed": {
+      "status": "reported",
+      "count": 2
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  }
+]

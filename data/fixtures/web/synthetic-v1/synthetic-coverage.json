@@ -1,0 +1,119 @@
+[
+  {
+    "geography": "48",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "reported",
+      "coverage_pct": 91.2,
+      "exemption_pct": null
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "40",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "reported",
+      "coverage_pct": 89.5,
+      "exemption_pct": null
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "35",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "missing",
+      "reason": "not_reported"
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "20",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "missing",
+      "reason": "not_reported"
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48165",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "reported",
+      "coverage_pct": 82.1,
+      "exemption_pct": null
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  },
+  {
+    "geography": "48115",
+    "school_year": "2024-25",
+    "imputed": false,
+    "imputation_method": null,
+    "coverage": {
+      "status": "missing",
+      "reason": "not_reported"
+    },
+    "provenance": [
+      {
+        "source_id": "synthetic-web-test",
+        "url": "https://example.invalid/synthetic-web-test",
+        "retrieved_at": "2026-10-07T00:00:00Z",
+        "sha256": "3b61a0986c3f9aacfd79db78c3709232b430d04c2ad6454916417e7a4a0cae7f",
+        "licence_id": "synthetic-test-only"
+      }
+    ]
+  }
+]
