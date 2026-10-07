@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { runTrajectory, runEnsemble } = require('../../pkg/node/koplik_wasm.js');
 const fixture = readFileSync(new URL('../../data/fixtures/seir/synthetic-scenario.json', import.meta.url), 'utf8');
-const nativeBin = fileURLToPath(new URL('../../target/release/trajectory-native', import.meta.url));
+// Honour CARGO_TARGET_DIR (exported by the Makefile) so a machine-wide cargo target-dir cannot hide the binary.
+const targetDir = process.env.CARGO_TARGET_DIR || fileURLToPath(new URL('../../target', import.meta.url));
+const nativeBin = `${targetDir}/release/trajectory-native`;
 const golden = '7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb';
 
 // Independently encode every count, including initial state and fractional leaps.

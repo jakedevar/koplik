@@ -1,3 +1,8 @@
+# Build artifacts go to the repository's target/ unless CARGO_TARGET_DIR is set; exporting it
+# overrides a machine-wide cargo `target-dir` so the wasm and native paths below always exist.
+CARGO_TARGET_DIR ?= $(CURDIR)/target
+export CARGO_TARGET_DIR
+
 # Koplik build targets. Cargo runs through the machine resource governor when present.
 CARGO := $(shell if [ -x $(HOME)/.rsi/bin/cargo-slot ]; then echo $(HOME)/.rsi/bin/cargo-slot cargo; else echo cargo; fi)
 
@@ -20,8 +25,8 @@ wasm:
 	if [ ! -x "$$cli" ] || [ "$$($$cli --version)" != "wasm-bindgen $$version" ]; then \
 		$(CARGO) install --locked --root target/tools wasm-bindgen-cli --version "$$version"; \
 	fi; \
-	"$$cli" --target web --out-dir pkg/web target/wasm32-unknown-unknown/release/koplik_wasm.wasm; \
-	"$$cli" --target nodejs --out-dir pkg/node target/wasm32-unknown-unknown/release/koplik_wasm.wasm
+	"$$cli" --target web --out-dir pkg/web $(CARGO_TARGET_DIR)/wasm32-unknown-unknown/release/koplik_wasm.wasm; \
+	"$$cli" --target nodejs --out-dir pkg/node $(CARGO_TARGET_DIR)/wasm32-unknown-unknown/release/koplik_wasm.wasm
 
 determinism: wasm
 	$(CARGO) build --locked --release -p koplik-wasm --bin trajectory-native
