@@ -12,7 +12,7 @@ import { publishSite } from './publish.mjs';
 const project = fileURLToPath(new URL('../', import.meta.url));
 function command(args, cwd, env = {}) {
   const result = spawnSync(args[0], args.slice(1), {
-    cwd, encoding: 'utf8', env: { ...process.env, ...env },
+    cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024, env: { ...process.env, ...env },
   });
   assert.ifError(result.error);
   assert.equal(result.status, 0, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
@@ -128,7 +128,9 @@ test('publish builds Pages offline, preserves the caller and only fast-forwards 
     assert.deepEqual(publishedPaths.filter((path) => path.startsWith('data/v1/')).sort(),
       ['coverage', 'geographies', 'rt', 'texas-counties', 'us-states', 'weekly-cases'].map((name) => `data/v1/${name}.json`).sort());
     for (const file of manifest.outputs) {
-      const bytes = spawnSync('git', ['--git-dir', remote, 'show', `${first}:data/${file.path}`], { cwd: caller });
+      const bytes = spawnSync('git', ['--git-dir', remote, 'show', `${first}:data/${file.path}`],
+        { cwd: caller, maxBuffer: Math.max(1024 * 1024, file.bytes + 1024) });
+      assert.ifError(bytes.error);
       assert.equal(bytes.status, 0);
       assert.equal(createHash('sha256').update(bytes.stdout).digest('hex'), file.sha256);
     }
