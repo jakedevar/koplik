@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
+import { caseCharts, caseSeries, rtAxisMaximum, rtChart, rtChartView, rtLabel } from './charts';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
+import { outlierRtRows } from '../tests/rt-outlier-fixture';
+import { plot } from './chart-style';
+import type { ProvenanceInfo } from './provenance';
 
 const caseChart = (rows: Parameters<typeof caseCharts>[0], year: number, synthetic = false) => {
   const charts = caseCharts(rows, year, synthetic);
@@ -9,6 +12,62 @@ const caseChart = (rows: Parameters<typeof caseCharts>[0], year: number, synthet
 };
 
 describe('accessible SVG reports', () => {
+  it('uses a readable percentile display cap, excluding other years and withheld estimates', () => {
+    const rows = outlierRtRows();
+    const ignored = [
+      { ...rows[0], upper: 1000, provisional: true },
+      { ...rows[0], upper: null, mean: null, lower: null, status: 'insufficient_data' as const },
+      { ...rows[0], upper: 1000, week: { year: 2026, week: 1 } },
+    ];
+    expect(rtAxisMaximum([...rows, ...ignored], 2025)).toBe(3);
+    expect(rtAxisMaximum(rows.map((row) => ({ ...row, upper: row.week.week <= 38 ? 6 : 100 })), 2025)).toBe(6);
+    expect(rtAxisMaximum(rows, 2025, true)).toBe(66.4);
+    expect(rtAxisMaximum([{ ...rows[0], mean: 80 }], 2025, true)).toBe(80);
+    expect(rtAxisMaximum([], 2025)).toBe(3);
+    expect(rtAxisMaximum(ignored.slice(0, 2), 2025)).toBe(3);
+  });
+  it('marks off-scale intervals and means at the edge, preserving exact values and source records', () => {
+    const rows = outlierRtRows();
+    const original = JSON.stringify(rows);
+    const view = rtChartView(rows, 2025, true);
+    const marker = view.querySelector<SVGElement>('.rt-off-scale')!;
+    const button = view.querySelector<HTMLButtonElement>('.rt-off-scale-labels button')!;
+    expect(marker.getAttribute('data-week')).toBe('40');
+    expect(marker.querySelector('title')?.textContent).toBe('Week 40 · 90%: upper bound 66.4, off scale; mean 12.345, off scale');
+    expect(button.textContent).toContain('upper bound 66.4, off scale');
+    expect(view.querySelector('.rt-interval[data-week="40"]')?.getAttribute('y2')).toBe(String(plot.top));
+    expect(view.querySelector('.rt-point[data-week="40"]')?.getAttribute('cy')).toBe(String(plot.top));
+    expect(view.querySelector('.rt-reference-label')?.textContent).toBe('R_t = 1');
+    const requests: ProvenanceInfo[] = [];
+    view.addEventListener('koplik:provenance', (event) => requests.push((event as CustomEvent<ProvenanceInfo>).detail));
+    marker.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    button.click();
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request.label).toContain('Mean 12.345; 90% interval 0.7–66.4');
+      expect(request.records).toEqual(rows[39].provenance);
+    }
+    const toggle = view.querySelector<HTMLButtonElement>('button')!;
+    expect(toggle.textContent).toBe('Show full range');
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    toggle.click();
+    expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    expect(view.querySelector('svg')?.getAttribute('data-axis-maximum')).toBe('66.4');
+    expect(view.querySelector('.rt-point[data-week="40"]')?.getAttribute('cy')).toBe(String(plot.base - 12.345 / 66.4 * (plot.base - plot.top)));
+    toggle.click();
+    expect(toggle.getAttribute('aria-pressed')).toBe('false');
+    expect(view.querySelector('.rt-off-scale-labels')?.textContent).toContain('mean 12.345, off scale');
+    expect(JSON.stringify(rows)).toBe(original);
+  });
+  it('marks a mean beyond its interval and an interval wholly above the display cap', () => {
+    const rows = outlierRtRows();
+    rows[39] = { ...rows[39], upper: 2, mean: 12.345 };
+    expect(rtChartView(rows, 2025).querySelector('.rt-off-scale-labels')?.textContent).toBe('▲ Week 40 · 90%: mean 12.345, off scale');
+    rows[39] = { ...rows[39], lower: 5, upper: 66.4 };
+    const svg = rtChart(rows, 2025);
+    expect(svg.querySelector('.rt-interval[data-week="40"]')?.getAttribute('y1')).toBe(String(plot.top));
+    expect(svg.querySelector('.rt-off-scale title')?.textContent).toContain('lower bound 5, off scale');
+  });
   it('names the case definition in the title, axis label and provenance label', () => {
     const data = fixtureDataset();
     const state = caseChart(data.cases.filter((r) => r.geography === '48'), 2025, true);
