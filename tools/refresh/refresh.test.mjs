@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,6 +11,7 @@ import { failure, ingestGreen, pathGuard, refresh } from './refresh.mjs';
 import { loadPatterns, redact, scanHistory, scanText } from './scans.mjs';
 import { preflight, pruneRuns } from './safety.mjs';
 import { bootstrap } from './bootstrap.mjs';
+import { fakeGh } from './fake-gh.mjs';
 
 const dummyEnv = { ...process.env };
 delete dummyEnv.RSI_SESSION_TOKEN;
@@ -39,10 +40,11 @@ async function repository({ pages = false } = {}) {
   git(shared, 'push', 'origin', 'HEAD:refs/heads/rolling', 'HEAD:refs/heads/main');
   if (pages) git(shared, 'push', 'origin', 'HEAD:refs/heads/gh-pages');
   git(origin, 'config', 'receive.denyNonFastForwards', 'true');
+  git(origin, 'remote', 'add', 'github', 'https://github.com/example/koplik.git');
   await writeFile(join(shared, '.env.local'), 'KOPLIK_CENSUS_CONTACT=refresh-test@example.invalid\n');
   const patterns = join(root, 'patterns');
   await writeFile(patterns, 'private-contact-sentinel\n');
-  return { root, shared, origin, base, patterns, state: join(root, 'state'), env: dummyEnv };
+  return { root, shared, origin, base, patterns, state: join(root, 'state'), env: { ...await fakeGh(root, dummyEnv), FAKE_GH_ORIGIN: origin } };
 }
 async function fixtureIngest({ release, stageWork, env }, mode = 'fixtures') {
   assert.equal(env.KOPLIK_CENSUS_CONTACT, undefined);
@@ -122,7 +124,7 @@ test('failure RPC has no token in params; RPC refusal and no-token runs persist 
 
 test('temporary-clone refresh prepares exact Pages objects and releases all refs or none', async () => {
   const scenarios = ['green', 'publish-green', 'qa-red', 'path-red', 'publish-red',
-    'scan-red-crlf', 'secrets-bundle-red', 'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages', 'live-green', 'live-qa-red', 'live-atomic-reject-gh-pages'];
+    'scan-red-crlf', 'secrets-bundle-red', 'pages-never', 'pages-error', 'pages-get-error', 'pages-errored', 'pages-wrong-built', 'atomic-reject-rolling', 'atomic-reject-main', 'atomic-reject-gh-pages', 'live-green', 'live-qa-red', 'live-atomic-reject-gh-pages'];
   for (const scenario of scenarios) {
     const decision = scenario.replace(/^live-/, '');
     const mode = scenario.startsWith('live-') ? 'live' : 'fixtures';
@@ -137,7 +139,9 @@ exit 0
     }
     if (scenario === 'scan-red-crlf') await writeFile(context.patterns, '  private-contact-sentinel  \r\n');
     const effects = [];
-    const run = async (program, args, cwd, env) => {
+    const notices = [];
+    let time = 0;
+    const run = async (program, args, cwd, env, commandOptions) => {
       if (program.endsWith('/tools/offline-test.sh')) {
         assert.deepEqual(args, ['make', 'publish']);
         program = 'make'; args = ['publish'];
@@ -168,12 +172,14 @@ exit 0
         assert.equal(args.length, 6);
         effects.push({ push: args });
       }
-      if (program === 'notify-send') return '';
-      return command(program, args, cwd, env);
+      if (program === 'notify-send') { notices.push(args); return ''; }
+      return command(program, args, cwd, env, commandOptions);
     };
     let observedWork;
     try {
       const options = { ...context, run, dryRun: decision === 'green', build: fakeBuild,
+        env: { ...context.env, FAKE_GH_MODE: scenario.startsWith('pages-') ? scenario.slice(6) : 'green' },
+        pagesOptions: { timeoutMs: 3000, pollMs: 1000, now: () => time, sleep: async (ms) => { time += ms; } },
         ingest: async (args) => {
           observedWork = args.work;
           await fixtureIngest(args, mode);
@@ -204,21 +210,38 @@ exit 0
         if (scenario === 'publish-green') {
           await assert.rejects(access(join(result.work, 'target')), { code: 'ENOENT' });
           assert.equal(JSON.parse(await readFile(join(result.work, '../status.json'))).status, 'green');
+          assert.deepEqual(JSON.parse(await readFile(join(result.work, '../pages-build.json'))), { commit: result.pages, status: 'built', id: 123 });
+          const calls = (await readFile(context.env.FAKE_GH_LOG, 'utf8')).trim().split('\n').map(JSON.parse);
+          assert.equal(calls[0][4], 'POST');
+          assert.equal(calls.length, 4);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/rolling'), result.sha);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/main'), result.sha);
           assert.equal(git(context.origin, 'rev-parse', 'refs/heads/gh-pages'), result.pages);
         }
       } else {
         const phase = decision === 'qa-red' ? 'qa' : scenario === 'path-red' ? 'integrity'
-          : scenario === 'publish-red' ? 'publish-prepare' : ['scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 'publication-scans' : 'atomic-release';
+          : scenario === 'publish-red' ? 'publish-prepare' : ['scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 'publication-scans' : scenario.startsWith('pages-') ? 'pages-verify' : 'atomic-release';
         await assert.rejects(refresh(options), new RegExp(`failed at ${phase}`));
-        assert.equal(effects.length, decision.startsWith('atomic-reject-') ? 2 : ['publish-red', 'scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 1 : 0);
+        assert.equal(effects.length, decision.startsWith('atomic-reject-') || scenario.startsWith('pages-') ? 2 : ['publish-red', 'scan-red-crlf', 'secrets-bundle-red'].includes(scenario) ? 1 : 0);
         const failures = (await readdir(context.state)).filter((path) => path.startsWith('FAILED-'));
         assert.equal(failures.length, 1);
-        assert.ok((await readFile(join(context.state, failures[0]), 'utf8')).includes(phase));
+        const report = await readFile(join(context.state, failures[0]), 'utf8');
+        assert.ok(report.includes(phase));
+        if (scenario.startsWith('pages-')) {
+          const status = JSON.parse(await readFile(join(observedWork, '../status.json')));
+          assert.equal(status.status, 'failed');
+          const { sha, pages } = status.released;
+          for (const ref of ['rolling', 'main']) assert.equal(git(context.origin, 'rev-parse', `refs/heads/${ref}`), sha);
+          assert.equal(git(context.origin, 'rev-parse', 'refs/heads/gh-pages'), pages);
+          const retry = `make pages-verify PAGES_COMMIT=${pages}`;
+          assert.ok(report.includes('Refs moved:') && report.includes('site is stale') && report.includes(retry));
+          assert.ok(report.includes('gh api --hostname github.com --method POST repos/example/koplik/pages/builds'));
+          assert.ok(notices[0][1].includes('Refs moved:') && notices[0][1].includes(retry));
+        }
       }
       assert.ok(observedWork.startsWith(context.state));
-      if (scenario !== 'publish-green') {
+      if (scenario !== 'publish-green' && !scenario.startsWith('pages-')) {
+        await assert.rejects(access(context.env.FAKE_GH_LOG), { code: 'ENOENT' });
         assert.equal(git(context.origin, 'for-each-ref', '--format=%(refname) %(objectname)'), originalRefs,
           'all refs preserved on dry-run or any rejected transaction');
       }
@@ -231,6 +254,16 @@ test('scans refuse private patterns, secrets, tracked environment files and secr
   assert.throws(() => scanText('private-contact-sentinel', ['private-contact-sentinel']), /Personal-data/);
   assert.throws(() => scanText('ghp_' + 'a'.repeat(36), []), /Secrets/);
   assert.equal(redact('ghp_' + 'a'.repeat(36), ['ghp_']), '[REDACTED]');
+  const contact = 'refresh+test@example.invalid';
+  for (const value of [contact, contact.toUpperCase(), encodeURIComponent(contact),
+    encodeURIComponent(contact).toUpperCase(), '%72%65fresh%2Btest%40example.invalid']) {
+    assert.equal(redact(`error: ${value}`, [], contact), 'error: [REDACTED]');
+  }
+  for (const value of ['Private Pattern', 'PRIVATE PATTERN', 'Private+Pattern', 'Private%20Pattern']) {
+    assert.equal(redact(value, ['private pattern']), '[REDACTED]');
+  }
+  assert.equal(redact('GHp%5F' + 'a'.repeat(36), []), '[REDACTED]');
+  assert.equal(redact('a.b+[x]', ['a.b+[x]']), '[REDACTED]');
   const context = await repository();
   try {
     await writeFile(join(context.shared, 'secret.txt'), 'sk-' + 'a'.repeat(48));
@@ -290,12 +323,22 @@ test('retention keeps two newest green sources, preserves failed sources and exp
       await writeFile(join(root, 'worktree/target/output'), 'Disposable build\n');
       await writeFile(join(root, 'status.json'), JSON.stringify({ status, completed_at: new Date(now - age * 86400000).toISOString() }));
     }
-    await mkdir(join(state, 'operator-notes'));
+    for (const [index, age] of [[8, 15], [9, 13]]) {
+      names[index] = `2026-10-07-00000000-0000-0000-0000-${String(index).padStart(12, '0')}`;
+      const root = join(state, names[index]);
+      await mkdir(join(root, 'worktree/target'), { recursive: true });
+      await writeFile(join(root, 'worktree/source.txt'), 'Interrupted source');
+      await writeFile(join(root, 'worktree/target/output'), 'Disposable build');
+      const modified = new Date(now - age * 86400000);
+      await utimes(root, modified, modified);
+    }
+    await mkdir(join(state, 'operator-notes/target'), { recursive: true });
     await pruneRuns(state, now);
-    assert.deepEqual((await readdir(state)).sort(), [1, 2, 4, 5, 6, 7].map((i) => names[i]).concat('operator-notes').sort());
-    for (const i of [1, 2, 4, 5, 6, 7]) await access(join(state, names[i], 'worktree/source.txt'));
-    for (const i of [4, 6, 7]) await assert.rejects(access(join(state, names[i], 'worktree/target')), { code: 'ENOENT' });
-    await access(join(state, names[5], 'worktree/target/output'));
+    assert.deepEqual((await readdir(state)).sort(), [1, 2, 4, 5, 6, 7, 8, 9].map((i) => names[i]).concat('operator-notes').sort());
+    for (const i of [1, 2, 4, 5, 6, 7, 8, 9]) await access(join(state, names[i], 'worktree/source.txt'));
+    for (const i of [4, 6, 7, 8]) await assert.rejects(access(join(state, names[i], 'worktree/target')), { code: 'ENOENT' });
+    for (const i of [5, 9]) await access(join(state, names[i], 'worktree/target/output'));
+    await access(join(state, 'operator-notes/target'));
   } finally { await rm(state, { recursive: true, force: true }); }
 });
 

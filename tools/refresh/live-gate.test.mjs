@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -9,6 +9,7 @@ import { publishSite } from '../publish.mjs';
 import { buildData, command, verifyStore } from './data.mjs';
 import { project, seedFixtureStore } from './fixture-store.mjs';
 import { refresh } from './refresh.mjs';
+import { fakeGh } from './fake-gh.mjs';
 
 // Included only by refresh-test, not web-test: the candidate's real web-test
 // gate must not recursively launch another full refresh QA integration test.
@@ -18,7 +19,7 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
   await mkdir(targets, { recursive: true });
   const taskTarget = await mkdtemp(join(targets, 'run-'));
   const shared = join(scratch, 'shared');
-  const env = { ...process.env, CARGO_NET_OFFLINE: 'true', npm_config_offline: 'true' };
+  const env = await fakeGh(scratch, { ...process.env, CARGO_NET_OFFLINE: 'true', npm_config_offline: 'true' });
   delete env.RSI_SESSION_TOKEN;
   // node --test marks its children; inheriting that marker makes another
   // node --test silently skip discovery instead of running an independent gate.
@@ -114,6 +115,7 @@ test('offline-prepared LIVE candidate passes real refresh QA including make web-
     assert.deepEqual(completed, ['check', 'test', 'web-test', 'determinism']);
     assert.equal(JSON.parse(await git(result.work, 'show', `${result.pages}:data/manifest.json`)).mode, 'live');
     assert.equal(await git(origin, 'for-each-ref', '--format=%(refname) %(objectname)'), before);
+    await assert.rejects(access(env.FAKE_GH_LOG), { code: 'ENOENT' });
     assert.ok((await git(result.work, 'diff', '--name-only', base, result.sha)).split('\n').every((path) => path.startsWith('data/release/')));
     console.log('LIVE candidate: all four real QA gates green; dry-run left all origin refs unchanged');
   } finally {

@@ -24,11 +24,19 @@ export async function loadPatterns(patternsFile) {
   return patterns;
 }
 export function redact(text, personalPatterns = [], contact) {
+  // Decode URL escapes before masking, including mixed escaped/plain text.
+  // Malformed UTF-8 stays unchanged; literal encoded variants are masked below.
+  text = text.replace(/(?:%[a-f0-9]{2})+/gi, (value) => {
+    try { return decodeURIComponent(value); } catch { return value; }
+  });
   // Mask complete credentials first: a shorter personal pattern must not hide
   // a token prefix from the secrets matcher and expose the remaining token.
-  for (const pattern of secretPatterns) text = text.replace(new RegExp(pattern.source, 'g'), '[REDACTED]');
-  for (const value of [...personalPatterns, contact].filter(Boolean).sort((a, b) => b.length - a.length)) {
-    text = text.split(value).join('[REDACTED]');
+  for (const pattern of secretPatterns) text = text.replace(new RegExp(pattern.source, 'gi'), '[REDACTED]');
+  const values = [...personalPatterns, contact].filter(Boolean).flatMap((value) =>
+    [value, encodeURIComponent(value), encodeURIComponent(value).replace(/%20/g, '+'), value.replace(/ /g, '+')]);
+  for (const value of [...new Set(values)].sort((a, b) => b.length - a.length)) {
+    const literal = value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    text = text.replace(new RegExp(literal, 'gi'), '[REDACTED]');
   }
   return text;
 }

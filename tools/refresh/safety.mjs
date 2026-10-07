@@ -32,7 +32,12 @@ export async function pruneRuns(state, now = Date.now()) {
     const directory = join(state, entry.name);
     let status;
     try { status = JSON.parse(await readFile(join(directory, 'status.json'), 'utf8')); }
-    catch { continue; } // Unknown directories are never deletion candidates.
+    catch (error) {
+      if (error.code !== 'ENOENT') continue; // Malformed status needs diagnosis.
+      // A crash before status.json was written still leaves compiler output.
+      // Only recognized run directories qualify, and only targets are removed.
+      status = { status: 'running', started_at: (await lstat(directory)).mtime.toISOString() };
+    }
     const time = Date.parse(status.completed_at || status.started_at);
     if (!Number.isFinite(time) || !['green', 'failed', 'running', 'dry-run'].includes(status.status)) continue;
     runs.push({ directory, name: entry.name, time, status: status.status });

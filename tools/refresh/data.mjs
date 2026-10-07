@@ -20,10 +20,10 @@ export async function files(root, prefix = '') {
   return result.sort();
 }
 
-export async function command(program, args, cwd, env = process.env) {
+export async function command(program, args, cwd, env = process.env, { timeoutMs } = {}) {
   // Suppress command output: live error messages can include private contact/URL text.
   return new Promise((accept, reject) => {
-    const child = spawn(program, args, { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = spawn(program, args, { cwd, env, timeout: timeoutMs, killSignal: 'SIGKILL', stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     const lines = [];
     const append = (line) => { lines.push(line); if (lines.length > 200) lines.shift(); };
