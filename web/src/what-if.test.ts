@@ -6,6 +6,8 @@ import { mountWhatIf } from './what-if';
 import { parseScenario, scenarioJson } from './scenario';
 import type { SimulationRequest, SimulationResponse, SimulationWorker } from './simulation';
 import type { EnsembleResult } from './generated/v2/EnsembleResult';
+import { mountProvenanceDrawer } from './provenance';
+import { fixtureDataset } from './fixtures.test-utils';
 
 const fixture = readFileSync(resolve(process.cwd(), '../data/fixtures/seir/synthetic-scenario.json'), 'utf8');
 const scenario = parseScenario(fixture, true);
@@ -105,5 +107,34 @@ describe('what-if panel', () => {
   it('does not start a worker after unmounting a pending scenario load', async () => {
     const mounted = mount(); mounted.cleanup(); await flush();
     expect(mounted.factory).toHaveBeenCalledTimes(0);
+  });
+  it('lists every county source linked by the replay scenario and keeps override and parameter sources missing', async () => {
+    vi.useFakeTimers();
+    const mounted = mount();
+    const closeDrawer = mountProvenanceDrawer(mounted.main);
+    await flush();
+    // Test-only metadata variant: borrow a second committed fixture record on a non-Gaines node.
+    // Recompute with the real facade so no simulation output or provenance is hand-authored.
+    const modified = parseScenario(result.scenario_json, true);
+    const extra = fixtureDataset().cases[0].provenance[0];
+    modified.nodes[0].provenance.push(extra);
+    const withSources = JSON.parse(runEnsemble(scenarioJson(modified, 70)));
+    mounted.respond(1, withSources);
+    mounted.main.querySelector<HTMLButtonElement>('.what-if-result tbody tr:last-child td button')!.click();
+    const dialog = mounted.main.querySelector('dialog')!;
+    expect(dialog.querySelectorAll('.provenance-record')).toHaveLength(2);
+    expect(dialog.textContent).toContain(extra.sha256);
+    expect(dialog.textContent).toContain(scenario.nodes[0].provenance[0].sha256);
+    expect(dialog.textContent).toContain('across all its counties');
+    expect(dialog.textContent).toContain('SYNTHETIC');
+    dialog.querySelector<HTMLButtonElement>('button')!.click();
+    mounted.input('95'); mounted.main.querySelector<HTMLOutputElement>('output')!.click();
+    expect(dialog.textContent).toContain('User-selected scenario override');
+    expect(dialog.textContent).toContain('Source provenance missing');
+    dialog.querySelector<HTMLButtonElement>('button')!.click();
+    mounted.main.querySelector<HTMLElement>('.what-if-metadata pre')!.click();
+    expect(dialog.textContent).toContain('does not provide source links for these parameters');
+    expect(dialog.querySelectorAll('.provenance-record')).toHaveLength(0);
+    mounted.cleanup(); closeDrawer();
   });
 });
