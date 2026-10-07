@@ -3,6 +3,17 @@ import { caseChart, rtChart, rtLabel } from './charts';
 import { fixtureDataset, pairedRtRows } from './fixtures.test-utils';
 
 describe('accessible SVG reports', () => {
+  it('names the case definition in the title, axis label and provenance label', () => {
+    const data = fixtureDataset();
+    const state = caseChart(data.cases.filter((r) => r.geography === '48'), 2025, true);
+    expect(state.querySelector('title')?.textContent).toContain('Weekly confirmed or unknown-status cases');
+    expect([...state.querySelectorAll('text')].map((t) => t.textContent)).toContain('New confirmed or unknown-status cases');
+    const county = caseChart(data.cases.filter((r) => r.geography === '48165'), 2025, true);
+    expect(county.querySelector('title')?.textContent).toContain('Weekly confirmed cases');
+    expect([...county.querySelectorAll('text')].map((t) => t.textContent)).toContain('New confirmed cases');
+    const mixed = caseChart([data.cases.find((r) => r.geography === '48')!, data.cases.find((r) => r.geography === '48165')!].map((r, i) => ({ ...r, week: { year: 2025, week: i + 1 } })), 2025, true);
+    expect(mixed.querySelector('title')?.textContent).toContain('case definitions differ');
+  });
   it('renders reported zero and leaves missing weeks as gaps', () => {
     const rows = fixtureDataset().cases.filter((r) => r.geography === '35');
     const svg = caseChart(rows, 2025);
@@ -10,8 +21,8 @@ describe('accessible SVG reports', () => {
     expect(svg.getAttribute('role')).toBe('button');
     expect(svg.querySelector('title')?.textContent).toContain('MMWR 2025');
     const zero = caseChart(fixtureDataset().cases.filter((r) => r.geography === '40'), 2025);
-    expect(zero.querySelector('.case-zero title')?.textContent).toContain('0 confirmed cases');
-    const comparison = caseChart([{ ...rows[0], confirmed: { status: 'reported', count: 0 } }, rows[1]], 2025);
+    expect(zero.querySelector('.case-zero title')?.textContent).toContain('0 confirmed or unknown-status cases');
+    const comparison = caseChart([{ ...rows[0], cases: { status: 'reported', count: 0 } }, rows[1]], 2025);
     expect(comparison.querySelector('.case-zero')?.tagName).toBe('line');
     expect(comparison.querySelector('.case-zero')?.getAttribute('y1')).toBe('170');
     expect(comparison.querySelectorAll('[data-week="1"]')).toHaveLength(1);

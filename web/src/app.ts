@@ -1,5 +1,5 @@
 import { caseChart, rtChart, rtLabel } from './charts';
-import { compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
+import { caseDefinitionLabels, caseDefinitionWords, compareWeeks, metricLabels, metricValue, type Dataset, type Metric } from './data';
 import { createMap, type MapView } from './map';
 import { mountProvenanceDrawer, provenanceNumber } from './provenance';
 
@@ -123,8 +123,9 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
   function renderReports(year: number) {
     const cases = data.cases.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
     const rt = data.rt.filter((r) => r.geography === selected && r.week.year === year).sort(compareWeeks);
-    charts.replaceChildren(element('h3', 'Weekly confirmed cases'), caseChart(cases, year, data.synthetic),
-      element('p', 'Bars show new cases in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.', 'chart-note'),
+    const words = caseDefinitionWords(cases);
+    charts.replaceChildren(element('h3', `Weekly ${words}`), caseChart(cases, year, data.synthetic),
+      element('p', `Bars show new ${words} in each MMWR week. Baseline ticks mean reported zero; gaps mean no data.`, 'chart-note'),
       element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year, data.synthetic),
       element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
     if (!cases.length) charts.prepend(element('p', 'No case data for this geography and year.', 'notice'));
@@ -133,7 +134,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     table.append(element('caption', `${name.textContent} · MMWR ${year}`));
     const head = element('thead');
     const headers = element('tr');
-    for (const text of ['MMWR week', 'New confirmed cases', 'R_t / quality']) {
+    for (const text of ['MMWR week', `New ${words}`, 'R_t / quality']) {
       const cell = element('th', text);
       cell.scope = 'col';
       headers.append(cell);
@@ -150,9 +151,9 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       row.dataset.week = `${year}-${week}`;
       const weekCell = element('th', `W${week}`);
       weekCell.scope = 'row';
-      const caseCell = element('td', c?.confirmed.status === 'reported' ? String(c.confirmed.count) : `No data${c?.confirmed.status === 'missing' ? ` · ${c.confirmed.reason}` : ''}`);
-      if (c?.confirmed.status === 'reported') caseCell.replaceChildren(provenanceNumber(String(c.confirmed.count), {
-        label: `${name.textContent} · ${year} W${week} · ${c.confirmed.count} confirmed cases`, records: c.provenance, synthetic: data.synthetic,
+      const caseCell = element('td', c?.cases.status === 'reported' ? String(c.cases.count) : `No data${c?.cases.status === 'missing' ? ` · ${c.cases.reason}` : ''}`);
+      if (c?.cases.status === 'reported') caseCell.replaceChildren(provenanceNumber(String(c.cases.count), {
+        label: `${name.textContent} · ${year} W${week} · ${c.cases.count} ${caseDefinitionLabels[c.case_definition]}`, records: c.provenance, synthetic: data.synthetic,
       }));
       const rtCell = element('td', estimates.length ? undefined : 'No data');
       for (const estimate of estimates) {
@@ -177,17 +178,20 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     geographySelect.value = selected;
     const geography = data.geographies.find((g) => g.id === selected);
     name.textContent = geography?.name || 'No geography data';
-    measure.textContent = level === 'county' ? 'Texas outbreak · Cases 2025' : metricLabels[metric];
+    const caseRows = (id: string) => data.cases.filter((r) => r.geography === id && r.week.year === (metric === 'cases-2025' ? 2025 : 2026));
+    // Every case measure says in words which cases it counts, taken from the rows behind it.
+    const measureName = (id: string) => metric === 'coverage' ? metricLabels[metric] : `${metricLabels[metric]} · ${caseDefinitionWords(caseRows(id))}`;
+    measure.textContent = level === 'county' ? `Texas outbreak · Cases 2025 · ${caseDefinitionWords(caseRows(selected))}` : measureName(selected);
     const currentValue = metricValue(data, selected, metric);
     const sources = (id: string) => metric === 'coverage' ?
       data.coverage.filter((r) => r.geography === id).sort((a, b) => b.school_year.localeCompare(a.school_year)).slice(0, 1).flatMap((r) => r.provenance) :
-      data.cases.filter((r) => r.geography === id && r.week.year === (metric === 'cases-2025' ? 2025 : 2026)).sort(compareWeeks).flatMap((r) => r.provenance);
+      caseRows(id).sort(compareWeeks).flatMap((r) => r.provenance);
     const numberInfo = (id: string, label: string) => ({
       label, records: sources(id), synthetic: data.synthetic,
       note: metric === 'coverage' ? 'Latest school-year coverage row, including any imputation metadata shown alongside the value.' :
-        'Sum of the displayed contiguous reported period. Lists every source record attached to the input weekly reports; this is not a full-year total.',
+        `Counts ${caseDefinitionWords(caseRows(id))}. Sum of the displayed contiguous reported period. Lists every source record attached to the input weekly reports; this is not a full-year total.`,
     });
-    value.replaceChildren(provenanceNumber(currentValue.label, numberInfo(selected, `${name.textContent} · ${metricLabels[metric]} · ${currentValue.label}`)));
+    value.replaceChildren(provenanceNumber(currentValue.label, numberInfo(selected, `${name.textContent} · ${measureName(selected)} · ${currentValue.label}`)));
     value.classList.toggle('missing-value', currentValue.value === null);
     valueDetail.textContent = currentValue.detail;
     geographyLabel.textContent = level === 'state' ? 'Select a state (keyboard accessible)' : 'Select a Texas county (keyboard accessible)';
@@ -196,7 +200,8 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     yearSelect.disabled = level === 'county';
     legend.replaceChildren();
     const isCoverage = metric === 'coverage';
-    legend.append(element('span', isCoverage ? 'MMR coverage · 0–100%' : 'Reported cases · 0 → 500+', 'legend-scale'), element('span', '▨ No data', 'legend-missing'));
+    const levelCases = data.cases.filter((r) => (r.geography.length === 2) === (level === 'state'));
+    legend.append(element('span', isCoverage ? 'MMR coverage · 0–100%' : `Reported ${caseDefinitionWords(levelCases)} · 0 → 500+`, 'legend-scale'), element('span', '▨ No data', 'legend-missing'));
     renderReports(Number(yearSelect.value));
     const comparisonTable = element('table');
     comparisonTable.append(element('caption', metricLabels[metric]));
@@ -206,7 +211,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
       const title = element('th', geography.name); title.scope = 'row';
       const cell = element('td');
       const current = metricValue(data, geography.id, metric);
-      cell.append(provenanceNumber(current.label, numberInfo(geography.id, `${geography.name} · ${metricLabels[metric]} · ${current.label}`)));
+      cell.append(provenanceNumber(current.label, numberInfo(geography.id, `${geography.name} · ${measureName(geography.id)} · ${current.label}`)));
       row.append(title, cell, element('td', current.detail)); comparisonBody.append(row);
     }
     comparisonTable.append(comparisonBody); comparisonRows.replaceChildren(comparisonTable);

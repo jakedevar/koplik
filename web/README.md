@@ -22,7 +22,7 @@ array contains unwrapped v1 contract objects, not a new shared contract shape:
 | File | Row schema in `crates/koplik-contracts/schema/v1/` |
 | --- | --- |
 | `geographies.json` | `Geography.schema.json` |
-| `weekly-cases.json` | `WeeklyCaseCount.schema.json` |
+| `weekly-cases.json` | `WeeklyCaseCount.schema.json` in `schema/v3/` (rows with `cases` and `case_definition`); v1 rows are also accepted, see below |
 | `coverage.json` | `KindergartenMmrCoverage.schema.json` |
 | `rt.json` | `RtEstimate.schema.json` |
 | `us-states.json` | GeoJSON FeatureCollection, Polygon/MultiPolygon, `properties.GEOID` = state FIPS |
@@ -44,6 +44,17 @@ At load time Ajv validates rows against the committed v1 schemas and the client
 checks contract cross-field semantics, duplicates and geography references.
 `npm run generate:types` regenerates all TypeScript types from those same schemas;
 tests and builds run `npm run check:types` to detect drift. No Rust contracts changed.
+
+Case rows are contracts v3: `cases` plus a required `case_definition`. The web
+app says in words which cases a number counts: `confirmed_or_unknown_status` (CDC
+NNDSS state counts) is shown as "confirmed or unknown-status cases" and is never
+called "confirmed cases"; `confirmed` (Texas DSHS county counts) is "confirmed
+cases". Every case number, axis label, legend, table header and provenance label
+names it, and weeks with different definitions are never summed. A v1 case row
+(`confirmed`, no `case_definition`) is accepted only through the lossless
+conversion `upgradeV1Case` (v1 counted confirmed cases), mirroring
+`From<v1::WeeklyCaseCount>` in `koplik-contracts`. Types for v3 case rows are
+generated into `src/generated/v3/`.
 
 The cases map sums the contiguous reported period available within the selected
 MMWR year and explicitly labels its week range and number of reports. It does

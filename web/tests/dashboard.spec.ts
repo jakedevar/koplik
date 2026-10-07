@@ -42,7 +42,7 @@ test('fixture dashboard renders the map, recomputes the ensemble and opens acces
   const plottedNumber = page.locator('.case-bar[data-week="2"]');
   await plottedNumber.focus(); await plottedNumber.press('Space');
   await expect(drawer).toBeVisible();
-  await expect(drawer.getByRole('heading')).toContainText('2 confirmed cases');
+  await expect(drawer.getByRole('heading')).toContainText('2 confirmed or unknown-status cases');
   await close.press('Escape'); await expect(plottedNumber).toBeFocused();
 
   const slider = page.getByRole('slider', { name: 'Gaines County kindergarten MMR coverage' });

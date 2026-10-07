@@ -17,7 +17,9 @@ const all = [...source.states, ...source.counties];
 const geographies = all.map((g) => ({ id: g.id, name: g.name, level: g.id.length === 2 ? 'state' : 'county', centroid: null, provenance }));
 const cases = all.flatMap((g) => [2025, 2026].flatMap((year) => g[`cases${year}`].map((count, i) => ({
   geography: g.id, week: { year, week: i + 1 },
-  confirmed: count === null ? { status: 'missing', reason: 'not_reported' } : { status: 'reported', count }, provenance,
+  // Contracts v3 rows. Mirrors the real sources: state counts are NNDSS (confirmed or unknown status), county counts are Texas DSHS (confirmed).
+  cases: count === null ? { status: 'missing', reason: 'not_reported' } : { status: 'reported', count },
+  case_definition: g.id.length === 2 ? 'confirmed_or_unknown_status' : 'confirmed', provenance,
 }))));
 const coverage = all.map((g) => ({ geography: g.id, school_year: '2024-25', imputed: false, imputation_method: null,
   coverage: g.coverage === null ? { status: 'missing', reason: 'not_reported' } : { status: 'reported', coverage_pct: g.coverage, exemption_pct: null }, provenance }));

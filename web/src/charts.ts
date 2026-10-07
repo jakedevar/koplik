@@ -1,6 +1,6 @@
-import type { WeeklyCaseCount } from './generated/WeeklyCaseCount';
+import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { RtEstimate } from './generated/RtEstimate';
-import { compareWeeks } from './data';
+import { caseDefinitionLabels, caseDefinitionWords, compareWeeks } from './data';
 import { bindProvenance } from './provenance';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -36,18 +36,19 @@ const y = (value: number, maximum: number) => 170 - value / maximum * 145;
 
 export function caseChart(rows: WeeklyCaseCount[], year: number, synthetic = false): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
-  const max = Math.max(1, ...selected.map((r) => r.confirmed.status === 'reported' ? r.confirmed.count : 0));
-  const svg = chart(`Weekly confirmed cases, MMWR ${year}. Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, 'Confirmed cases');
-  bindProvenance(svg, { label: `Weekly confirmed cases chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
+  const max = Math.max(1, ...selected.map((r) => r.cases.status === 'reported' ? r.cases.count : 0));
+  const words = caseDefinitionWords(selected);
+  const svg = chart(`Weekly ${words}, MMWR ${year}. Baseline ticks mean reported zero; gaps mean no data; exact reports are in the table.`, max, `New ${words}`);
+  bindProvenance(svg, { label: `Weekly ${words} chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
     note: 'Sources attached to the plotted weekly reports. Axis ticks are display guides.' });
   for (const row of selected) {
-    if (row.confirmed.status !== 'reported') continue;
-    const bar = row.confirmed.count === 0 ?
+    if (row.cases.status !== 'reported') continue;
+    const bar = row.cases.count === 0 ?
       svgElement('line', { x1: x(row.week.week) - 3, x2: x(row.week.week) + 3, y1: 170, y2: 170, class: 'case-zero', 'data-week': row.week.week }) :
-      svgElement('rect', { x: x(row.week.week) - 3, y: y(row.confirmed.count, max), width: 6,
-        height: 170 - y(row.confirmed.count, max), class: 'case-bar', 'data-week': row.week.week });
+      svgElement('rect', { x: x(row.week.week) - 3, y: y(row.cases.count, max), width: 6,
+        height: 170 - y(row.cases.count, max), class: 'case-bar', 'data-week': row.week.week });
     const title = svgElement('title', {});
-    title.textContent = `Week ${row.week.week}: ${row.confirmed.count} confirmed cases`;
+    title.textContent = `Week ${row.week.week}: ${row.cases.count} ${caseDefinitionLabels[row.case_definition]}`;
     bindProvenance(bar as SVGElement, { label: title.textContent, records: row.provenance, synthetic });
     bar.append(title);
     svg.append(bar);
