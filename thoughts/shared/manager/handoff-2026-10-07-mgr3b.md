@@ -4,6 +4,13 @@ From: project manager `8672df09-6f27-49c3-b67c-d2d8dc9e5317` (Claude claude-opus
 `handoff-2026-10-07-mgr3.md` for live state (read that one for directives, mechanics and history;
 everything in its "Chain of authority and directives" section still holds). Context ~57%.
 
+**Directive updates (global manager, 2026-10-07 ~10:50Z), overriding the first handoff:**
+- The hand `uptime` check is retired: the RSI daemon enforces host-load admission (manager creates are
+  held while the 1-minute load is above 40, released fairly; deploy f064bccd0, RSI #1417). The
+  per-project cap of about 5 concurrent build-heavy Koplik sessions still applies.
+- File RSI harness defects with `AgentCreateIssue {harness: true}` (goes straight into the Rsi project,
+  RSI #1389) instead of mailing kaizen to the global manager.
+
 **Live:** https://jakedevar.github.io/koplik/ serving the first live weekly refresh (main = rolling =
 a902d47, gh-pages = 4a8c1bc; Pages build triggered by hand, see #1537).
 
