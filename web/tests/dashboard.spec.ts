@@ -6,12 +6,13 @@ const source = JSON.parse(readFileSync(resolve('../data/fixtures/web/synthetic-v
 const scenarioSource = JSON.parse(readFileSync(resolve('../data/fixtures/seir/synthetic-scenario.json'), 'utf8')).nodes[0].provenance[0];
 
 test('fixture dashboard renders the map, recomputes the ensemble and opens accessible provenance', async ({ page, context }) => {
+  const appOrigin = new URL(test.info().project.use.baseURL!).origin;
   const external: string[] = [];
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(String(error)));
   await context.route('**/*', (route) => {
     const url = route.request().url();
-    if (url.startsWith('http://127.0.0.1:5158/') || /^(blob|data):/.test(url)) return route.continue();
+    if (url.startsWith(`${appOrigin}/`) || /^(blob|data):/.test(url)) return route.continue();
     external.push(url); return route.abort();
   });
   await page.goto('./');
