@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RtEstimate",
+  "description": "Effective reproduction number estimate for a geography and MMWR week.",
+  "type": "object",
+  "properties": {
+    "geography": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "interval_level": {
+      "description": "Credible-interval level in (0, 1), e.g. 0.9 for a 90% interval.",
+      "type": "number",
+      "format": "double",
+      "maximum": 1,
+      "minimum": 0
+    },
+    "lower": {
+      "description": "Lower credible bound; `null` iff `status` is `insufficient_data`.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "mean": {
+      "description": "Posterior mean; `null` iff `status` is `insufficient_data`.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "provenance": {
+      "$ref": "#/$defs/Provenances"
+    },
+    "status": {
+      "$ref": "#/$defs/RtStatus"
+    },
+    "upper": {
+      "description": "Upper credible bound; `null` iff `status` is `insufficient_data`.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "format": "double"
+    },
+    "week": {
+      "$ref": "#/$defs/MmwrWeek"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "geography",
+    "week",
+    "status",
+    "interval_level",
+    "provenance"
+  ],
+  "$defs": {
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "MmwrWeek": {
+      "description": "An MMWR year and week number (`week` is `1..=52` or `1..=53`).",
+      "type": "object",
+      "properties": {
+        "week": {
+          "description": "Week of the MMWR year; 1 to 52, or 53 in a 53-week year.",
+          "type": "integer",
+          "format": "uint8",
+          "maximum": 53,
+          "minimum": 1
+        },
+        "year": {
+          "description": "MMWR year (not always the calendar year of every day in the week).",
+          "type": "integer",
+          "format": "uint16",
+          "maximum": 2200,
+          "minimum": 1900
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "year",
+        "week"
+      ]
+    },
+    "Provenance": {
+      "description": "Where a number came from: the immutable snapshot, its source URL and when it was retrieved.",
+      "type": "object",
+      "properties": {
+        "licence_id": {
+          "description": "Id of the source's licence or terms as listed in `SOURCES.md`.",
+          "type": "string"
+        },
+        "retrieved_at": {
+          "description": "Retrieval time, RFC 3339 in UTC (e.g. `2026-09-30T12:00:00Z`).",
+          "type": "string",
+          "format": "date-time"
+        },
+        "sha256": {
+          "description": "Content address of the raw snapshot bytes.",
+          "$ref": "#/$defs/Sha256Hex"
+        },
+        "source_id": {
+          "description": "Stable id of the source as listed in `SOURCES.md` (e.g. `cdc-measles-weekly`).",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL the snapshot was retrieved from.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "source_id",
+        "url",
+        "retrieved_at",
+        "sha256",
+        "licence_id"
+      ]
+    },
+    "Provenances": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Provenance"
+      },
+      "minItems": 1
+    },
+    "RtStatus": {
+      "description": "Quality of an R_t estimate.",
+      "oneOf": [
+        {
+          "description": "Final estimate.",
+          "type": "string",
+          "const": "ok"
+        },
+        {
+          "description": "Recent weeks still subject to reporting delay.",
+          "type": "string",
+          "const": "provisional"
+        },
+        {
+          "description": "Below the minimum-count threshold: no estimate is published (mean and bounds are null).",
+          "type": "string",
+          "const": "insufficient_data"
+        }
+      ]
+    },
+    "Sha256Hex": {
+      "description": "SHA-256 digest, 64 lowercase hex characters",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

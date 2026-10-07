@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Geography",
+  "description": "A geography: FIPS key, level and a display name. The name is for display only; it is\nnever a key and may change spelling between sources.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/GeoId"
+    },
+    "level": {
+      "description": "Must agree with the length of `id` (2 digits = state, 5 digits = county).",
+      "$ref": "#/$defs/GeoLevel"
+    },
+    "name": {
+      "description": "Display name, e.g. \"Gaines County\" (non-empty).",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "level",
+    "name"
+  ],
+  "$defs": {
+    "GeoId": {
+      "description": "Geography key: state FIPS (2 digits) or county FIPS (5 digits), zero-padded",
+      "type": "string",
+      "pattern": "^((0[1-9]|[1-9][0-9])|(0[1-9]|[1-9][0-9])(00[1-9]|0[1-9][0-9]|[1-9][0-9]{2}))$"
+    },
+    "GeoLevel": {
+      "description": "Level of a geography.",
+      "type": "string",
+      "enum": [
+        "state",
+        "county"
+      ]
+    }
+  }
+}

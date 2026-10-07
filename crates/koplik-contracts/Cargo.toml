@@ -1,0 +1,15 @@
+[package]
+name = "koplik-contracts"
+version = "0.1.0"
+description = "Versioned shared data shapes for Koplik (contract v1)"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+thiserror.workspace = true
+chrono.workspace = true

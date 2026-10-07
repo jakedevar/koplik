@@ -1,0 +1,21 @@
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.94"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Shared dependency versions: later crates use `dep.workspace = true` so the
+# root manifest never needs editing when a crate is added.
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = { version = "1", features = ["chrono04"] }
+thiserror = "2"
+chrono = { version = "0.4", default-features = false, features = ["std", "serde"] }
+sha2 = "0.10"
+hex = "0.4"
+libm = "0.2"
