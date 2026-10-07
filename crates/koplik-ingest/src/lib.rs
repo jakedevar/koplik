@@ -11,6 +11,7 @@ pub mod cdc;
 pub mod census_boundaries;
 pub mod census_files;
 pub mod coverage;
+pub mod census_population;
 pub mod error;
 pub mod http;
 pub mod jurisdictions;

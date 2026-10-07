@@ -15,6 +15,10 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | `texas-dshs-kindergarten-2023` | Texas DSHS 2023–24 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2023-2024_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
 | `texas-dshs-kindergarten-2024` | Texas DSHS 2024–25 kindergarten coverage, published county worksheet | https://www.dshs.texas.gov/sites/default/files/LIDS-Immunizations/xls/2024-2025_School_Vaccination_Coverage_Levels_Kindergarten.xlsx | `texas-dshs-terms-unconfirmed` | Annual | 2026-10-07 |
 | `texas-dshs-county-fips` | Texas DSHS county name/FIPS crosswalk (identity only) | https://www.dshs.texas.gov/center-health-statistics/texas-county-numbers-public-health-regions | `texas-dshs-terms-unconfirmed` | As revised | 2026-10-07 |
+| `census-state-population-2025` | Census Population Estimates Program, Vintage 2025 state totals | `https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/state/totals/NST-EST2025-ALLDATA.csv` | `census-ftp-terms-unconfirmed` | Annual vintage | 2026-10-06 |
+| `census-county-population-2025` | Census Population Estimates Program, Vintage 2025 county totals | `https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/counties/totals/co-est2025-alldata.csv` | `census-ftp-terms-unconfirmed` | Annual vintage | 2026-10-06 |
+| `census-county-gazetteer-2025` | Census 2025 Gazetteer, national counties (Texas GEOIDs and internal points) | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_counties_national.zip` | `census-ftp-terms-unconfirmed` | Annual | 2026-10-06 |
+| `census-state-gazetteer-2025` | Census 2025 Gazetteer, national states (state descriptors and internal points) | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2025_Gazetteer/2025_Gaz_state_national.zip` | `census-ftp-terms-unconfirmed` | Annual | 2026-10-06 |
 
 ## Licences and terms
 
@@ -22,6 +26,7 @@ clears it (AGENTS.md: accepting a data licence is an operator decision).
 | --- | --- | --- |
 | `us-census-public-domain` | US Census Bureau geographic materials are public domain US government works. [2024 technical documentation, §1.2](https://www2.census.gov/geo/pdfs/maps-data/data/tiger/tgrshp2024/TGRSHP2024_TechDoc.pdf) states Census materials may be reproduced and requests source attribution. Boundaries are statistical depictions, not legal land descriptions (§1.1). | Public domain; cite the US Census Bureau in provenance and display attribution. |
 | `cdc-open-data-terms-unconfirmed` | The dataset page and its metadata name no licence (`license: null`); the publisher is CDC's Office of Public Health Data, Surveillance, and Technology (contact `NNDSSWeb@cdc.gov`). CDC data is a US federal agency product, but nobody has confirmed the reuse terms for this dataset. The dataset's own notes say counts are provisional, subject to ongoing revision, and "presented as published each week". | **Operator decision required before publishing.** Koplik shows the figures only with their provenance and the demonstration disclaimer; confirm the terms (or ask CDC) before the site goes public. |
+| `census-ftp-terms-unconfirmed` | The Census Bureau publishes these statistical products as public data, and Census employee-created works generally are not subject to U.S. copyright; the FTP release pages do not state dataset-specific reuse terms. | **Operator decision required before publishing.** Confirm applicable reuse terms for the PEP estimates and Gazetteer files before public release. |
 
 ## CDC NNDSS weekly measles cases by state (`cdc-nndss-weekly-measles`)
 
@@ -266,3 +271,19 @@ page, not data; the Census reference-file URL was denied by robots.txt. Neither 
 The rejected API bytes are a negative fixture, never a crosswalk or coverage source. Its
 source/terms ids are recorded solely as discovery provenance, not approved publication terms.
 Credential handling follow-up: #1374. The implementation uses the public DSHS table instead.
+## Census population and geography (`census-*-2025`)
+
+The connector uses the latest PEP vintage covering 2024: Vintage 2025, with `POPESTIMATE2025`
+as the July 1, 2025 resident population estimate. The state file supplies state-level rows and
+the county file supplies Texas county rows. The 2025 Gazetteer internal-point latitude and
+longitude form each state and Texas county `Geography.centroid`; these are representative
+internal points, not population-weighted centroids. Every output carries snapshot SHA-256, the
+exact download URL, retrieval time, and the Census terms id in provenance.
+
+The source URLs are currently refused by the existing polite fetcher because `robots.txt` for
+`www2.census.gov` disallows these paths. No bytes have been archived yet; do not treat any
+population or centroid output as available until an operator-approved, robots-compliant source
+path is established and real-byte fixtures have been committed. The Census 2025 release pages
+identify Vintage 2025 as the latest completed vintage and describe the Gazetteer coordinates as
+representative latitude/longitude values. Terms are left for operator decision because no
+dataset-specific reuse licence was verified.
