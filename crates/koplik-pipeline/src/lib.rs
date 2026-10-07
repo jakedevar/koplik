@@ -34,6 +34,7 @@
 //! measured skill with its scope.
 
 pub mod forecast_stage;
+pub mod nndss_backtest;
 pub mod scenario;
 
 use std::collections::{BTreeMap, BTreeSet};

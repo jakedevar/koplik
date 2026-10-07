@@ -130,3 +130,26 @@ way the number reported is the number measured.
 - The published forecast's provenance companion links each NNDSS state series to its measured
   skill, or says it has none, and the page shows the numbers in plain words, separately from
   the West Texas evaluation.
+
+## Amendments (dated; the protocol above is never edited in place)
+
+### Amendment 1 (2026-10-07, before any score on these series was computed): refused projections
+
+The first run of the backtest stopped with `ForecastError::Overflow` ("projected mean ... exceeds
+1099511627776") at one origin of one series, **before producing any output**: no score of any kind
+had been seen. The protocol above did not say what a backtest does when the method refuses to
+publish. The rule, fixed now and not from a score:
+
+- The method refuses a projection whose mean passes 2^40 (`MAX_PROJECTED_MEAN`: "an error, never a
+  clipped number"). That happens when a burst of cases follows weeks with almost none, so the
+  look-back infectivity is tiny and the posterior for `R` is in the hundreds. At such an origin the
+  method makes **no forecast**; the origin is counted under the reason `projection_overflow`,
+  listed in the report per series, never scored and never turned into a number.
+- Consequence for reading the result, stated in the report: the scores are **conditional on the
+  method making a forecast**. The refused origins are the ones where the method would have been
+  furthest off, so leaving them out flatters the scored set; the number of refused origins is
+  reported so the reader can see how many there are. (The published forecast stage today aborts as
+  a whole when one series overflows, which is a separate defect filed as its own Issue.)
+
+Nothing else in the protocol changes: the floors, the origins, the targets and the scores are as
+registered above.

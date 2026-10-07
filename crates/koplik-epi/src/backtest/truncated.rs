@@ -116,8 +116,10 @@ pub struct SeriesBacktest {
     pub origins_considered: u32,
     /// Origins at which a forecast was made (the minimum-count rule held).
     pub origins_forecast: u32,
-    /// Why the other origins made no forecast: the renewal estimator's reason, or `no_rows`,
-    /// with how many origins each.
+    /// Why the other origins made no forecast, with how many origins each: the renewal
+    /// estimator's reason (`incomplete_window`, `missing_count`, `below_threshold`,
+    /// `no_infectivity`), `projection_overflow` (the method refuses a projection that passes
+    /// `MAX_PROJECTED_MEAN`) or `no_rows`.
     pub not_forecast: BTreeMap<String, u32>,
     /// Distinct origin weeks with at least one scored target.
     pub origin_weeks_scored: u32,
@@ -258,7 +260,21 @@ pub fn run_truncated_backtest(
                 }
                 l
             };
-            let forecasts = forecast_weekly(geo_rows, origin_week, &cfg.forecast, cfg.seed)?;
+            let forecasts = match forecast_weekly(geo_rows, origin_week, &cfg.forecast, cfg.seed) {
+                Ok(forecasts) => forecasts,
+                // The method refuses to publish a projection that explodes past any meaningful
+                // case count (`MAX_PROJECTED_MEAN`): it makes no forecast there, so there is
+                // nothing to score. Counted and reported, never dropped silently, and never
+                // scored as zero. (Pre-registration amendment 1, before any score was seen.)
+                Err(ForecastError::Overflow { .. }) => {
+                    *not_forecast
+                        .entry("projection_overflow".into())
+                        .or_default() += 1;
+                    origin_week = origin_week.next().map_err(ForecastError::from)?;
+                    continue;
+                }
+                Err(e) => return Err(e.into()),
+            };
             match forecasts.into_iter().next() {
                 // No row of this series at or before the origin.
                 None => *not_forecast.entry("no_rows".into()).or_default() += 1,
@@ -615,6 +631,37 @@ mod tests {
         other.seed = 8;
         let c = run_truncated_backtest(&rows, &other).unwrap();
         assert_ne!(a.series[0].pooled.mean_crps, c.series[0].pooled.mean_crps);
+    }
+
+    /// A burst of cases after weeks of almost none gives a posterior for `R` so large that the
+    /// projection passes the method's refusal limit. That origin makes no forecast (it is counted
+    /// as `projection_overflow`, never scored and never turned into a number); the backtest does
+    /// not abort, and the other origins of the series are unaffected.
+    #[test]
+    fn an_exploding_projection_is_counted_as_no_forecast() {
+        // One early case, then 40 in a single week: the window's look-back infectivity is
+        // tiny, so R is in the hundreds and the projection explodes within the horizon.
+        let rows = series("12", 24, |w| match w {
+            8 => 1,
+            13 => 40,
+            _ => 0,
+        });
+        let report = run_truncated_backtest(&rows, &cfg()).unwrap();
+        let s = &report.series[0];
+        assert!(
+            s.not_forecast
+                .get("projection_overflow")
+                .copied()
+                .unwrap_or(0)
+                >= 1,
+            "{:?}",
+            s.not_forecast
+        );
+        assert_eq!(
+            s.not_forecast.values().sum::<u32>() + s.origins_forecast,
+            s.origins_considered
+        );
+        assert!(s.origins.iter().all(|o| o.r_mean.is_some()));
     }
 
     #[test]
