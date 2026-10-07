@@ -8,7 +8,7 @@
 //!
 //! `fetch` is the only command that uses the network. `parse` is offline: it reads the latest
 //! stored CDC snapshot (re-verifying its SHA-256) and writes contracts v1 weekly-case rows as
-//! JSON (stdout, or `--out`). Set `KOPLIK_CONTACT` to a repository URL or contact address to
+//! JSON (stdout, or `--out`). Set `KOPLIK_CONTACT` to a verified contact address or repository URL to
 //! identify the client to the data hosts.
 
 use std::process::ExitCode;

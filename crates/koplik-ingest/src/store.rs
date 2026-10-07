@@ -84,6 +84,21 @@ impl Retrieval {
     }
 }
 
+/// A line of the retrieval log that is not a valid record (typically an interrupted append).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LogFragment {
+    /// 1-based line number in `retrievals.jsonl`.
+    pub line: usize,
+    pub text: String,
+}
+
+/// The retrieval log as read: valid records plus the fragments that were skipped.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct LogRead {
+    pub records: Vec<Retrieval>,
+    pub fragments: Vec<LogFragment>,
+}
+
 #[derive(Debug, Clone)]
 pub struct SnapshotStore {
     root: PathBuf,
@@ -204,7 +219,7 @@ impl SnapshotStore {
         let mut line = serde_json::to_string(r).expect("Retrieval serialises");
         line.push('\n');
         // A crash mid-append can leave an unterminated fragment; terminate it so this record
-        // starts on its own line (readers skip an unterminated final fragment).
+        // starts on its own line (`read_log` reports the fragment and keeps every valid record).
         let needs_newline = match fs::read(&path) {
             Ok(b) => b.last().is_some_and(|c| *c != b'\n'),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
@@ -223,35 +238,41 @@ impl SnapshotStore {
             .map_err(|e| IngestError::io(&path, e))
     }
 
-    /// Every retrieval in log order (oldest first). `source_id` filters when given.
+    /// Every valid retrieval in log order (oldest first). `source_id` filters when given.
+    /// A line that is not a valid record (for example the fragment of an interrupted append) is
+    /// skipped, never fatal: every other record stays readable. Use [`read_log`](Self::read_log)
+    /// to see the skipped fragments.
     pub fn retrievals(&self, source_id: Option<&str>) -> Result<Vec<Retrieval>> {
+        Ok(self
+            .read_log()?
+            .records
+            .into_iter()
+            .filter(|r| source_id.is_none_or(|s| s == r.source_id))
+            .collect())
+    }
+
+    /// Read the whole retrieval log: valid records in order, plus every line that is not a
+    /// valid record, identified by its 1-based line number. Each record is written on its own
+    /// line, and an append after an interrupted one first terminates the fragment, so a
+    /// fragment always sits on a line of its own and never merges with a valid record.
+    pub fn read_log(&self) -> Result<LogRead> {
         let path = self.log_path();
-        let text = match fs::read_to_string(&path) {
-            Ok(t) => t,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        let bytes = match fs::read(&path) {
+            Ok(b) => b,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(LogRead::default()),
             Err(e) => return Err(IngestError::io(&path, e)),
         };
-        let terminated = text.ends_with('\n');
-        let lines: Vec<&str> = text.lines().collect();
-        let mut out = Vec::new();
-        for (i, line) in lines.iter().enumerate() {
-            if line.trim().is_empty() {
+        let mut out = LogRead::default();
+        for (i, line) in bytes.split(|b| *b == b'\n').enumerate() {
+            if line.iter().all(u8::is_ascii_whitespace) {
                 continue;
             }
-            match serde_json::from_str::<Retrieval>(line) {
-                Ok(r) => {
-                    if source_id.is_none_or(|s| s == r.source_id) {
-                        out.push(r);
-                    }
-                }
-                // A torn final write (no trailing newline) is skipped, anything else is an error.
-                Err(_) if i + 1 == lines.len() && !terminated => {}
-                Err(e) => {
-                    return Err(IngestError::BadLogLine {
-                        line: i + 1,
-                        message: e.to_string(),
-                    });
-                }
+            match serde_json::from_slice::<Retrieval>(line) {
+                Ok(r) => out.records.push(r),
+                Err(_) => out.fragments.push(LogFragment {
+                    line: i + 1,
+                    text: String::from_utf8_lossy(line).into_owned(),
+                }),
             }
         }
         Ok(out)
@@ -443,10 +464,10 @@ mod tests {
     }
 
     #[test]
-    fn log_survives_a_torn_final_line() {
+    fn an_interrupted_log_line_never_poisons_the_store() {
         let dir = tempfile::tempdir().unwrap();
         let store = SnapshotStore::open(dir.path()).unwrap();
-        store
+        let (first, _) = store
             .record(meta("https://x/a", "2026-10-01T00:00:00Z"), b"v1")
             .unwrap();
         let mut f = OpenOptions::new()
@@ -454,15 +475,27 @@ mod tests {
             .open(store.log_path())
             .unwrap();
         f.write_all(b"{\"source_id\":\"tru").unwrap();
-        assert_eq!(store.retrievals(None).unwrap().len(), 1);
-        store
+        // Before any later append: the valid record reads, the fragment is identified.
+        let read = store.read_log().unwrap();
+        assert_eq!(read.records, vec![first.clone()]);
+        assert_eq!(
+            read.fragments,
+            vec![LogFragment {
+                line: 2,
+                text: "{\"source_id\":\"tru".into()
+            }]
+        );
+        // After a later append: earlier and later records both stay readable, and the
+        // fragment is still reported on its own line.
+        let (later, _) = store
             .record(meta("https://x/a", "2026-10-02T00:00:00Z"), b"v2")
             .unwrap();
-        // The fragment is now a terminated, invalid line: surfaced, not silently dropped.
-        assert!(matches!(
-            store.retrievals(None),
-            Err(IngestError::BadLogLine { line: 2, .. })
-        ));
+        let read = store.read_log().unwrap();
+        assert_eq!(read.records, vec![first, later.clone()]);
+        assert_eq!(read.fragments.len(), 1);
+        assert_eq!(read.fragments[0].line, 2);
+        assert_eq!(store.retrievals(None).unwrap().len(), 2);
+        assert_eq!(store.latest("test-src").unwrap().unwrap(), later);
     }
 
     #[test]

@@ -24,6 +24,14 @@ pub enum IngestError {
     Http(String),
     #[error("robots.txt for {host} disallows {url}")]
     RobotsDisallowed { host: String, url: String },
+    #[error(
+        "robots.txt for {host} asks for a {delay_secs} s crawl delay, above the configured limit of {limit_secs} s; not fetching"
+    )]
+    CrawlDelayTooLong {
+        host: String,
+        delay_secs: f64,
+        limit_secs: u64,
+    },
     #[error("unexpected HTTP status {status} for {url}")]
     BadStatus { status: u16, url: String },
     #[error("no snapshot retrieved yet for source {0}")]

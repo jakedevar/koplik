@@ -36,6 +36,9 @@ page could not be used: an automated request to `https://www.cdc.gov/measles/dat
 returned HTTP 403 on 2026-10-07 (and I did not work around the block), so it cannot be fetched
 reproducibly. data.cdc.gov's `robots.txt` allows `/resource/` with `Crawl-delay: 1`.
 
+**Client identification.** Requests send `koplik-ingest/<version> (measles data demonstration project)`. No
+contact is sent until the operator verifies one and sets `KOPLIK_CONTACT`, which is then appended.
+
 **Columns used.** `states` (reporting jurisdiction name), `year` and `week` (MMWR reporting year and
 week of the weekly table), `label` (`Measles, Indigenous` or `Measles, Imported`), `m3` (cumulative
 year-to-date count as published that week), `m3_flag` (`-`, `U`, `N`, `NN`, `NP`, `NC` when there is no
@@ -61,9 +64,17 @@ number). `m1` ("current week") is not used.
    jurisdiction reports and has none, so a cumulative of `-` is a real zero.
 5. Geographies are the 50 states, DC and 5 territories keyed by state FIPS (56). Regional and national
    totals and `Non-U.S. Residents` are skipped; an unrecognised jurisdiction name is an error.
-6. Caveat not verified here: whether NNDSS measles rows contain confirmed cases only or confirmed and
-   probable. The dataset notes say "cases"; `WeeklyCaseCount.confirmed` is filled from them as published.
-   Re-check against CDC's measles case classification before the UI says "confirmed".
+6. Case classification (inference, not a direct statement for measles). CDC's guide to the weekly
+   tables says each table publishes the case classifications (confirmed, probable, suspected) set per
+   condition in the "Publication Criteria" column of its Event (disease/condition) Code List, and that
+   the counts are provisional cases "that meet the publication criteria". The review of this connector
+   cites that criteria table as listing measles as confirmed only. I verified the general rule in the
+   guide (<https://ndc.services.cdc.gov/wp-content/uploads/guide_to_interpreting_provisional_and_finalized_nndss_data_tables.pdf>)
+   and that the measles footnote of a weekly table defines only imported versus indigenous, not the
+   classification; I did not read the measles row of the criteria table myself. So treating
+   `WeeklyCaseCount.confirmed` as confirmed cases is an inference from CDC's publication criteria,
+   not something the dataset states. The UI should say "cases as reported to NNDSS" until the
+   criteria row has been checked for the year in question.
 
 **Fixture.** `data/fixtures/cdc/nndss-measles-weekly.json` is the unmodified response retrieved
 2026-10-07T02:19:30Z, sha256 `c4f6862d093b10c59b3519bdef76864d4d95df10a5068f8c829ad5d95d3f3f0e`
