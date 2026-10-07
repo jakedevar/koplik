@@ -1,4 +1,4 @@
-use koplik_contracts::v1::{R0, ScenarioInput};
+use koplik_contracts::v1::{BaselineCoverage, R0, ScenarioInput};
 use koplik_epi::{
     Band, Compartments, Step, default_parameters, derive_seed, fingerprint::fingerprint_steps,
     simulate_ensemble, simulate_member,
@@ -316,4 +316,47 @@ fn fingerprint_has_specified_byte_order_and_includes_initial_state() {
     assert_eq!(fingerprint_steps(&steps), hex::encode(reference.finalize()));
     assert_ne!(fingerprint_steps(&steps), fingerprint_steps(&steps[1..]));
     assert_ne!(derive_seed(0, 1), derive_seed(1, 0));
+}
+
+/// Golden fingerprint of the synthetic fixture's member 0. Any change to the
+/// seeded path (RNG mapping, sampler, step order, seed derivation) changes this
+/// value and must be deliberate; the same value must appear on wasm32.
+#[test]
+fn fixture_member_zero_fingerprint_is_stable() {
+    let member = simulate_member(&fixture(), 0).unwrap();
+    assert_eq!(
+        member.fingerprint,
+        "7a7471b1ed6d648d9a376d591ed21be513b90128d5f5e7c759c184689d5c25fb"
+    );
+    assert_eq!(member.steps.len(), 181);
+}
+
+#[test]
+fn reported_baseline_coverage_and_override_give_identical_trajectories() {
+    let overridden = fixture();
+    let mut reported = fixture();
+    for node in &mut reported.nodes {
+        let coverage_pct = overridden
+            .coverage_overrides
+            .iter()
+            .find(|o| o.geography == node.id)
+            .unwrap()
+            .coverage_pct;
+        node.baseline_coverage = BaselineCoverage::Reported {
+            coverage_pct,
+            imputed: false,
+            imputation_method: None,
+            provenance: node.provenance.clone(),
+        };
+    }
+    reported.coverage_overrides.clear();
+    assert_eq!(
+        simulate_member(&reported, 0).unwrap(),
+        simulate_member(&overridden, 0).unwrap()
+    );
+    // An imputed value must declare its method; the engine refuses otherwise.
+    if let BaselineCoverage::Reported { imputed, .. } = &mut reported.nodes[0].baseline_coverage {
+        *imputed = true;
+    }
+    assert!(simulate_member(&reported, 0).is_err());
 }

@@ -117,19 +117,17 @@ impl<'a> Prepared<'a> {
                 imputation_method,
                 ..
             } = &node.baseline_coverage
-            {
-                if !coverage_pct.is_finite()
+                && (!coverage_pct.is_finite()
                     || !(0.0..=100.0).contains(coverage_pct)
                     || match (*imputed, imputation_method) {
                         (false, None) => false,
                         (true, Some(method)) => method.trim().is_empty(),
                         _ => true,
-                    }
-                {
-                    return Err(invalid(
-                        "invalid baseline coverage or imputation declaration",
-                    ));
-                }
+                    })
+            {
+                return Err(invalid(
+                    "invalid baseline coverage or imputation declaration",
+                ));
             }
             let coverage = match input
                 .coverage_overrides

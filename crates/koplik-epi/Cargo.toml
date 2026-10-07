@@ -13,8 +13,8 @@ libm.workspace = true
 sha2.workspace = true
 hex.workspace = true
 thiserror.workspace = true
-rand_chacha = { version = "=0.9.0", default-features = false }
-rand_core = { version = "=0.9.5", default-features = false }
+rand_chacha = { version = "0.9", default-features = false }
+rand_core = { version = "0.9", default-features = false }
 
 [dev-dependencies]
 serde_json.workspace = true

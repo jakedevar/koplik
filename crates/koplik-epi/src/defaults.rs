@@ -4,21 +4,29 @@ use koplik_contracts::v1::{R0, SeirParameters};
 
 pub fn default_parameters() -> SeirParameters {
     SeirParameters {
-        // Conventional measles range, NOT a locally calibrated prior. Guerra et al.
-        // (2017) found estimates outside it: https://pubmed.ncbi.nlm.nih.gov/28757186/.
-        // The uniform density is a demonstration modelling assumption.
+        // Guerra et al. (2017), Lancet Infect Dis, systematic review: "For
+        // measles, R0 is often cited to be 12-18" and "R0 estimates vary more
+        // than the often cited range of 12-18". A conventional range, NOT a
+        // locally calibrated prior; the uniform density is a demonstration
+        // modelling assumption. https://pubmed.ncbi.nlm.nih.gov/28757186/
         r0: R0::UniformPrior {
             min: 12.0,
             max: 18.0,
         },
-        // Approximation: CDC's mean exposure-to-rash 14 d minus 4 d infectious
-        // before rash = 10 d latent. Not the 11–12 d incubation-to-prodrome.
+        // CDC Pink Book ch. 13 (Measles): "Incubation period 11 to 12 days"
+        // (exposure to prodrome); "exposure to rash onset averages 14 days
+        // (range, 7 to 21 days)"; "transmissible from 4 days before through 4
+        // days after rash onset". Latent (exposure to infectiousness) is taken
+        // as 14 - 4 = 10 d, the low end of the spec's 10-12 d band; the 11-12 d
+        // figure is incubation to symptoms, not to infectiousness.
         // https://www.cdc.gov/pinkbook/hcp/table-of-contents/chapter-13-measles.html
         latent_period_days: 10.0,
-        // Same CDC source: infectious 4 d before to 4 d after rash. Treating this
-        // 8 d window as an exponential mean is an explicit SEIR approximation.
+        // Same source: infectious 4 d before to 4 d after rash = 8 d. Treating
+        // this window as an exponential mean is an explicit SEIR approximation.
         infectious_period_days: 8.0,
-        // CDC estimates, not sterilizing-immunity measurements. The all-or-none
+        // CDC: "One dose is 93% (range: 39% to 100%) effective at preventing
+        // measles"; "Two doses ... are 97% (range: 67% to 100%) effective".
+        // Point estimates, not sterilizing-immunity measurements. The all-or-none
         // susceptibility approximation is documented in seir.rs.
         // https://www.cdc.gov/measles/hcp/vaccine-considerations/index.html
         mmr_effectiveness_one_dose: 0.93,
