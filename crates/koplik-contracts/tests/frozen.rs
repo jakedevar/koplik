@@ -1,7 +1,7 @@
-//! Released contract versions are immutable: the committed JSON Schema files of v1 and v2 and
-//! the Rust sources that define them must stay byte-for-byte what they released with. A shape
-//! change is a new version (`v3`, ...), never an edit here. (v3 is the newest version and is
-//! covered by `schema_v3.rs`; freeze it here when v4 is added.)
+//! Released contract versions are immutable: the committed JSON Schema files of v1, v2 and v3
+//! and the Rust sources that define them must stay byte-for-byte what they released with. A
+//! shape change is a new version (`v5`, ...), never an edit here. (v4 is the newest version and
+//! is covered by `schema_v4.rs`; freeze it here when v5 is added.)
 
 use std::fs;
 use std::path::PathBuf;
@@ -118,7 +118,70 @@ const V2_SCHEMA: &[(&str, &str)] = &[
     ),
 ];
 
-/// `src/` files that define v1 and v2 (v2's `mod.rs` is the whole of v2).
+const V3_SCHEMA: &[(&str, &str)] = &[
+    (
+        "CaseDefinition.schema.json",
+        "d3cbd4f83bdfd132295598fbfe86ce1b1fcc221c2ccb18c62fcb6b9fe772dc83",
+    ),
+    (
+        "CountyFips.schema.json",
+        "7484018f3820cd01365ae3f14ed24c0da733ca8e1bc43cab513942c88ecbbf35",
+    ),
+    (
+        "EnsembleResult.schema.json",
+        "bcb421a23e9f79c93d9bc56cdf0027fda2e4e547131737d166b114066e0ac106",
+    ),
+    (
+        "Forecast.schema.json",
+        "60215be6b1be3e726eda94a98be940905955aeb843b6a20706e8256d4d8f78bf",
+    ),
+    (
+        "GeoId.schema.json",
+        "521c0b0c4f81015c8324b1f00ad858a65b6ec35cb68d54acef21de774856db1b",
+    ),
+    (
+        "Geography.schema.json",
+        "9f180fef1a4eb7accc447b17597f6f0ed9bc574933aa1510678092cb9c4ce93a",
+    ),
+    (
+        "KindergartenMmrCoverage.schema.json",
+        "4fcbcae30667a5b7f2659b20602a89a155ec38a0d371c8f10e1edea4c858fdb5",
+    ),
+    (
+        "MmwrWeek.schema.json",
+        "35334d124ebe07b5024aa5fa1dbae6b8bedf3b3deac10965c6b5c0fea011173f",
+    ),
+    (
+        "Population.schema.json",
+        "a718f87b3765291fe1d9dabe3f6a9d8071da9629f033389018820b847fa1d844",
+    ),
+    (
+        "Provenance.schema.json",
+        "421c05ca2518bd14966933dbd02cf374a52c3f6e464436fe568268469c80c0b6",
+    ),
+    (
+        "RtEstimate.schema.json",
+        "17d8e380c7c1e5b61ab9f3c7d9d25480b5ba411dbb30cba2462bd66c2cd5b45b",
+    ),
+    (
+        "ScenarioInput.schema.json",
+        "1f7181c420c18a93b4240b07ebbb0437e689d143406e7e69c88d8420490d8006",
+    ),
+    (
+        "StateFips.schema.json",
+        "8ace44167c1dcaa6a0b1c3443db05f27535c29e9151e298e86ecac1ac3e25703",
+    ),
+    (
+        "TrajectoryResult.schema.json",
+        "31af8e5252b663c01e54ce9764e2f80b1412c9fe9201efae297473600d9006d6",
+    ),
+    (
+        "WeeklyCaseCount.schema.json",
+        "327e8f2f91982516a1dc551264969658c1b4887deb1aac0d32755661dc6a23d8",
+    ),
+];
+
+/// `src/` files that define v1, v2 and v3 (v2's `mod.rs` is the whole of v2).
 const SOURCES: &[(&str, &str)] = &[
     (
         "v1/coverage.rs",
@@ -168,6 +231,14 @@ const SOURCES: &[(&str, &str)] = &[
         "v2/mod.rs",
         "242fd789505a4e50913e571d76f568c4ee80e7903d579d05889f1e88b77a90ed",
     ),
+    (
+        "v3/mod.rs",
+        "fb2a69c65bb4660091b0f3a6cc97ba07771702cd3e675658fe8d62d8821835e2",
+    ),
+    (
+        "v3/weekly_cases.rs",
+        "c1a98f6f0a01f052cb2af214affcffefdd27383bc0755771c21853476e6f1391",
+    ),
 ];
 
 fn root() -> PathBuf {
@@ -210,7 +281,12 @@ fn v2_schema_files_are_unchanged() {
 }
 
 #[test]
-fn v1_and_v2_sources_are_unchanged() {
+fn v3_schema_files_are_unchanged() {
+    check_schema_dir("v3", V3_SCHEMA);
+}
+
+#[test]
+fn v1_to_v3_sources_are_unchanged() {
     for (name, want) in SOURCES {
         assert_eq!(
             &digest(root().join("src").join(name)),
