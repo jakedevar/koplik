@@ -63,6 +63,8 @@ describe('lazy page loading', () => {
     await flush();
     show();
     await flush();
+    show();
+    await flush();
     expect(page.querySelector('[role="alert"] p')?.textContent).toContain('Retry loading the page.');
     expect(page.querySelector('button')?.textContent).toBe('Retry loading The forecast');
   });
