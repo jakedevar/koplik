@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { LazyPageImportError, onFirstShow } from './lazy-page';
+import { LazyPageImportError, loadLazyModule, onFirstShow } from './lazy-page';
 import { pageEvent } from './router';
 
 function setup(hash: string) {
@@ -16,6 +16,12 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 afterEach(() => { document.body.replaceChildren(); });
 
 describe('lazy page loading', () => {
+  it('wraps rejected lazy imports so callers can distinguish them from mount failures', async () => {
+    const failure = new Error('chunk unavailable');
+    await expect(loadLazyModule(() => Promise.reject(failure))).rejects.toMatchObject({
+      name: 'LazyPageImportError', cause: failure,
+    });
+  });
   it('shows an accessible unavailable state when the import rejects, without an unhandled rejection', async () => {
     const { root, page, win } = setup('#/forecast');
     const unhandled = vi.fn();
@@ -44,6 +50,21 @@ describe('lazy page loading', () => {
     expect(button.textContent).toBe('Reload page');
     button.click();
     expect(win.location.reload).toHaveBeenCalledOnce();
+  });
+  it('keeps the retry message and button aligned after earlier import failures and a later mount failure', async () => {
+    const { root, page, win } = setup('#/forecast');
+    const load = vi.fn()
+      .mockRejectedValueOnce(new LazyPageImportError(new Error('chunk unavailable')))
+      .mockRejectedValueOnce(new LazyPageImportError(new Error('chunk unavailable')))
+      .mockRejectedValueOnce(new Error('mount failed'));
+    onFirstShow(root, 'forecast', 'The forecast', () => page, load, win);
+    await flush();
+    page.querySelector('button')!.click();
+    await flush();
+    page.querySelector('button')!.click();
+    await flush();
+    expect(page.querySelector('[role="alert"] p')?.textContent).toContain('Retry loading the page.');
+    expect(page.querySelector('button')?.textContent).toBe('Retry loading The forecast');
   });
   it('retries on the next show, and with the Retry button, and mounts once on success', async () => {
     const { root, page, win, show } = setup('#/explorer');

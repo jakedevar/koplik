@@ -86,6 +86,13 @@ function offScaleLabel(row: RtEstimate, maximum: number): string | undefined {
   return exceeded.length ? `Week ${row.week.week} · ${row.interval_level * 100}%: ${exceeded.map(([label, value]) => `${label} ${formatTick(value)}, off scale`).join('; ')}` : undefined;
 }
 
+function offScaleWeekLabel(rows: RtEstimate[], maximum: number): string | undefined {
+  const labels = rows.map((row) => offScaleLabel(row, maximum)).filter((label): label is string => label !== undefined);
+  if (!labels.length) return undefined;
+  const week = rows[0].week.week;
+  return `Week ${week} · ${labels.map((label) => label.slice(label.indexOf(' · ') + 3)).join('; ')}`;
+}
+
 /** Never connect over gaps or publish a provisional/insufficient row as an estimate. */
 export function rtChart(rows: RtEstimate[], year: number, synthetic = false, fullRange = false): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
@@ -175,13 +182,20 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false, ful
   // Paint the reference and edge markers last so ribbons cannot obscure them.
   svg.append(svgElement('line', { x1: plot.left, x2: plot.right, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }),
     svgElement('text', { x: plot.left + 4, y: y(1, maximum) - 5, class: 'axis-label rt-reference-label' }, 'R_t = 1'));
+  const offScaleByWeek = new Map<number, RtEstimate[]>();
   for (const row of drawable) {
-    const label = offScaleLabel(row, maximum);
+    if (!offScaleLabel(row, maximum)) continue;
+    const week = offScaleByWeek.get(row.week.week) ?? [];
+    week.push(row);
+    offScaleByWeek.set(row.week.week, week);
+  }
+  for (const [week, rowsForWeek] of offScaleByWeek) {
+    const label = offScaleWeekLabel(rowsForWeek, maximum)!;
     if (!label) continue;
-    const marker = svgElement('path', { d: `M${x(row.week.week) - 5} ${plot.top + 7}L${x(row.week.week)} ${plot.top}L${x(row.week.week) + 5} ${plot.top + 7}`,
-      class: 'rt-off-scale', 'data-week': row.week.week, 'data-interval-level': row.interval_level });
+    const marker = svgElement('path', { d: `M${x(week) - 5} ${plot.top + 7}L${x(week)} ${plot.top}L${x(week) + 5} ${plot.top + 7}`,
+      class: 'rt-off-scale', 'data-week': week });
     marker.append(svgElement('title', {}, label));
-    bindProvenance(marker, { label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic });
+    bindProvenance(marker, { label: `${label} · ${rowsForWeek.map(rtLabel).join('; ')}`, records: rowsForWeek.flatMap((row) => row.provenance), synthetic });
     marker.setAttribute('aria-label', `${label}. Open provenance.`);
     svg.append(marker);
   }
@@ -204,20 +218,30 @@ export function rtChartView(rows: RtEstimate[], year: number, synthetic = false)
   let fullRange = false;
   function render() {
     const maximum = rtAxisMaximum(rows, year, fullRange);
+    const readableMaximum = rtAxisMaximum(rows, year);
+    const offScaleRows = rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok' && offScaleLabel(row, readableMaximum));
+    const hasOffScale = offScaleRows.length > 0;
+    toggle.hidden = !hasOffScale;
     toggle.setAttribute('aria-pressed', String(fullRange));
-    note.textContent = fullRange ? `Full display range: 0–${maximum}. All published means and bounds are shown; select a point for exact values and sources.` :
-      `Readable display range: 0–${maximum}. ▲ marks off-scale values at the upper edge; select a marker or its label for exact values and sources.`;
+    note.textContent = fullRange ? `Full display range: 0–${formatTick(maximum)}. All published means and bounds are shown; select a point for exact values and sources.` :
+      hasOffScale ? `Readable display range: 0–${formatTick(maximum)}. ▲ marks off-scale values at the upper edge; select a marker or its label for exact values and sources.` :
+        `Readable display range: 0–${formatTick(maximum)}.`;
     marks.replaceChildren(rtChart(rows, year, synthetic, fullRange));
     labels.replaceChildren();
-    for (const row of rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok').sort(compareWeeks)) {
-      const label = offScaleLabel(row, maximum);
-      if (label) {
-        const button = provenanceNumber(`▲ ${label}`, {
-          label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic,
-        });
-        button.setAttribute('aria-label', `▲ ${label}. Open provenance.`);
-        labels.append(button);
-      }
+    const grouped = new Map<number, RtEstimate[]>();
+    for (const row of offScaleRows.sort(compareWeeks)) {
+      const week = grouped.get(row.week.week) ?? [];
+      week.push(row);
+      grouped.set(row.week.week, week);
+    }
+    for (const [week, weekRows] of grouped) {
+      const label = offScaleWeekLabel(weekRows, maximum);
+      if (!label) continue;
+      const button = provenanceNumber(`▲ ${label}`, {
+        label: `${label} · ${weekRows.map(rtLabel).join('; ')}`, records: weekRows.flatMap((row) => row.provenance), synthetic,
+      });
+      button.setAttribute('aria-label', `▲ ${label}. Open provenance.`);
+      labels.append(button);
     }
   }
   toggle.addEventListener('click', () => { fullRange = !fullRange; render(); });
