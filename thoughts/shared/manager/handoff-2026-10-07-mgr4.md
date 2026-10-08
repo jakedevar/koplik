@@ -48,6 +48,24 @@ authority and mechanics: `handoff-2026-10-07-mgr3.md` and `handoff-2026-10-07-mg
   keeps the full interval and provenance), #1667 (lazy chunk Retry needs a reload in Chrome).
 - Thursday's refresh (2026-10-08 21:00 America/Chicago) builds on rolling's tip as usual.
 
+## Update ~03:30Z 2026-10-08: R_t gate study closed (not adopted); nothing in flight
+
+- R_t gate (#1677): preregistration revised twice before any simulator (#1685 per #1683; #1689 per #1688, manager chose
+  Edit A: S2 reference bin [1, inf) because [1,2) was infeasible by construction), frozen at b5e4990 (#1690 CONFORMS).
+  Step 2 (#1691 Claude Sonnet; rework #1700) landed 691b750: research-only simulator in koplik-epi behind the
+  non-default `research-sim` feature; sizing INCONCLUSIVE by design (S1 sampling unmet), main evaluation not run;
+  results `thoughts/shared/research/1677-rt-gate-results.md` disclose that a plumbing test had run 12 registered
+  main seeds before the fix (no numbers used). Tier2 reviews (Codex): #1699 changes -> #1701 approve. #1677 closed
+  NOT ADOPTED; published R_t rule unchanged. A new attempt needs a newly designed, preregistered study.
+- Gates on 691b750: make check, koplik-epi tests default + research-sim (170 passed), make determinism PASS.
+  Not republished: no site change since b61563b (live main b61563b, gh-pages b03703a).
+- Providers: Codex refused one epidemiology-simulation task ("flagged for possible biological risk", worker c0c7fa2b,
+  #1689); relaunched on Claude. Codex reviews of the same material later passed with a one-line context note
+  (public-health surveillance statistics). This seat's allowed launches: Claude (opus/sonnet/haiku-4.5) and
+  Codex (gpt-6.1-sol, gpt-6-luna, gpt-6-astra); no OpenRouter.
+- Next seat: Thursday refresh check (2026-10-08 21:00 America/Chicago; journalctl + pages builds/latest); then the
+  older follow-ups in `handoff-2026-10-07-mgr3b.md` (#1542 first), #1682 (kaizen, sccache path length).
+
 ## Update ~01:00Z 2026-10-08: follow-ups live; R_t gate in preregistration
 
 - Live: main b61563b, gh-pages b03703a (QA `qa-2026-10-08-b61563b.md`; data unchanged). Earlier today: 9a6430d / 6bcd59b.
