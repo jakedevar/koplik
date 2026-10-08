@@ -34,7 +34,7 @@ for (const width of [390, 1280]) test(`R_t ordinary weeks remain readable and of
   await expect(marker).toBeVisible();
   await expect(view.locator('.rt-interval[data-week="40"]')).toHaveAttribute('y2', '28');
   const label = view.locator('.rt-off-scale-labels button');
-  await expect(label).toContainText('upper bound 66.4, off scale; mean 12.345, off scale');
+  await expect(label).toContainText('upper bound 66.4, off scale; mean 12.3, off scale');
   await expect(label).toBeVisible();
   const box = (await label.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
