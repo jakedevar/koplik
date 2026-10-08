@@ -3,7 +3,7 @@ import type { RtEstimate } from './generated/RtEstimate';
 import { caseDefinitionLabels, compareWeeks, type CaseDefinition } from './data';
 import { bindProvenance, provenanceNumber } from './provenance';
 
-import { drawAxes, drawLegend, plot, svgNode as svgElement } from './chart-style';
+import { drawAxes, drawLegend, formatTick, plot, svgNode as svgElement } from './chart-style';
 
 let chartId = 0;
 const chartHeight = 200;
@@ -83,7 +83,7 @@ export function rtAxisMaximum(rows: RtEstimate[], year: number, fullRange = fals
 function offScaleLabel(row: RtEstimate, maximum: number): string | undefined {
   const values = [['lower bound', row.lower!], ['upper bound', row.upper!], ['mean', row.mean!]] as const;
   const exceeded = values.filter(([, value]) => value > maximum);
-  return exceeded.length ? `Week ${row.week.week} · ${row.interval_level * 100}%: ${exceeded.map(([label, value]) => `${label} ${value}, off scale`).join('; ')}` : undefined;
+  return exceeded.length ? `Week ${row.week.week} · ${row.interval_level * 100}%: ${exceeded.map(([label, value]) => `${label} ${formatTick(value)}, off scale`).join('; ')}` : undefined;
 }
 
 /** Never connect over gaps or publish a provisional/insufficient row as an estimate. */
@@ -182,6 +182,7 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false, ful
       class: 'rt-off-scale', 'data-week': row.week.week, 'data-interval-level': row.interval_level });
     marker.append(svgElement('title', {}, label));
     bindProvenance(marker, { label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic });
+    marker.setAttribute('aria-label', `${label}. Open provenance.`);
     svg.append(marker);
   }
   return svg;
@@ -210,9 +211,13 @@ export function rtChartView(rows: RtEstimate[], year: number, synthetic = false)
     labels.replaceChildren();
     for (const row of rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok').sort(compareWeeks)) {
       const label = offScaleLabel(row, maximum);
-      if (label) labels.append(provenanceNumber(`▲ ${label}`, {
-        label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic,
-      }));
+      if (label) {
+        const button = provenanceNumber(`▲ ${label}`, {
+          label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic,
+        });
+        button.setAttribute('aria-label', `▲ ${label}. Open provenance.`);
+        labels.append(button);
+      }
     }
   }
   toggle.addEventListener('click', () => { fullRange = !fullRange; render(); });

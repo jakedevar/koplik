@@ -34,7 +34,8 @@ describe('accessible SVG reports', () => {
     const marker = view.querySelector<SVGElement>('.rt-off-scale')!;
     const button = view.querySelector<HTMLButtonElement>('.rt-off-scale-labels button')!;
     expect(marker.getAttribute('data-week')).toBe('40');
-    expect(marker.querySelector('title')?.textContent).toBe('Week 40 · 90%: upper bound 66.4, off scale; mean 12.345, off scale');
+    expect(marker.querySelector('title')?.textContent).toBe('Week 40 · 90%: upper bound 66.4, off scale; mean 12.3, off scale');
+    expect(marker.getAttribute('aria-label')).toBe('Week 40 · 90%: upper bound 66.4, off scale; mean 12.3, off scale. Open provenance.');
     expect(button.textContent).toContain('upper bound 66.4, off scale');
     expect(view.querySelector('.rt-interval[data-week="40"]')?.getAttribute('y2')).toBe(String(plot.top));
     expect(view.querySelector('.rt-point[data-week="40"]')?.getAttribute('cy')).toBe(String(plot.top));
@@ -57,13 +58,28 @@ describe('accessible SVG reports', () => {
     expect(view.querySelector('.rt-point[data-week="40"]')?.getAttribute('cy')).toBe(String(plot.base - 12.345 / 66.4 * (plot.base - plot.top)));
     toggle.click();
     expect(toggle.getAttribute('aria-pressed')).toBe('false');
-    expect(view.querySelector('.rt-off-scale-labels')?.textContent).toContain('mean 12.345, off scale');
+    expect(view.querySelector('.rt-off-scale-labels')?.textContent).toContain('mean 12.3, off scale');
     expect(JSON.stringify(rows)).toBe(original);
+  });
+  it('formats off-scale labels like axis ticks while keeping exact values in provenance', () => {
+    const rows = outlierRtRows();
+    rows[39] = { ...rows[39], upper: 66.38493810820933 };
+    const view = rtChartView(rows, 2025);
+    const button = view.querySelector<HTMLButtonElement>('.rt-off-scale-labels button')!;
+    expect(button.textContent).toBe('▲ Week 40 · 90%: upper bound 66.4, off scale; mean 12.3, off scale');
+    expect(button.getAttribute('aria-label')).toBe('▲ Week 40 · 90%: upper bound 66.4, off scale; mean 12.3, off scale. Open provenance.');
+    let provenanceLabel = '';
+    button.addEventListener('koplik:provenance', (event) => {
+      provenanceLabel = (event as CustomEvent<ProvenanceInfo>).detail.label;
+    });
+    button.click();
+    expect(provenanceLabel).toContain('upper bound 66.4, off scale');
+    expect(provenanceLabel).toContain('Mean 12.345; 90% interval 0.7–66.38493810820933');
   });
   it('marks a mean beyond its interval and an interval wholly above the display cap', () => {
     const rows = outlierRtRows();
     rows[39] = { ...rows[39], upper: 2, mean: 12.345 };
-    expect(rtChartView(rows, 2025).querySelector('.rt-off-scale-labels')?.textContent).toBe('▲ Week 40 · 90%: mean 12.345, off scale');
+    expect(rtChartView(rows, 2025).querySelector('.rt-off-scale-labels')?.textContent).toBe('▲ Week 40 · 90%: mean 12.3, off scale');
     rows[39] = { ...rows[39], lower: 5, upper: 66.4 };
     const svg = rtChart(rows, 2025);
     expect(svg.querySelector('.rt-interval[data-week="40"]')?.getAttribute('y1')).toBe(String(plot.top));
