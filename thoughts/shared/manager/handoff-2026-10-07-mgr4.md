@@ -48,6 +48,25 @@ authority and mechanics: `handoff-2026-10-07-mgr3.md` and `handoff-2026-10-07-mg
   keeps the full interval and provenance), #1667 (lazy chunk Retry needs a reload in Chrome).
 - Thursday's refresh (2026-10-08 21:00 America/Chicago) builds on rolling's tip as usual.
 
+## Update ~01:00Z 2026-10-08: follow-ups live; R_t gate in preregistration
+
+- Live: main b61563b, gh-pages b03703a (QA `qa-2026-10-08-b61563b.md`; data unchanged). Earlier today: 9a6430d / 6bcd59b.
+  Landed and live: #1659 R_t readable range + Show full range (Codex sol), #1667 Reload page after repeated lazy
+  import failure (Codex luna; first attempt rejected: unhashed chunk names break caching across deploys), #1673
+  formatted off-scale labels, #1676 review #1670 minors. Review #1670 (Claude Sonnet) approved #1659/#1667.
+- R_t science thread (Texas 2025 W40 mean 47.3 published as ok): #1672 trace (no bug; documented 11-case rule
+  passes it, window Lambda 0.39) -> #1677 proposal (Lambda floor 1.0) -> #1678 cross-family scientific review
+  (Claude): ACCEPT WITH REVISION R1-R5 (`thoughts/shared/research/1678-rt-infectiousness-gate-review.md`) ->
+  #1679 preregistration landed at 9deba0c (`thoughts/shared/research/1677-rt-gate-preregistration.md`, before
+  any simulator) -> #1683 conformance check (Claude Sonnet 5b4b5161) running.
+  Next: on CONFORMS, step 2 = simulator + results against the prereg (Codex); REVISE = land the edits first.
+  Step 3 only if the prereg criteria pass: implement (config field, new reason, contract v9, forecast/backtest
+  scope), tier2 cross-family review. Step 4: full before/after audit (R5). A failed criterion means REJECT, not
+  a new threshold. The site shows W40 meanwhile, marked off scale with exact values one click away.
+- Mechanics: write Issue bodies with a quoted heredoc + python (`<<'EOF'`); twice a double-quoted shell string
+  ate backtick spans in Issue text (#1662, #1678 fixed after the fact).
+- Kaizen: #1682 (worker-filed: publish-test temp paths exceed sccache socket path length in deep sandboxes).
+
 ## Earlier blockers (resolved: launches work again; Codex re-auth with the operator)
 
 - Manager policy `allowed_launches` is `[]` after the policy revocation/re-save: launches refused
