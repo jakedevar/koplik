@@ -94,13 +94,16 @@ cannot prevent a high ratio after near-zero incidence. Applying 11 to Lambda
 instead, capping R at a typical R0, or extending only this point's window
 would change the method; none is an implementation correction.
 
-A separate preregistration Issue will propose a configurable adequacy gate for
-weak infectiousness, freeze its criterion before a full effect audit, and
-require independent scientific review and validation rather than optimization
-against this point or the backtest. No method change is made in #1672.
+Follow-up **#1677**, “Pre-register an infectiousness adequacy gate for weekly
+Cori R_t”, records a candidate configurable floor of sum Lambda >= 1.0. This
+is an explicit project policy proposal, not a Cori-derived scientific default;
+it requires independent scientific review and independently specified
+simulation validation before implementation or a full affected-estimate audit.
+It freezes the candidate rather than optimizing against this point or the
+backtest. No method change is made in #1672.
 Before/after affected estimates for this investigation: **empty list**.
 
-## Verification so far
+## Verification
 
 `tools/cargo-test.sh -p koplik-epi` passed the offline namespace gate and
 all 78 crate tests (31 unit + 47 integration; 0 doctests). It runs every cargo
@@ -116,4 +119,43 @@ round-trip difference is **2.84217094304040074e-14**. It also calls
 the table and posterior above. Execution was isolated with
 `tools/offline-test.sh target/issue-1672/trace`; no external network was used.
 This is a live-release investigation, not a new fixture-based test.
-`make check` is pending at this checkpoint.
+`make check` completed successfully: governed dependency fetch followed by
+an isolated offline workspace/all-targets check. Logs:
+`/tmp/issue-1672-epi-tests.log`, `/tmp/issue-1672-check.log`, and
+`/tmp/issue-1672-trace.log` (local, not committed).
+
+An independent direct reading of the immutable raw snapshot also verified all
+**91** reported Texas weekly counts against the published artifact using the
+documented cumulative-difference rule. Release metadata hashes:
+`ingest.manifest.json` =
+`b44233fb045ee2124e7169b0fd75ef9e2ad89672ca9f4695ddb6990afc777d25`;
+`retrievals.jsonl` =
+`1a072055ba922aced652b6daaa1810d32e93a26eaaf730ca9bc0aba13d08e017`.
+
+Only this investigation document changes in the repository. No new test was
+needed for a documentation-only outcome; existing method tests cover the
+case threshold, zero-exposure guard, missing history, provisional flags and
+agreement with an offline EpiEstim worked-example fixture. Pipeline tests and
+native/wasm determinism were not rerun because no pipeline or engine source
+changed. No baseline test failures were encountered.
+
+For reproduction, read the two artifacts with
+`git show 6bcd59b6edcc06a80b91f7f3108110b3625e62e3:data/v6/rt.json` and
+`git show 6bcd59b6edcc06a80b91f7f3108110b3625e62e3:data/v6/weekly-cases.json`;
+expand each row's provenance indices against its envelope dictionary,
+deserialize the weekly rows as contracts v3, and run
+`koplik_epi::rt::estimate_weekly(rows, &RtConfig::default())`. For the table,
+discretize the configured serial interval and sum `w[k] * I[t-k]` for k=1..8.
+Do not run ingest or replace release inputs. The final fetch found
+origin/rolling still at the investigation base.
+
+## Integrator handoff
+
+Tier2 reviewer should first check that the 11-case CV rule applies to sum I,
+while the existing infectiousness guard only excludes zero/nonpositive/NaN
+Lambda; then check snapshot lineage, one-week versus eight-week windows, and
+the distinction between new reports and onset incidence. #1677's floor is a
+separate unapproved policy proposal. There is no contract version change or
+public push. Conflict risk is limited to this new investigation file.
+
+Friction: none
