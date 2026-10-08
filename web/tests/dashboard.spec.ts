@@ -259,20 +259,26 @@ test('pages are reachable by keyboard and direct hash, survive a reload, and fol
   expect(pageErrors).toEqual([]);
 });
 
-test('a lazy page whose code fails to load says so and offers a retry', async ({ page }) => {
+test('a failed lazy page import offers a reload after Retry and preserves the current hash', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const forecastCode = /forecast-view(\.ts|[-.\w]*\.js)(\?|$)/;
-  await page.route(forecastCode, (route) => route.abort());
+  const forecastRequests: string[] = [];
+  await page.route(forecastCode, (route) => {
+    forecastRequests.push(route.request().url());
+    if (forecastRequests.length === 1) return route.abort();
+    return route.continue();
+  });
   await page.goto('./#/forecast');
   const alert = page.getByRole('alert').filter({ hasText: 'The forecast is unavailable' });
   await expect(alert).toBeVisible();
   expect(pageErrors).toEqual([]);
-  // Some browsers remember a failed module fetch for the page's lifetime, so a successful retry is covered by the unit tests; here the
-  // button is offered, a click is handled (no unhandled rejection) and the unavailable state stays accessible.
   await alert.getByRole('button', { name: 'Retry loading The forecast' }).click();
-  await expect(alert).toBeVisible();
+  await expect(alert.getByRole('button', { name: 'Reload page' })).toBeVisible();
+  await Promise.all([page.waitForNavigation(), alert.getByRole('button', { name: 'Reload page' }).click()]);
   await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeVisible();
+  expect(page.url()).toMatch(/#\/forecast$/);
+  expect(forecastRequests.length).toBeGreaterThanOrEqual(2);
   expect(pageErrors).toEqual([]);
 });
 
