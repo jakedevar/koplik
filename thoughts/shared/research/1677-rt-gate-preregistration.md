@@ -117,9 +117,19 @@ step 2 must add a generator-lag validation test for both SI suites, checking
 sampled mean and SD against the independently calculated gamma moments
 11.7/3.0 days and 14/4 days. The moment oracle must not use
 `GammaDist::{cdf,quantile,mean,sd}`; record the check and its result before the
-main run. New simulator code belongs only to step 2. Every stochastic choice
-is seeded; no OS entropy, platform distribution sampler, `usize`/`isize` random draws, unordered iteration, or
-parallel float reductions. All seeded transcendentals use `libm` (spec E4).
+main run. The test is fixed here (Revision #1689 item 3): it draws **N =
+1,000,000** lags per suite through the generator's own lag-sampling function,
+seeded `ChaCha8Rng::seed_from_u64(9_000_001)` (primary) and `9_000_002`
+(sensitivity), which are outside every sizing and main range. Pass requires
+the sample mean within **4 standard errors** of the target (SE = target SD /
+sqrt(N): 0.003 day for 11.7/3.0, 0.004 day for 14/4) and the sample SD within
+**1% relative** of the target SD (the sampling SE of the SD is about 0.08%
+of it at this N, so 1% is about 12 SE). A failure is a generator bug to fix
+before any sizing or main run, never a tolerance to widen. New simulator code
+belongs only to step 2. Every stochastic choice is seeded; no OS entropy,
+platform distribution sampler, `usize`/`isize` random draws, unordered
+iteration, or parallel float reductions. All seeded transcendentals use
+`libm` (spec E4).
 
 For each calendar day, draw its import count first. Import rates expressed
 per week are homogeneous Poisson arrivals with daily mean rate/7. Each
@@ -235,7 +245,8 @@ in scored weeks 7–40. Report the following Lambda bins separately for **every
 cell**, including cells with zero steps:
 `[0,0.25)`, `[0.25,0.5)`, `[0.5,1)`, `[1,2)`, `[2,5)`, `[5,infinity)`.
 Equality belongs to the bin on the right. Also report their prespecified
-union `[0,1)` for S1. Never omit a cell because it looks unhelpful.
+unions `[0,1)` for S1 and `[1,infinity)` for S2 (Revision #1689). Never omit a
+cell because it looks unhelpful.
 
 Report total count-gate steps, count in each bin, baseline scoreable count,
 old insufficiency reasons, newly withheld count, coverage at 95% and 50%
@@ -300,19 +311,29 @@ as support either.
 If enough scenarios can be evaluated and fewer than three meet the numeric
 criteria, **REJECT**.
 
-**S2:** in scenario 1 with k = infinity, 95% CrI coverage in [1,2) must be
-**>= 0.93**. Require this separately for **each** of the three R cells, each
+**S2:** in scenario 1 with k = infinity, 95% CrI coverage in the pooled bin
+**Lambda >= 1, i.e. [1,infinity)**, must be **>= 0.93**. (Revision #1689
+replaced the earlier reference bin [1,2) with [1,infinity) before any
+simulator or outcome existed; see that section for the infeasibility
+arithmetic.) Require this separately for **each** of the three R cells, each
 before-series variant, and each SI suite, rather than selecting a cell or
 using a pool that hides failures. This is a stricter prespecified reading of
-R3. An S2 cell with fewer than **200 scoreable steps in [1,2)** is not
+R3. An S2 cell with fewer than **200 scoreable steps in [1,infinity)** is not
 evaluable and makes the study inconclusive; an evaluable cell (>= 200) below
-0.93 means **REJECT** once the study's sampling requirements are met.
+0.93 means **REJECT** once the study's sampling requirements are met. Coverage
+in [1,2), [2,5) and [5,infinity) is also reported per S2 cell as context only,
+with no criterion and no effect on the decision.
 The primary Poisson generator is the review's "correctly specified"
 offspring benchmark; imports, weekly aggregation, prior mismatch and the
 sensitivity SI still limit that description. No matching-prior calibration
 is assumed for these fixed R values. S2 measures generator-estimator
-calibration in [1,2), which the candidate floor does not alter; an S2 pass
-is not evidence of benefit or absence of harm from the floor.
+calibration at Lambda >= 1, which the candidate floor does not alter (the floor
+acts only below 1); an S2 pass is not evidence of benefit or absence of harm
+from the floor. Because [1,infinity) is dominated by steps with large Lambda
+(at R = 1.0 and 1.5 most scoreable steps have Lambda well above 5, since
+Lambda is close to I/R there), S2 now validates calibration where the posterior
+is data-dominated, not specifically in the band just above the floor; it
+no longer checks that coverage is nominal immediately above Lambda = 1.
 
 **S3:** report the withheld fraction, with no target and no acceptance
 criterion. Do not judge success by W40 disappearing, by a plausible maximum
@@ -374,7 +395,7 @@ to launch the main run. Assess only the registered sample requirements:
   prespecified fixed k pools.
 - **Every** S2 cell (scenario 1, k = infinity, each of the three R values,
   each before-series variant, each SI suite) must have >= 200 scoreable
-  steps in [1,2).
+  steps in [1,infinity) (Revision #1689; S1's comparator stays [1,2)).
 
 If these counts fail either requirement, step 2 ends as
 **inconclusive-by-design**: report all counts, do not run the main study under
@@ -390,16 +411,19 @@ or retuning is allowed in either stage. Outcome inspection is prohibited
 during sizing; the main run computes only the registered metrics after the
 sizing artifact is committed.
 
-Sizing motivation is **arithmetic, not a simulation outcome** (#1683 E3):
-I >= 11 with 0 < Lambda < 1 implies I/Lambda > 11, while 1 <= Lambda < 2
-implies I/Lambda > 5.5. In the idealized correctly specified Poisson benchmark
-with R <= 1.5 and Lambda < 2, mean R*Lambda < 3;
-`P[Poisson(3) >= 11] = 0.000292336950647` (direct Poisson-tail sum).
-Even 2000 × 34 scored weeks × that probability is only about 19.88 steps
-before bin/history restrictions, far below 200. This is a loose benchmark,
-not a bound or predicted count for the independent daily generator with
-imports and weekly aggregation. It motivates the count-only check; the
-actual counts, especially in the misspecified scenarios, remain unknown.
+Sizing motivation is **arithmetic, not a simulation outcome** (#1683 E3,
+corrected by #1688): I >= 11 with 0 < Lambda < 1 implies I/Lambda > 11, while
+1 <= Lambda < 2 implies I/Lambda > 5.5. In the idealized correctly specified
+Poisson benchmark, I given the past is about Poisson(R*Lambda + imports) with
+imports 0.5 per week, so the mean for Lambda < 2 is below R*2 + 0.5: 2.1, 2.5
+and 3.5 for R = 0.8, 1.0, 1.5. The tails are P[Poisson(2.1) >= 11] =
+1.30e-5, P[Poisson(2.5) >= 11] = 6.16e-5 and P[Poisson(3.5) >= 11] =
+1.019e-3 (direct sums); times 2000 x 34 scored weeks these are at most about
+0.9, 4.2 and 69 steps, before bin and history restrictions. This is the
+infeasibility of the former S2 reference bin [1,2) (Revision #1689). It is a
+loose benchmark, not a bound or predicted count for the independent daily
+generator with imports and weekly aggregation; the actual counts, especially
+in the misspecified scenarios 2-5, remain unknown and are for sizing to decide.
 
 ## Step 3 implementation plan only (R2/R4)
 
@@ -475,7 +499,8 @@ Changes, and why:
    S2 now checks three R values. Required per-cell maximum event counts for
    the heavy but unchanged scenario 2 and all other cells in both stages.
 2. **E2:** tightened S1's same-scenario/suite/pool [1,2) reference to >= 200
-   scoreable steps and S2's per-cell [1,2) reference to >= 200. Smaller
+   scoreable steps and S2's per-cell [1,2) reference to >= 200 (S2's bin
+   superseded by [1,infinity) in Revision #1689 below). Smaller
    references are unevaluable/inconclusive, never numeric evidence for a
    pass or rejection; evaluable S2 coverage below 0.93 rejects once all
    sampling requirements are met.
@@ -502,3 +527,114 @@ seeds, both 200-step reference minima, and the count-only sizing stop/commit
 order with no posterior/outcome inspection. Then check preserved generator
 independence, scenario 2–5 parameters, W40 disclosure/R1 identity and
 conditional v9 scope.
+
+## Revision #1689 before any simulator (#1688 delta check)
+
+This revision addresses delta check #1688's cross-family verdict **REVISE**
+(reviewer session d41dccac, review of 63a07a3), as reproduced in Issue #1689.
+It revises the registration on `rolling` at full SHA
+`63a07a36168528873364407d863932295de0fdc3` (the merge of #1685). At
+revision time no simulator for this study had been written or run and **no
+simulation outcome existed**. Only labelled count-only arithmetic and
+deterministic expected-value calculations (below) were computed; no published
+outcomes beyond the #1672 trace were inspected. Land this revision before
+writing the simulator; the results file must cite the full SHA of the landed
+revised registration.
+
+Changes, and why:
+
+1. **S2 reference bin changed from [1,2) to [1,infinity)** (manager decision
+   Edit A). This **deviates from R3's literal "[1,2)"** for S2. The reason is
+   that the registered requirement (>= 200 scoreable steps in [1,2) for every
+   S2 cell) was **infeasible by construction**: in scenario 1 with k = infinity
+   the gate I >= 11 and Lambda < 2 together need a Poisson count of at least 11
+   from a mean of at most R*Lambda + 0.5, which gives upper bounds of about 0.9,
+   4.2 and 69 steps over 2000 replicates x 34 weeks for R = 0.8, 1.0, 1.5
+   (arithmetic above; #1688). The floor does not act on Lambda >= 1, so the
+   deviation does not weaken the S2 purpose of checking calibration where the
+   floor does not act. The change is made before any simulator or outcome
+   existed and is not outcome-based. Edit B (keep [1,2), stop early as
+   inconclusive-by-design) was rejected because it would end the study
+   inconclusive by design after the expensive generation. Everything else in
+   S2 is unchanged: scenario 1, k = infinity, three R values, both
+   before-series variants, both SI suites, per cell, threshold 0.93, 200-step
+   minimum, below-minimum is inconclusive and evaluable below 0.93 is REJECT,
+   no aggregation across cells. S1's comparator bin stays [1,2) (S1 scenarios
+   2-5 are not provably doomed by this arithmetic, so sizing decides them).
+   Contexts [1,2), [2,5), [5,infinity) are reported but carry no criterion.
+2. **What S2 validates now.** With [1,infinity), S2 mostly checks coverage at
+   large Lambda (for R = 1.0 and 1.5, I >= 11 steps have Lambda about I/R,
+   well above 5), where the prior weight 1/(1 + b*Lambda) is far below 1/6.
+   It no longer checks calibration in the neighbourhood just above the floor.
+   A pass therefore says the estimator is calibrated under the correctly
+   specified generator where data dominate; it is weaker evidence about the
+   region adjacent to Lambda = 1 than the original text intended. The S1
+   comparison to coverage in [1,2) still addresses that region where scenarios
+   2-5 populate it.
+3. **Feasibility re-run for S2 under [1,infinity)** (count-only expected-value
+   arithmetic, not simulation; stated for the idealized benchmark and not as
+   bounds). Scored weeks with complete history under Unknown are weeks 9-40
+   (32 weeks; the eight-week look-back); 2000 replicates give 64,000 candidate
+   steps per cell, so 200 steps is 0.31% of them. Expected weekly incidence
+   from the renewal mean equation with daily gamma-SI weights (11.7/3.0 and
+   14/4), 0.5 imports per week and the single initial seed:
+   - **R = 1.5.** Expected weekly count passes 11 at about week 9 (primary) or
+     weeks 11-13 (sensitivity) and reaches roughly 2.0e4 (primary) and
+     4.5e3 (sensitivity) by week 40 (Euler-Lotka growth 0.0351 and 0.0294 per
+     day). About 20-30 of the 32 scored weeks have I >= 11 and Lambda well
+     above 1, giving tens of thousands of steps per cell. Margin: more than
+     100x. Both before-series variants qualify, as Zero adds weeks 7-8 at most.
+   - **R = 1.0.** Expected weekly count is 3.3 (week 9), 6.4 (week 20), 9.3
+     (week 30), 12.2 (week 40) for primary, and 2.8, 5.5, 7.9, 10.3 for
+     sensitivity. Summing P[X >= 11] over weeks 9-40 with Poisson, dispersion
+     index 3 and index 10 marginals gives about 7.4-8.4 steps per replicate
+     (14,800-16,800 over 2000) for primary and 4.2-6.9 (8,400-13,800) for
+     sensitivity. Margin: more than 40x.
+   - **R = 0.8.** Expected weekly count approaches the stationary 0.5/(1-0.8)
+     = 2.5 (weeks 9-40 average 2.36 primary, 2.29 sensitivity). A Poisson
+     marginal would give only about 4e-5 per step (about 3 steps), so this
+     cell is feasible **only because individual-level branching makes weekly
+     counts overdispersed** relative to Poisson. Moment-matched
+     negative-binomial marginals give P[X >= 11] = 0.0095 at mean 2.0 and
+     variance 5.56 (about 610 steps), 0.0157 at mean 2.5 and variance 6.94
+     (about 1,010), 0.030 at variance 10 (about 1,940) and 0.058 at variance 20
+     (about 3,720). The lowest variance corresponds to a weekly lag-1
+     autoregression with coefficient 0.8; cluster-process weekly variance for
+     Borel clusters is expected to be larger. Margin: about 3x in the most
+     conservative case, but this rests on a dispersion assumption the
+     generator, not this arithmetic, determines. **R = 0.8 is the one cell
+     family (4 cells: two variants x two suites) that arithmetic cannot
+     guarantee.** The loss from requiring Lambda >= 1 given I >= 11 is
+     expected to be small (under the Poisson benchmark with Lambda < 1 the
+     mean is below 1.3 and the tail below 1e-7), but this too is only
+     arithmetic.
+   If sizing shows any S2 cell, including an R = 0.8 cell, below 200 steps in
+   [1,infinity), the existing registered rule applies unchanged: step 2 ends
+   **inconclusive-by-design**, no main run, no implementation, and any
+   redesign needs its own registration. No new threshold, bin, R value or
+   fallback is added by this revision.
+4. **Non-blocking notes from #1688 applied.** (a) Imports are included in the
+   sizing arithmetic (mean R*Lambda + 0.5, not R*Lambda), with R-specific
+   tails above; the correction also makes the E1 removal checkable: at R = 3.0
+   the Euler-Lotka growth with gamma(15.2, 0.769 days) is about 0.097 per day,
+   i.e. about e^27 (7e11) expected growth over 280 days. (b) The generator-lag
+   moment test now has fixed N, seeds and tolerances (see the event
+   construction section). (c) Seed ranges: the sizing seeds of scenario s
+   (`s*1_000_003 + 1_000_000 + r`) coincide numerically with the main seeds of
+   scenario s+1 at offset +3 (for example sizing s=1, 2,000,003-2,002,002,
+   overlaps main s=2, 2,000,006-2,002,005). Each stage is disjoint **within
+   its own scenario**, as stated; different scenarios drive different
+   generators, so the shared integers neither leak outcomes nor are a defect.
+   The seeds are unchanged. (d) The over-long sampler sentence in the event
+   construction section was rewrapped.
+
+Every other frozen element remains unchanged: scenario 1-5 parameters and
+cell counts (28 per suite, 56 total), main and sizing seeds, S1 criteria,
+S3, estimator, bins, metrics, limitations, W40 disclosure and the conditional
+implementation/contract-v9 and report-only audit scope. The deterministic
+expected-value arithmetic above used no random draws and no estimator code.
+
+Reviewer should first check item 1 (the S2 bin change, its stated deviation
+from R3 and that nothing else in S2 moved), item 2 (the plain statement of
+what S2 now validates), and item 3 (the R = 0.8 candour: arithmetic cannot
+guarantee it, sizing decides, no new threshold). Then the lag-test constants.
