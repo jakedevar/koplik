@@ -266,3 +266,61 @@ fn classification_agrees_with_estimate_series_status() {
         }
     }
 }
+
+/// End-to-end plumbing on cheap cells and a few replicates: both stages aggregate, the
+/// estimator agrees with the count-only classification, every report renders.
+#[test]
+fn stages_aggregate_and_render_on_cheap_cells() {
+    use super::agg::{aggregate, decide};
+    use super::report::*;
+    use super::run::run_rep;
+    let all = manifest();
+    let items: Vec<GenItem> = all
+        .into_iter()
+        .filter(|i| {
+            i.si.name == "primary"
+                && (i.scenario >= 3
+                    || (i.scenario == 1 && i.r_label == Some(1.0) && i.spec.k.is_none()))
+        })
+        .collect();
+    assert!(items.len() >= 5);
+    for stage in [Stage::Sizing, Stage::Main] {
+        let mut slots: Vec<Option<super::run::RepOut>> = vec![None; items.len() * 2000];
+        for (i, it) in items.iter().enumerate() {
+            for r in 0..12u32 {
+                slots[i * 2000 + r as usize] = Some(run_rep(it, stage, r).unwrap());
+            }
+        }
+        let agg = aggregate(&items, &slots);
+        let _ = events_table(&items, &agg, stage);
+        let _ = count_tables(&items, &agg);
+        let _ = s1_s2_count_tables(&items, &agg);
+        let _ = sizing_decision(&items, &agg, &[]);
+        if stage == Stage::Main {
+            let _ = cell_summary_table(&items, &agg);
+            let _ = per_cell_metric_tables(&items, &agg);
+            let _ = pooled_metric_tables(&items, &agg);
+            let _ = verdict_section(&items, &agg, &[]);
+            let (o, _) = decide(&items, &agg, true);
+            assert_eq!(
+                o,
+                super::agg::Outcome::Inconclusive,
+                "12 replicates cannot reach 200 steps"
+            );
+            // The sizing-style counts equal the main-stage counts structure (same classifier).
+            let c = &agg.cells[0];
+            assert_eq!(c.counts.scored_steps, 12 * 34);
+            let scoreable: u64 = c.counts.bin_scoreable.iter().sum();
+            assert_eq!(scoreable, c.counts.baseline_ok);
+            let recs: u64 = c
+                .bins
+                .iter()
+                .map(|b| b.n.iter().map(|&x| u64::from(x)).sum::<u64>())
+                .sum();
+            assert_eq!(
+                recs, c.counts.baseline_ok,
+                "one posterior record per scoreable step"
+            );
+        }
+    }
+}
