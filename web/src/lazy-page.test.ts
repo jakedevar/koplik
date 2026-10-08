@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { onFirstShow } from './lazy-page';
+import { LazyPageImportError, onFirstShow } from './lazy-page';
 import { pageEvent } from './router';
 
 function setup(hash: string) {
@@ -8,7 +8,7 @@ function setup(hash: string) {
   page.innerHTML = '<h1>Forecast</h1>';
   root.append(page);
   document.body.append(root);
-  const win = { location: { hash }, addEventListener: vi.fn() } as unknown as Window;
+  const win = { location: { hash, reload: vi.fn() }, addEventListener: vi.fn() } as unknown as Window;
   const show = () => root.dispatchEvent(new CustomEvent(pageEvent, { detail: { page: 'forecast' } }));
   return { root, page, win, show };
 }
@@ -20,7 +20,7 @@ describe('lazy page loading', () => {
     const { root, page, win } = setup('#/forecast');
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
-    onFirstShow(root, 'forecast', 'The forecast', () => page, () => Promise.reject(new Error('Failed to fetch dynamically imported module')), win);
+    onFirstShow(root, 'forecast', 'The forecast', () => page, () => Promise.reject(new LazyPageImportError(new Error('Failed to fetch dynamically imported module'))), win);
     await flush();
     const alert = page.querySelector('[role="alert"]')!;
     expect(alert.textContent).toContain('The forecast is unavailable');
@@ -30,6 +30,20 @@ describe('lazy page loading', () => {
     await flush();
     process.off('unhandledRejection', unhandled);
     expect(unhandled).not.toHaveBeenCalled();
+  });
+  it('offers a reload after an in-place retry also fails to fetch the module', async () => {
+    const { root, page, win } = setup('#/forecast');
+    const load = vi.fn(() => Promise.reject(new LazyPageImportError(new Error('Failed to fetch dynamically imported module'))));
+    onFirstShow(root, 'forecast', 'The forecast', () => page, load, win);
+    await flush();
+    page.querySelector('button')!.click();
+    await flush();
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(page.querySelector('[role="alert"]')?.textContent).toContain('Reload the page to try again.');
+    const button = page.querySelector('button')!;
+    expect(button.textContent).toBe('Reload page');
+    button.click();
+    expect(win.location.reload).toHaveBeenCalledOnce();
   });
   it('retries on the next show, and with the Retry button, and mounts once on success', async () => {
     const { root, page, win, show } = setup('#/explorer');

@@ -259,7 +259,7 @@ test('pages are reachable by keyboard and direct hash, survive a reload, and fol
   expect(pageErrors).toEqual([]);
 });
 
-test('a lazy page whose code fails to load says so and offers a retry', async ({ page }) => {
+test('a failed lazy page import offers a reload after Retry and preserves the current hash', async ({ page }) => {
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const forecastCode = /forecast-view(\.ts|[-.\w]*\.js)(\?|$)/;
@@ -274,9 +274,11 @@ test('a lazy page whose code fails to load says so and offers a retry', async ({
   await expect(alert).toBeVisible();
   expect(pageErrors).toEqual([]);
   await alert.getByRole('button', { name: 'Retry loading The forecast' }).click();
+  await expect(alert.getByRole('button', { name: 'Reload page' })).toBeVisible();
+  await Promise.all([page.waitForNavigation(), alert.getByRole('button', { name: 'Reload page' }).click()]);
   await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeVisible();
-  expect(forecastRequests).toHaveLength(2);
-  expect(new URL(forecastRequests[1]).searchParams.get('retry')).toBe('1');
+  expect(page.url()).toMatch(/#\/forecast$/);
+  expect(forecastRequests.length).toBeGreaterThanOrEqual(2);
   expect(pageErrors).toEqual([]);
 });
 
