@@ -1,0 +1,2 @@
+primary: seed 9000001, N 1000000: sample mean 11.69651 (target 11.7, 4 SE = 0.01200, |diff| = 0.00349) PASS; sample SD 2.99656 (target 3, 1% = 0.03000, |diff| = 0.00344) PASS
+sensitivity: seed 9000002, N 1000000: sample mean 14.00320 (target 14, 4 SE = 0.01600, |diff| = 0.00320) PASS; sample SD 4.00328 (target 4, 1% = 0.04000, |diff| = 0.00328) PASS
