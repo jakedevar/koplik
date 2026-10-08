@@ -1,7 +1,7 @@
 import type { WeeklyCaseCount } from './generated/v3/WeeklyCaseCount';
 import type { RtEstimate } from './generated/RtEstimate';
 import { caseDefinitionLabels, compareWeeks, type CaseDefinition } from './data';
-import { bindProvenance } from './provenance';
+import { bindProvenance, provenanceNumber } from './provenance';
 
 import { drawAxes, drawLegend, plot, svgNode as svgElement } from './chart-style';
 
@@ -70,12 +70,31 @@ export function rtLabel(row: RtEstimate): string {
   return `Mean ${row.mean}; ${row.interval_level * 100}% interval ${row.lower}–${row.upper}`;
 }
 
+export function rtAxisMaximum(rows: RtEstimate[], year: number, fullRange = false): number {
+  const published = rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok');
+  if (fullRange) return Math.max(3, ...published.map((row) => Math.max(row.upper!, row.mean!)));
+  // Display choice, not a model parameter: use the lower-order 95th percentile
+  // of published upper bounds (at least 3). Rounding the rank down also keeps
+  // a single wide interval from flattening ordinary weeks in a short series.
+  const bounds = published.map((row) => row.upper!).sort((a, b) => a - b);
+  return Math.max(3, bounds[Math.floor((bounds.length - 1) * 0.95)] ?? 0);
+}
+
+function offScaleLabel(row: RtEstimate, maximum: number): string | undefined {
+  const values = [['lower bound', row.lower!], ['upper bound', row.upper!], ['mean', row.mean!]] as const;
+  const exceeded = values.filter(([, value]) => value > maximum);
+  return exceeded.length ? `Week ${row.week.week} · ${row.interval_level * 100}%: ${exceeded.map(([label, value]) => `${label} ${value}, off scale`).join('; ')}` : undefined;
+}
+
 /** Never connect over gaps or publish a provisional/insufficient row as an estimate. */
-export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SVGSVGElement {
+export function rtChart(rows: RtEstimate[], year: number, synthetic = false, fullRange = false): SVGSVGElement {
   const selected = rows.filter((r) => r.week.year === year).sort(compareWeeks);
   const drawable = selected.filter((r) => !r.provisional && r.status === 'ok');
-  const maximum = Math.max(2, ...drawable.map((r) => Math.max(r.upper!, r.mean!)));
-  const svg = chart(`Effective reproduction number, MMWR ${year}. Mean and credible interval; provisional and insufficient data are withheld.`, maximum, 'R_t');
+  const maximum = rtAxisMaximum(rows, year, fullRange);
+  const position = (value: number) => y(Math.min(value, maximum), maximum);
+  const svg = chart(`Effective reproduction number, MMWR ${year}. ${fullRange ? 'Full range' : 'Readable range; off-scale values marked at the upper edge'}. Mean and credible interval; provisional and insufficient data are withheld.`, maximum, 'R_t');
+  svg.dataset.rtRange = fullRange ? 'full' : 'readable';
+  svg.dataset.axisMaximum = String(maximum);
   bindProvenance(svg, { label: `Effective reproduction number chart · MMWR ${year}`, records: selected.flatMap((r) => r.provenance), synthetic,
     note: 'Derived R_t estimates: all source records attached to the chart rows. Axis ticks and R_t = 1 are display references, not source observations.' });
   const hatchId = `rt-insufficient-hatch-${++chartId}`;
@@ -115,7 +134,6 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
     { kind: 'swatch', className: 'key-blank', label: 'Blank: no row' },
   ], plot.base + 64, 'rt-status-legend', 'I: Insufficient data; P: Provisional, estimate withheld; blank: no row. IP means both statuses.');
   svg.setAttribute('viewBox', `0 0 ${plot.width} ${plot.base + 64 + legendHeight - 12}`);
-  svg.append(svgElement('line', { x1: plot.left, x2: plot.right, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }));
   // Paired levels are interleaved by week. Build each level's sequence before
   // splitting on unavailable weeks; paint wider credible levels first.
   const groups: RtEstimate[][] = [];
@@ -130,8 +148,8 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
     groups.push(...sequence);
   }
   for (const group of groups) {
-    const points = [...group.map((r) => `${x(r.week.week)},${y(r.upper!, maximum)}`),
-      ...[...group].reverse().map((r) => `${x(r.week.week)},${y(r.lower!, maximum)}`)].join(' ');
+    const points = [...group.map((r) => `${x(r.week.week)},${position(r.upper!)}`),
+      ...[...group].reverse().map((r) => `${x(r.week.week)},${position(r.lower!)}`)].join(' ');
     const level = group[0].interval_level;
     const ribbon = svgElement('polygon', { points, class: 'rt-ribbon', 'data-interval-level': level });
     const title = svgElement('title', {});
@@ -140,13 +158,13 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
     bindProvenance(ribbon as SVGElement, groupInfo);
     ribbon.append(title);
     svg.append(ribbon);
-    const mean = svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${y(r.mean!, maximum)}`).join(' '), class: 'rt-mean', 'data-interval-level': level });
+    const mean = svgElement('polyline', { points: group.map((r) => `${x(r.week.week)},${position(r.mean!)}`).join(' '), class: 'rt-mean', 'data-interval-level': level });
     bindProvenance(mean as SVGElement, groupInfo); svg.append(mean);
     for (const row of group) {
-      const interval = svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: y(row.lower!, maximum), y2: y(row.upper!, maximum), class: 'rt-interval', 'data-week': row.week.week, 'data-interval-level': level });
+      const interval = svgElement('line', { x1: x(row.week.week), x2: x(row.week.week), y1: position(row.lower!), y2: position(row.upper!), class: 'rt-interval', 'data-week': row.week.week, 'data-interval-level': level });
       const rowInfo = { label: `Week ${row.week.week}: ${rtLabel(row)}`, records: row.provenance, synthetic };
       bindProvenance(interval as SVGElement, rowInfo); svg.append(interval);
-      const point = svgElement('circle', { cx: x(row.week.week), cy: y(row.mean!, maximum), r: 3, class: 'rt-point', 'data-week': row.week.week, 'data-interval-level': level });
+      const point = svgElement('circle', { cx: x(row.week.week), cy: position(row.mean!), r: 3, class: 'rt-point', 'data-week': row.week.week, 'data-interval-level': level });
       const title = svgElement('title', {});
       title.textContent = `Week ${row.week.week}: ${rtLabel(row)}`;
       point.append(title);
@@ -154,5 +172,51 @@ export function rtChart(rows: RtEstimate[], year: number, synthetic = false): SV
       svg.append(point);
     }
   }
+  // Paint the reference and edge markers last so ribbons cannot obscure them.
+  svg.append(svgElement('line', { x1: plot.left, x2: plot.right, y1: y(1, maximum), y2: y(1, maximum), class: 'rt-reference' }),
+    svgElement('text', { x: plot.left + 4, y: y(1, maximum) - 5, class: 'axis-label rt-reference-label' }, 'R_t = 1'));
+  for (const row of drawable) {
+    const label = offScaleLabel(row, maximum);
+    if (!label) continue;
+    const marker = svgElement('path', { d: `M${x(row.week.week) - 5} ${plot.top + 7}L${x(row.week.week)} ${plot.top}L${x(row.week.week) + 5} ${plot.top + 7}`,
+      class: 'rt-off-scale', 'data-week': row.week.week, 'data-interval-level': row.interval_level });
+    marker.append(svgElement('title', {}, label));
+    bindProvenance(marker, { label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic });
+    svg.append(marker);
+  }
   return svg;
+}
+
+/** The display range affects coordinates only; every exact value stays in its drawer and report table. */
+export function rtChartView(rows: RtEstimate[], year: number, synthetic = false): HTMLDivElement {
+  const view = document.createElement('div');
+  view.className = 'rt-chart-view';
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.textContent = 'Show full range';
+  const note = document.createElement('p');
+  note.className = 'chart-note rt-range-note';
+  note.setAttribute('aria-live', 'polite');
+  const marks = document.createElement('div');
+  const labels = document.createElement('div');
+  labels.className = 'rt-off-scale-labels';
+  let fullRange = false;
+  function render() {
+    const maximum = rtAxisMaximum(rows, year, fullRange);
+    toggle.setAttribute('aria-pressed', String(fullRange));
+    note.textContent = fullRange ? `Full display range: 0–${maximum}. All published means and bounds are shown; select a point for exact values and sources.` :
+      `Readable display range: 0–${maximum}. ▲ marks off-scale values at the upper edge; select a marker or its label for exact values and sources.`;
+    marks.replaceChildren(rtChart(rows, year, synthetic, fullRange));
+    labels.replaceChildren();
+    for (const row of rows.filter((row) => row.week.year === year && !row.provisional && row.status === 'ok').sort(compareWeeks)) {
+      const label = offScaleLabel(row, maximum);
+      if (label) labels.append(provenanceNumber(`▲ ${label}`, {
+        label: `${label} · ${rtLabel(row)}`, records: row.provenance, synthetic,
+      }));
+    }
+  }
+  toggle.addEventListener('click', () => { fullRange = !fullRange; render(); });
+  view.append(toggle, note, marks, labels);
+  render();
+  return view;
 }

@@ -1,4 +1,4 @@
-import { caseCharts, caseSeries, rtChart, rtLabel } from './charts';
+import { caseCharts, caseSeries, rtChartView, rtLabel } from './charts';
 import { caseDefinitionLabels, caseDefinitionWords, caseDefinitionsAt, compareWeeks, defaultCaseDefinition, metricLabels, metricValue, missingReasonWords, otherDefinitionGeographies, type CaseDefinition, type Dataset, type Metric } from './data';
 import { cumulativeSection, cumulativeSeries, cumulativeTable } from './cumulative';
 import { attributionSection } from './attribution-view';
@@ -229,7 +229,7 @@ export function mountDashboard(root: HTMLElement, data: Dataset, mapFactory: Map
     cumulative.hidden = level !== 'county';
     cumulative.replaceChildren(...(level === 'county' ? cumulativeSection(data.cumulative, selected, name.textContent || '', data.synthetic) : []));
     charts.replaceChildren(...caseBlocks,
-      element('h3', 'Effective reproduction number · R_t'), rtChart(rt, year, data.synthetic),
+      element('h3', 'Effective reproduction number · R_t'), rtChartView(rt, year, data.synthetic),
       element('p', 'Line: mean · Ribbon: credible interval · Dashed line: R_t = 1. I / grey hatch: insufficient data. P / dashed outline: provisional, estimate withheld. IP: both statuses. Blank: no row. Exact interval levels appear in the report table.', 'chart-note'));
     if (!cases.length) charts.prepend(element('p', 'No case data for this geography and year.', 'notice'));
     if (!rt.some((r) => r.status === 'ok' && !r.provisional)) charts.append(element('p', 'No final R_t estimate for this geography and year.', 'notice'));
