@@ -148,6 +148,10 @@ svg [data-provenance]:hover { opacity: 0.75; }
 .rt-mean { stroke-width: 2; }
 .rt-interval { stroke: var(--chart-interval); stroke-width: 1; }
 .rt-point { fill: var(--chart-line); }
+.rt-off-scale { fill: none; stroke: var(--chart-line); stroke-width: 3; }
+.rt-off-scale-labels { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.rt-off-scale-labels button { white-space: normal; text-align: left; overflow-wrap: anywhere; font-size: var(--text-sm); }
+.rt-reference-label { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
 .rt-reference, .forecast-origin { stroke: var(--chart-reference); stroke-width: 1; stroke-dasharray: 5 4; }
 .forecast-band-90, .ensemble-band-90, .key-band-90 { fill: var(--band-90); }
 .forecast-band-50, .ensemble-band-50, .key-band-50 { fill: var(--band-50); }
