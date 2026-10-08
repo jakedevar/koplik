@@ -1,5 +1,6 @@
 import type { Dataset } from './data';
 import type { MapView } from './map-scales';
+import { loadLazyModule } from './lazy-page';
 import { pageEvent, type PageId } from './router';
 
 type Update = Parameters<MapView['update']>;
@@ -19,7 +20,7 @@ export function createLazyMap(container: HTMLElement, data: Dataset, onSelect: (
     if (requested || destroyed) return;
     requested = true;
     doc.removeEventListener(pageEvent, onPage);
-    import('./map').then(({ createMap }) => {
+    loadLazyModule(() => import('./map')).then(({ createMap }) => {
       if (destroyed) return;
       real = createMap(container, data, onSelect, onError);
       if (pending) real.update(...pending);

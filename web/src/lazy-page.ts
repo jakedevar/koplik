@@ -8,6 +8,11 @@ export class LazyPageImportError extends Error {
   }
 }
 
+/** Marks a rejected dynamic import so callers can distinguish it from a mount failure. */
+export function loadLazyModule<T>(load: () => Promise<T>): Promise<T> {
+  return load().catch((error: unknown) => { throw new LazyPageImportError(error); });
+}
+
 /**
  * Runs `mount` when the page is first on screen: its code, its data and (for the what-if) its WASM engine load only then.
  * If the import or the mount fails, the page says so in an alert (never left as a bare heading), the failure is not left
@@ -42,11 +47,12 @@ export function onFirstShow(root: HTMLElement, id: PageId, label: string, contai
       alert = document.createElement('div');
       alert.className = 'notice load-failed';
       alert.setAttribute('role', 'alert');
+      const canReload = error instanceof LazyPageImportError && importFailures >= 2;
       const message = document.createElement('p');
-      message.textContent = `${label} is unavailable: it could not be loaded${error instanceof Error && error.message ? ` (${error.message})` : ''}. Nothing is shown in its place; no figures were estimated. ${importFailures >= 2 ? 'Reload the page to try again.' : 'Retry loading the page.'}`;
+      message.textContent = `${label} is unavailable: it could not be loaded${error instanceof Error && error.message ? ` (${error.message})` : ''}. Nothing is shown in its place; no figures were estimated. ${canReload ? 'Reload the page to try again.' : 'Retry loading the page.'}`;
       const retry = document.createElement('button');
       retry.type = 'button';
-      if (error instanceof LazyPageImportError && importFailures >= 2) {
+      if (canReload) {
         retry.textContent = 'Reload page';
         retry.addEventListener('click', () => win.location.reload());
       } else {

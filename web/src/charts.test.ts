@@ -76,6 +76,26 @@ describe('accessible SVG reports', () => {
     expect(provenanceLabel).toContain('upper bound 66.4, off scale');
     expect(provenanceLabel).toContain('Mean 12.345; 90% interval 0.7–66.38493810820933');
   });
+  it('formats range notes like axis ticks and hides the toggle when no value is off scale', () => {
+    const rows = outlierRtRows().map((row) => ({ ...row, lower: 0.7, mean: 1.2, upper: 2.4 }));
+    const view = rtChartView(rows, 2025);
+    expect(view.querySelector('button')?.hasAttribute('hidden')).toBe(true);
+    expect(view.querySelector('.rt-range-note')?.textContent).toBe('Readable display range: 0–3.');
+    rows[39] = { ...rows[39], lower: 0.7, mean: 4.723918, upper: 4.723918 };
+    const rangeView = rtChartView(rows, 2025);
+    rangeView.querySelector('button')!.click();
+    expect(rangeView.querySelector('.rt-range-note')?.textContent).toContain('Full display range: 0–4.7.');
+  });
+  it('merges paired off-scale interval markers and labels by week', () => {
+    const rows = outlierRtRows();
+    rows.push({ ...rows[39], interval_level: 0.5, lower: 0.9, mean: 5.25, upper: 7.125 });
+    const view = rtChartView(rows, 2025);
+    expect(view.querySelectorAll('.rt-off-scale[data-week="40"]')).toHaveLength(1);
+    expect(view.querySelectorAll('.rt-off-scale-labels button')).toHaveLength(1);
+    expect(view.querySelector('.rt-off-scale[data-week="40"] title')?.textContent).toContain('90%: upper bound 66.4, off scale; mean 12.3, off scale');
+    expect(view.querySelector('.rt-off-scale[data-week="40"] title')?.textContent).toContain('50%: upper bound 7.1, off scale; mean 5.3, off scale');
+    expect(view.querySelector('.rt-off-scale-labels button')?.textContent).toContain('50%: upper bound 7.1, off scale; mean 5.3, off scale');
+  });
   it('marks a mean beyond its interval and an interval wholly above the display cap', () => {
     const rows = outlierRtRows();
     rows[39] = { ...rows[39], upper: 2, mean: 12.345 };
