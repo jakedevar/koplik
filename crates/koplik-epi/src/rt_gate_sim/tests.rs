@@ -267,13 +267,37 @@ fn classification_agrees_with_estimate_series_status() {
     }
 }
 
-/// End-to-end plumbing on cheap cells and a few replicates: both stages aggregate, the
-/// estimator agrees with the count-only classification, every report renders.
+/// Off-study seeds for plumbing tests (review #1699): above every registered seed (main
+/// `s*1_000_003 + r`, sizing +1_000_000, so at most 6_002_014) and below the lag-test seeds
+/// (9_000_001, 9_000_002). Tests never run a registered main-stage seed.
+const PLUMBING_SEED_BASE: u64 = 7_000_000;
+
+#[test]
+fn plumbing_seeds_are_off_study() {
+    let last = PLUMBING_SEED_BASE + 100 * 64 + 12;
+    for s in 1..=5u8 {
+        for stage in [Stage::Main, Stage::Sizing] {
+            assert!(seed(s, stage, 1999) < PLUMBING_SEED_BASE);
+        }
+    }
+    assert!(last < 9_000_001);
+}
+
+/// The test build refuses to run registered main-stage replicates at all.
+#[test]
+#[should_panic(expected = "tests must not run registered main-stage replicates")]
+fn registered_main_replicates_are_refused_under_test() {
+    let items = manifest();
+    let _ = super::run::run_rep(&items[0], Stage::Main, 0);
+}
+
+/// End-to-end plumbing on cheap cells and a few replicates with off-study seeds: both stages
+/// aggregate, the estimator agrees with the count-only classification, every report renders.
 #[test]
 fn stages_aggregate_and_render_on_cheap_cells() {
     use super::agg::{aggregate, decide};
     use super::report::*;
-    use super::run::run_rep;
+    use super::run::run_rep_seeded;
     let all = manifest();
     let items: Vec<GenItem> = all
         .into_iter()
@@ -288,7 +312,8 @@ fn stages_aggregate_and_render_on_cheap_cells() {
         let mut slots: Vec<Option<super::run::RepOut>> = vec![None; items.len() * 2000];
         for (i, it) in items.iter().enumerate() {
             for r in 0..12u32 {
-                slots[i * 2000 + r as usize] = Some(run_rep(it, stage, r).unwrap());
+                let sd = PLUMBING_SEED_BASE + (i as u64) * 100 + u64::from(r);
+                slots[i * 2000 + r as usize] = Some(run_rep_seeded(it, stage, sd).unwrap());
             }
         }
         let agg = aggregate(&items, &slots);
@@ -323,4 +348,41 @@ fn stages_aggregate_and_render_on_cheap_cells() {
             );
         }
     }
+}
+
+/// Review #1699 minor: a restart scheduled at or after the end of the 40-week horizon (extinction
+/// in the last week) is counted apart, not as "restart within horizon". Fabricated records,
+/// confined to this unit test.
+#[test]
+fn restart_beyond_the_horizon_is_not_counted_as_within() {
+    use super::agg::aggregate;
+    use super::run::RepOut;
+    let item = manifest().into_iter().find(|i| i.scenario == 2).unwrap();
+    let rep = |restart: Option<u32>| RepOut {
+        total_events: 0,
+        pending_events: 0,
+        extinction_day: restart.map(|_| 1),
+        restart_week: restart,
+        week40_held_carry: 0,
+        observed_total: 0,
+        variants: item
+            .variants
+            .iter()
+            .map(|_| super::run::VariantOut {
+                counts: Default::default(),
+                recs: Vec::new(),
+            })
+            .collect(),
+    };
+    let mut slots: Vec<Option<RepOut>> = vec![None; 2000];
+    slots[0] = Some(rep(Some(3)));
+    slots[1] = Some(rep(Some(WEEKS as u32 - 1))); // last in-horizon week
+    slots[2] = Some(rep(Some(WEEKS as u32))); // day 279 extinction: restart on day 280
+    slots[3] = Some(rep(None));
+    let agg = aggregate(std::slice::from_ref(&item), &slots);
+    let a = &agg.items[0];
+    assert_eq!(a.extinct_replicates, 3);
+    assert_eq!(a.restart_replicates, 2);
+    assert_eq!(a.restart_beyond_horizon, 1);
+    assert_eq!(a.restart_week_sum, (3 + 1) + WEEKS as u64);
 }

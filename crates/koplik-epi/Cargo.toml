@@ -21,6 +21,15 @@ serde_json.workspace = true
 
 [dev-dependencies]
 
+[features]
+# Research-only #1677 R_t gate simulator (`rt_gate_sim`). Off by default: production, pipeline
+# and wasm builds do not compile it and it is not part of the public engine API.
+research-sim = []
+
+[[example]]
+name = "rt_gate_sim"
+required-features = ["research-sim"]
+
 [[bench]]
 name = "seir_ensemble"
 harness = false

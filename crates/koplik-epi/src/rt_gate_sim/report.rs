@@ -50,8 +50,14 @@ pub fn events_table(items: &[GenItem], agg: &StageAgg, stage: Stage) -> String {
             };
             write!(
                 notes,
-                "extinction detected {}/{}; restart within horizon {}/{} (mean restart week {})",
-                a.extinct_replicates, a.replicates, a.restart_replicates, a.replicates, mean_week
+                "extinction detected {}/{}; restart within horizon {}/{} (mean restart week {}); restart scheduled beyond horizon {}/{}",
+                a.extinct_replicates,
+                a.replicates,
+                a.restart_replicates,
+                a.replicates,
+                mean_week,
+                a.restart_beyond_horizon,
+                a.replicates
             )
             .unwrap();
         }

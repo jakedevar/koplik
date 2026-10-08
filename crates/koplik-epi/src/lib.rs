@@ -12,6 +12,7 @@ pub mod fingerprint;
 pub mod forecast;
 mod gravity;
 pub mod rt;
+#[cfg(feature = "research-sim")]
 pub mod rt_gate_sim;
 mod sampling;
 pub mod seir;

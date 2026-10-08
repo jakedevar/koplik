@@ -6,6 +6,7 @@ use std::ops::Range;
 use crate::rt::BeforeSeries;
 
 use super::design::{GenItem, HIGH_BINS, LOW_BINS, NBINS, REPLICATES};
+use super::generator::WEEKS;
 use super::run::{RepOut, StepCounts};
 
 /// Minimum scoreable steps for any pool or S2 cell to be evaluable (prereg S1/S2).
@@ -57,8 +58,12 @@ pub struct ItemAgg {
     pub pending_max: u64,
     pub observed_total_sum: u128,
     pub extinct_replicates: u32,
+    /// Restarts realized inside the study horizon (0-based restart week `< WEEKS`).
     pub restart_replicates: u32,
     pub restart_week_sum: u64,
+    /// Restarts scheduled for a Sunday at or after the end of the horizon (extinction in the
+    /// last week), so never realized inside the study: counted apart, not as within-horizon.
+    pub restart_beyond_horizon: u32,
     pub carry_replicates: u32,
     pub carry_cases: u64,
 }
@@ -105,8 +110,12 @@ pub fn aggregate(items: &[GenItem], slots: &[Option<RepOut>]) -> StageAgg {
                 a.extinct_replicates += 1;
             }
             if let Some(w) = o.restart_week {
-                a.restart_replicates += 1;
-                a.restart_week_sum += u64::from(w) + 1; // 1-based study week of restart
+                if (w as usize) < WEEKS {
+                    a.restart_replicates += 1;
+                    a.restart_week_sum += u64::from(w) + 1; // 1-based study week of restart
+                } else {
+                    a.restart_beyond_horizon += 1;
+                }
             }
             if o.week40_held_carry > 0 {
                 a.carry_replicates += 1;

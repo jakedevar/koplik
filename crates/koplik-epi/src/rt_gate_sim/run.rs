@@ -122,7 +122,19 @@ fn count_steps(infos: &[super::design::StepInfo]) -> StepCounts {
 /// Run one replicate. `score` selects the main stage (posterior metrics) over the count-only
 /// sizing stage (no posterior, no CrI, no R-hat is ever computed).
 pub fn run_rep(item: &GenItem, stage: Stage, r: u32) -> Result<RepOut, SimError> {
-    let sd = seed(item.scenario, stage, r);
+    // Hard stop (review #1699): no test may execute registered main-stage seeds. Tests that need
+    // main-stage plumbing call `run_rep_seeded` with an explicit non-study seed.
+    #[cfg(test)]
+    assert!(
+        stage != Stage::Main,
+        "tests must not run registered main-stage replicates; use run_rep_seeded"
+    );
+    run_rep_seeded(item, stage, seed(item.scenario, stage, r))
+}
+
+/// Run one replicate with an explicit seed. The study driver reaches this only through
+/// [`run_rep`] (registered seeds); unit tests pass off-study seeds.
+pub fn run_rep_seeded(item: &GenItem, stage: Stage, sd: u64) -> Result<RepOut, SimError> {
     let series = generate_series(&item.spec, item.obs, sd)?;
     let (si, cfg) = estimator();
     let w = si.weights();

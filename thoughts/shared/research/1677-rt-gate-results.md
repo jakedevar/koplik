@@ -9,9 +9,53 @@ scenarios 2-5). The S2 sizing requirement is met (all 12 cells >= 200 in `[1,inf
 smallest being 222 for sensitivity R = 0.8, Unknown). Under the preregistration ("If these
 counts fail either requirement, step 2 ends as **inconclusive-by-design** ... do not run the
 main study under this registration and do not implement the floor") **the main evaluation was
-not run**. No posterior, credible interval, coverage or error metric was computed or inspected
-in this step. No result here supports implementing the floor, and no threshold, scenario, sample
-size or seed was changed. A redesigned study needs its own registration and count-only sizing.
+not run**. The sizing artifact (`1677-rt-gate-data/`) is **count-only**: it contains no
+posterior, credible interval, coverage, R-hat or error metric. The full main evaluation was not
+run, and its output was never produced or inspected. No result here supports implementing the
+floor, and no threshold, scenario, sample size or seed was changed. A redesigned study needs its
+own registration and count-only sizing.
+
+### Disclosed deviation from the stop rule (found by review #1699)
+
+Before the rework in #1700, the unit test `stages_aggregate_and_render_on_cheap_cells` called
+`run_rep(item, Stage::Main, r)` for `r = 0..11` (12 replicates) on the **registered** main-stage
+seeds `s*1_000_003 + r` of these primary-suite cells: scenario 3 and scenario 4 and scenario 5
+cells (every primary cell with `scenario >= 3`), and the scenario 1 cell `R = 1`, `k = inf`
+(both before-series variants). `run_rep` in `Stage::Main` computes posteriors, 95%/50%
+intervals, R-hat and log errors, so this is a main-stage execution of registered seeds, and it
+ran under the ordinary `tools/cargo-test.sh -p koplik-epi` command, including before sizing
+said NO. That deviates from the registered rule that no main-run inference happens before the
+sizing decision. The test only asserted shapes and counts (for example that 12 replicates cannot
+reach 200 steps, `Inconclusive`); no number from it was printed, recorded, used or compared with
+anything, and none of its output is in any artifact. There is no evidence that it influenced a
+threshold, scenario, sample size, seed or the sizing counts. It was already in the tree at the
+code SHA that produced the sizing counts (`59d56ab`). Scenario 2 and the other scenario 1 cells
+were not executed in `Stage::Main` by it.
+
+Fix (#1700): the plumbing test now uses off-study seeds (`7_000_000 + ...`, disjoint from every
+registered main, sizing and lag-test seed, asserted by a test) through `run_rep_seeded`, and
+under `cfg(test)` `run_rep` panics on `Stage::Main`, so no test can run a registered main
+replicate (also asserted by a test). The main stage still exists for the driver.
+
+Distinct from that deviation, off-study **estimator correctness** tests also compute posteriors:
+`classification_agrees_with_estimate_series_status` calls `estimate_series` on generated series
+with seeds 501-503, and the plumbing test above computes main-stage metrics on the off-study
+seeds. They check that the count-only classifier agrees with the estimator's status; none of
+their values enter any result.
+
+### Revision note (#1700, review #1699)
+
+Revised after pre-merge review #1699 (Codex): (1) this disclosure and the corrected
+"count-only" wording replace the earlier sentence that no posterior or error metric was computed
+anywhere in this step; (2) the simulator is behind the non-default cargo feature `research-sim`
+of `koplik-epi` (the example requires it), so default, pipeline and wasm builds do not compile
+it; (3) the within-horizon restart statistic now counts only restart weeks inside the 40-week
+horizon and reports restarts scheduled beyond it separately. The committed sizing counts and
+`sizing.md` are **unaffected**: the all-replicate restart notes read "restart within horizon
+2000/2000" for every scenario 2 cell, and the reviewer independently reproduced that the latest
+initial-chain extinction was on day 224 (restart in week 33, inside the horizon), so no
+restart was scheduled beyond it. The artifacts were not regenerated and the study was not
+re-run. Reproducing the sizing now needs `--features research-sim`.
 
 | item | value |
 | --- | --- |
@@ -19,7 +63,7 @@ size or seed was changed. A redesigned study needs its own registration and coun
 | Code SHA that produced the sizing counts | `59d56abf8258e700cb4b707bf52c185ae044eaba` (simulator `crates/koplik-epi/src/rt_gate_sim/`, driver `crates/koplik-epi/examples/rt_gate_sim.rs`) |
 | Lag-test result (before sizing) | `1677-rt-gate-data/lagtest.txt` (both suites PASS, below) |
 | Sizing counts commit | `eb8893bf8d52ca210d536b2684acfd52aa57afcb` (own commit, before this file) |
-| Commands | `~/.rsi/bin/cargo-slot cargo build --release -p koplik-epi --example rt_gate_sim`; `~/.rsi/bin/cargo-slot target/release/examples/rt_gate_sim lagtest`; `~/.rsi/bin/cargo-slot target/release/examples/rt_gate_sim sizing --out thoughts/shared/research/1677-rt-gate-data` |
+| Commands | `~/.rsi/bin/cargo-slot cargo build --release -p koplik-epi --example rt_gate_sim` (as run; since #1700 add `--features research-sim`); `~/.rsi/bin/cargo-slot target/release/examples/rt_gate_sim lagtest`; `~/.rsi/bin/cargo-slot target/release/examples/rt_gate_sim sizing --out thoughts/shared/research/1677-rt-gate-data` |
 | Seeds | sizing `s*1_000_003 + 1_000_000 + r`, r = 0..1999, s = 1..5 (manifest order, seed reused across a scenario's cells and both suites) |
 | Runtime | 1981.1 s wall-clock, 32 threads (first launch was killed by a daemon restart after about 4 minutes and restarted from scratch with identical arguments; nothing from it was kept) |
 | Artifacts | `1677-rt-gate-data/sizing.md` (sha256 `45bfda56baa345dec5ce4a7ab510afd3657c0672af3037c309efc9eb9984a144`), `sizing-events.csv` (per-replicate event totals, sha256 `9682859de264013adf613319226d11fc2e6bb3a17d500ef7155faec534755d3e`), `sizing-decision.txt` (`NO`) |
@@ -32,7 +76,7 @@ primary: seed 9000001, N 1000000: sample mean 11.69651 (target 11.7, 4 SE = 0.01
 sensitivity: seed 9000002, N 1000000: sample mean 14.00320 (target 14, 4 SE = 0.01600, |diff| = 0.00320) PASS; sample SD 4.00328 (target 4, 1% = 0.04000, |diff| = 0.00328) PASS
 ```
 
-Also covered by unit tests in `rt_gate_sim/tests.rs` (`tools/cargo-test.sh -p koplik-epi`):
+Also covered by unit tests in `rt_gate_sim/tests.rs` (`tools/cargo-test.sh -p koplik-epi --features research-sim`):
 the lag test, the 38-item / 56-cell manifest and seed ranges, MMWR calendar alignment of the
 280-day horizon, Lambda bin edges, determinism and event conservation, burst placement,
 batch hold/release and thinning logic, restart-regime switching, and agreement of the
