@@ -52,16 +52,16 @@ describe('lazy page loading', () => {
     expect(win.location.reload).toHaveBeenCalledOnce();
   });
   it('keeps the retry message and button aligned after earlier import failures and a later mount failure', async () => {
-    const { root, page, win } = setup('#/forecast');
+    const { root, page, win, show } = setup('#/explorer');
     const load = vi.fn()
       .mockRejectedValueOnce(new LazyPageImportError(new Error('chunk unavailable')))
       .mockRejectedValueOnce(new LazyPageImportError(new Error('chunk unavailable')))
       .mockRejectedValueOnce(new Error('mount failed'));
     onFirstShow(root, 'forecast', 'The forecast', () => page, load, win);
     await flush();
-    page.querySelector('button')!.click();
+    show();
     await flush();
-    page.querySelector('button')!.click();
+    show();
     await flush();
     expect(page.querySelector('[role="alert"] p')?.textContent).toContain('Retry loading the page.');
     expect(page.querySelector('button')?.textContent).toBe('Retry loading The forecast');
