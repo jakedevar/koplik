@@ -6,8 +6,9 @@ import { pageEvent, pageFromHash, type PageId } from './router';
  * unhandled, and the next time the page is shown, or the Retry button, tries again. A success is never repeated.
  * `container` is a function because the page node is replaced when the dashboard shell is rebuilt.
  */
-export function onFirstShow(root: HTMLElement, id: PageId, label: string, container: () => HTMLElement | null, mount: () => Promise<() => void>, win: Window = window) {
+export function onFirstShow(root: HTMLElement, id: PageId, label: string, container: () => HTMLElement | null, mount: (retry: number) => Promise<() => void>, win: Window = window) {
   let state: 'idle' | 'loading' | 'mounted' = 'idle';
+  let retries = 0;
   let alert: HTMLElement | undefined;
   const start = () => {
     if (state !== 'idle') return;
@@ -17,12 +18,13 @@ export function onFirstShow(root: HTMLElement, id: PageId, label: string, contai
     // What a failed mount may have drawn before it threw is removed again, so a retry never doubles it.
     const before = new Set(container()?.children ?? []);
     // A synchronous throw from `mount` is a failure too, not an unhandled exception.
-    Promise.resolve().then(mount).then((cleanup) => {
+    Promise.resolve().then(() => mount(retries)).then((cleanup) => {
       state = 'mounted';
       root.removeEventListener(pageEvent, onPage);
       win.addEventListener('pagehide', cleanup, { once: true });
     }, (error: unknown) => {
       state = 'idle';
+      retries++;
       const page = container();
       if (!page) return;
       for (const child of [...page.children]) if (!before.has(child)) child.remove();

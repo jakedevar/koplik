@@ -263,16 +263,20 @@ test('a lazy page whose code fails to load says so and offers a retry', async ({
   const pageErrors: string[] = [];
   page.on('pageerror', (error) => pageErrors.push(error.message));
   const forecastCode = /forecast-view(\.ts|[-.\w]*\.js)(\?|$)/;
-  await page.route(forecastCode, (route) => route.abort());
+  const forecastRequests: string[] = [];
+  await page.route(forecastCode, (route) => {
+    forecastRequests.push(route.request().url());
+    if (forecastRequests.length === 1) return route.abort();
+    return route.continue();
+  });
   await page.goto('./#/forecast');
   const alert = page.getByRole('alert').filter({ hasText: 'The forecast is unavailable' });
   await expect(alert).toBeVisible();
   expect(pageErrors).toEqual([]);
-  // Some browsers remember a failed module fetch for the page's lifetime, so a successful retry is covered by the unit tests; here the
-  // button is offered, a click is handled (no unhandled rejection) and the unavailable state stays accessible.
   await alert.getByRole('button', { name: 'Retry loading The forecast' }).click();
-  await expect(alert).toBeVisible();
   await expect(page.getByRole('heading', { level: 1, name: 'Where is measles going next?' })).toBeVisible();
+  expect(forecastRequests).toHaveLength(2);
+  expect(new URL(forecastRequests[1]).searchParams.get('retry')).toBe('1');
   expect(pageErrors).toEqual([]);
 });
 

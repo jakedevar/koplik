@@ -6,6 +6,15 @@ import { preloadExplorerData } from './build/preload-data';
 
 export default defineConfig({
   base: process.env.KOPLIK_BASE_PATH || '/',
+  build: {
+    rollupOptions: {
+      output: {
+        chunkFileNames: (chunk) => ['forecast-view', 'what-if'].includes(chunk.name)
+          ? 'assets/[name].js'
+          : 'assets/[name]-[hash].js',
+      },
+    },
+  },
   plugins: [productionDataGuard(), preloadExplorerData(), syntheticFixtures(fileURLToPath(new URL('../data/fixtures/web/synthetic-v1/', import.meta.url)), process.env.VITE_SYNTHETIC_FIXTURES === '1')],
   server: {
     fs: { allow: [fileURLToPath(new URL('.', import.meta.url)), fileURLToPath(new URL('../pkg/web/', import.meta.url))] },
