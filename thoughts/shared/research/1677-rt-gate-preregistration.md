@@ -295,7 +295,8 @@ suite separately. A scenario meets S1 only when:
 conditions in each suite. Three k cells of one scenario never count as three
 scenarios. If fewer than three scenarios reach 200 scoreable steps in
 **both** [0,1) and [1,2) in either suite, the study is **inconclusive**:
-report counts and do not implement. Missing reference coverage cannot count as support either.
+report counts and do not implement. Missing reference coverage cannot count
+as support either.
 If enough scenarios can be evaluated and fewer than three meet the numeric
 criteria, **REJECT**.
 
@@ -350,8 +351,8 @@ reuse across each scenario's parameter cells and SI suites; Unknown/Zero
 remain paired analyses of one generated series. The main-run seed ranges
 above stay unchanged and may not be replaced by the sizing seeds.
 
-The sizing output contains **counts only**: event totals and the maximum
-event count per replicate in every cell (count all generated events,
+The sizing output contains **counts only**: event totals per replicate and
+the maximum replicate event count per cell (count all generated events,
 including those pending beyond day 280; identify pending counts separately),
 and counts of scored-week I >= 11 steps and scoreable steps per cell in every
 registered Lambda bin, including the [0,1) union and empty bins. Preserve the
